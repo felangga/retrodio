@@ -74,6 +74,9 @@ void drawWindow(lgfx::LGFX_Device& lcd, const MacWindow& window) {
 
   // Draw full window
   drawWindow(lcd, window.x, window.y, window.w, window.h, window.title, window.active);
+  
+  // Draw all child buttons
+  drawWindowChildButtons(lcd, window);
 }
 
 /**
@@ -138,19 +141,6 @@ void redrawButton(lgfx::LGFX_Device& lcd, MacButton& btn) {
   }
 }
 
-/**
- * Transform touch coordinates from portrait to landscape if needed
- */
-void transformTouchCoordinates(uint16_t& x, uint16_t& y) {
-  uint16_t temp_x = x;
-
-  x = y;
-  y = temp_x;
-
-  // Constrain to screen bounds
-  x = constrain(x, 0, screenWidth - 1);
-  y = constrain(y, 0, screenHeight - 1);
-}
 
 /**
  * Interactive button that handles both drawing and touch
@@ -159,11 +149,6 @@ void transformTouchCoordinates(uint16_t& x, uint16_t& y) {
 void interactiveButton(lgfx::LGFX_Device& lcd, MacButton& btn) {
   uint16_t tx, ty;
   bool touching = lcd.getTouch(&tx, &ty);  // Use lcd parameter for touch
-
-  if (touching) {
-    // Apply coordinate transformation if needed
-    transformTouchCoordinates(tx, ty);
-  }
 
   bool inside = touching && tx >= btn.x && tx < (btn.x + btn.w) && ty >= btn.y && ty < (btn.y + btn.h);
   bool wasPressed = btn.pressed;
@@ -200,7 +185,7 @@ bool isInsideMinimizeButton(const MacWindow& window, int tx, int ty) {
 bool isInsideTitleBar(const MacWindow& window, int tx, int ty) {
   if (!window.visible) return false;
   int titleBarHeight = 24;
-  
+
   // Check if in title bar but not in close or minimize buttons
   bool inTitleBar = tx >= window.x + 2 && tx < window.x + window.w - 2 && ty >= window.y + 2 && ty < window.y + 2 + titleBarHeight;
   bool inCloseButton = isInsideCloseButton(window, tx, ty);
@@ -211,6 +196,7 @@ bool isInsideTitleBar(const MacWindow& window, int tx, int ty) {
 
 /**
  * Interactive window that handles touch for minimize/close buttons and dragging
+ * Also manages all interactive components inside the window
  * Call this every loop for each window
  */
 void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
@@ -223,103 +209,103 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
   bool touching = lcd.getTouch(&tx, &ty);
 
   if (touching) {
-    // transformTouchCoordinates(tx, ty);
     lcd.drawPixel(tx, ty, MAC_BLACK);
 
-    if (!wasPressed) {
-      wasPressed = true;
-      pressTime = millis();
+    // Check if touch is inside window bounds
+    bool insideWindow = tx >= window.x && tx < window.x + window.w && 
+                       ty >= window.y && ty < window.y + window.h;
 
-      // Check if minimize button was pressed
-      if (isInsideMinimizeButton(window, tx, ty)) {
-        delay(100);                            // Brief visual feedback
-        window.minimized = !window.minimized;  // Toggle minimize state
+    if (insideWindow) {
+      if (!wasPressed) {
+        wasPressed = true;
+        pressTime = millis();
 
-        if (window.minimized) {
-          // Hide the window completely and clear its area
-          window.visible = false;
-          redrawDesktopArea(lcd, window.x, window.y, window.w, window.h);
-        } else {
-          // Restore the window
-          window.visible = true;
+        // Check if minimize button was pressed
+        if (isInsideMinimizeButton(window, tx, ty)) {
+          delay(100);                            // Brief visual feedback
+          window.minimized = !window.minimized;  // Toggle minimize state
+
+          if (window.minimized) {
+            // Hide the window completely and clear its area
+            window.visible = false;
+            redrawDesktopArea(lcd, window.x, window.y, window.w, window.h);
+          } else {
+            // Restore the window
+            window.visible = true;
+          }
+
+          if (window.onMinimize) {
+            window.onMinimize();
+          }
+
+          // Redraw the window if being restored
+          if (!window.minimized && window.visible) {
+            drawWindow(lcd, window);
+          }
+
+          wasPressed = false;
+          return;
         }
 
-        if (window.onMinimize) {
-          window.onMinimize();
+        // Check if title bar was pressed (for dragging)
+        if (isInsideTitleBar(window, tx, ty)) {
+          // Start dragging
+          window.isDragging = true;
+          window.dragOffsetX = tx - window.x;
+          window.dragOffsetY = ty - window.y;
+          return;
         }
 
-        // Redraw the window if being restored
-        if (!window.minimized && window.visible) {
+        // Handle window content interactions (buttons, etc.)
+        // This allows the window to manage all its child components
+        if (window.onContentClick) {
+          window.onContentClick(tx - window.x, ty - window.y); // Pass relative coordinates
+        }
+      }
+
+      // Handle ongoing drag
+      if (window.isDragging) {
+        static unsigned long lastDragUpdate = 0;
+        unsigned long now = millis();
+
+        // Limit drag update frequency to reduce flicker
+        if (now - lastDragUpdate < 30) {  // Max 33 FPS for smooth movement
+          return;
+        }
+        lastDragUpdate = now;
+
+        int newX = tx - window.dragOffsetX;
+        int newY = ty - window.dragOffsetY;
+
+        // Constrain window to screen bounds
+        newX = max(0, min(newX, (int)screenWidth - window.w));
+        newY = max(21, min(newY, (int)screenHeight - window.h));  // 21 to leave menu bar visible
+
+        // Only update if position actually changed significantly (reduce micro-movements)
+        if (abs(newX - window.x) > 2 || abs(newY - window.y) > 2) {
+          // Store old position
+          int oldX = window.x;
+          int oldY = window.y;
+
+          // Update position
+          window.x = newX;
+          window.y = newY;
+
+          // Simple direct drawing approach
+          redrawDesktopArea(lcd, oldX, oldY, window.w + 5, window.h + 5);
           drawWindow(lcd, window);
+          
+          // Notify that window moved (so buttons can update positions)
+          if (window.onWindowMoved) {
+            window.onWindowMoved();
+          }
         }
+      }
 
+      // Reset press state after timeout
+      if (millis() - pressTime > 500) {
         wasPressed = false;
-        return;
       }
-
-      // Check if close button was pressed
-      if (isInsideCloseButton(window, tx, ty)) {
-        delay(100);  // Brief visual feedback
-        window.visible = false;
-
-        if (window.onClose) {
-          window.onClose();
-        }
-
-        // Clear the window area
-        redrawDesktopArea(lcd, window.x, window.y, window.w, window.h);
-
-        wasPressed = false;
-        return;
-      }
-
-      // Check if title bar was pressed (for dragging)
-      if (isInsideTitleBar(window, tx, ty)) {
-        // Start dragging
-        window.isDragging = true;
-        window.dragOffsetX = tx - window.x;
-        window.dragOffsetY = ty - window.y;
-        return;
-      }
-    }
-
-    // Handle ongoing drag
-    if (window.isDragging) {
-      static unsigned long lastDragUpdate = 0;
-      unsigned long now = millis();
-
-      // Limit drag update frequency to reduce flicker
-      if (now - lastDragUpdate < 30) {  // Max 33 FPS for smooth movement
-        return;
-      }
-      lastDragUpdate = now;
-
-      int newX = tx - window.dragOffsetX;
-      int newY = ty - window.dragOffsetY;
-
-      // Constrain window to screen bounds
-      newX = max(0, min(newX, (int)screenWidth - window.w));
-      newY = max(21, min(newY, (int)screenHeight - window.h));  // 21 to leave menu bar visible
-
-      // Only update if position actually changed significantly (reduce micro-movements)
-      if (abs(newX - window.x) > 2 || abs(newY - window.y) > 2) {
-        // Store old position
-        int oldX = window.x;
-        int oldY = window.y;
-
-        // Update position
-        window.x = newX;
-        window.y = newY;
-
-        // Simple direct drawing approach
-        redrawDesktopArea(lcd, oldX, oldY, window.w + 5, window.h + 5);
-        drawWindow(lcd, window);
-      }
-    }
-
-    // Reset press state after timeout
-    if (millis() - pressTime > 500) {
-      wasPressed = false;
     }
   } else {
     // Touch released - stop dragging
@@ -453,29 +439,30 @@ void displayStatus(lgfx::LGFX_Device& lcd, const String& message, int y) {
  * Redraw desktop area with proper background pattern
  */
 void redrawDesktopArea(lgfx::LGFX_Device& lcd, int x, int y, int w, int h) {
-  // Clear the area first
-  lcd.fillRect(x, y, w, h, MAC_WHITE);
+  drawCheckeredPattern(lcd);
+  // // Clear the area first
+  // lcd.fillRect(x, y, w, h, MAC_WHITE);
 
-  // Redraw checkered pattern in this area
-  int patternSize = 8;
-  int startX = (x / patternSize) * patternSize;
-  int startY = max(21, (y / patternSize) * patternSize);  // Don't overwrite menu bar
+  // // Redraw checkered pattern in this area using same logic as drawCheckeredPattern
+  // int patternSize = 3;
+  // int startX = (x / patternSize) * patternSize;
+  // int startY = max(21, (y / patternSize) * patternSize);  // Don't overwrite menu bar
 
-  for (int py = startY; py < y + h; py += patternSize) {
-    for (int px = startX; px < x + w; px += patternSize) {
-      if ((px / patternSize + py / patternSize) % 2 == 0) {
-        // Only draw pattern within the specified area
-        int rectX = max(px, x);
-        int rectY = max(py, y);
-        int rectW = min(px + patternSize, x + w) - rectX;
-        int rectH = min(py + patternSize, y + h) - rectY;
+  // for (int py = startY; py < y + h; py += patternSize) {
+  //   for (int px = startX; px < x + w; px += patternSize) {
+  //     if ((px / patternSize + py / patternSize) % 2 == 0) {
+  //       // Only draw pattern within the specified area
+  //       int rectX = max(px, x);
+  //       int rectY = max(py, y);
+  //       int rectW = min(px + patternSize, x + w) - rectX;
+  //       int rectH = min(py + patternSize, y + h) - rectY;
 
-        if (rectW > 0 && rectH > 0) {
-          lcd.fillRect(rectX, rectY, rectW, rectH, MAC_LIGHT_GRAY);
-        }
-      }
-    }
-  }
+  //       if (rectW > 0 && rectH > 0) {
+  //         lcd.fillRect(rectX, rectY, rectW, rectH, MAC_LIGHT_GRAY);
+  //       }
+  //     }
+  //   }
+  // }
 }
 
 /**
@@ -485,59 +472,6 @@ bool isInsideDesktopIcon(const DesktopIcon& icon, int tx, int ty) {
   if (!icon.visible) return false;
   return tx >= icon.x && tx < icon.x + 64 &&  // icon is 64x64 (32x32 + label)
          ty >= icon.y && ty < icon.y + 50;    // 32px icon + 18px label
-}
-
-/**
- * Interactive desktop icon that handles touch
- */
-void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon) {
-  if (!icon.visible) return;
-
-  static bool wasPressed = false;
-  static unsigned long pressTime = 0;
-  static DesktopIcon* lastIcon = nullptr;
-
-  uint16_t tx, ty;
-  bool touching = lcd.getTouch(&tx, &ty);
-
-  if (touching) {
-    transformTouchCoordinates(tx, ty);
-
-    bool inside = isInsideDesktopIcon(icon, tx, ty);
-
-    if (inside && !wasPressed && lastIcon != &icon) {
-      wasPressed = true;
-      pressTime = millis();
-      lastIcon = &icon;
-
-      // Visual feedback - invert icon selection
-      icon.selected = !icon.selected;
-      drawDesktopIcon(lcd, icon.x, icon.y, icon.name, icon.selected);
-
-      delay(150);  // Brief feedback delay
-
-      // Execute click callback
-      if (icon.onClick) {
-        icon.onClick();
-      }
-
-      // Reset selection state
-      icon.selected = false;
-      drawDesktopIcon(lcd, icon.x, icon.y, icon.name, icon.selected);
-
-      wasPressed = false;
-      return;
-    }
-
-    // Reset press state after timeout
-    if (millis() - pressTime > 500) {
-      wasPressed = false;
-      lastIcon = nullptr;
-    }
-  } else {
-    wasPressed = false;
-    lastIcon = nullptr;
-  }
 }
 
 /**
@@ -701,5 +635,168 @@ void drawSpectrumVisualization(lgfx::LGFX_Device& lcd, int x, int y, int w, int 
   } else {
     // Clear the visualization area when not active
     lcd.fillRect(x + 2, y + 2, w - 4, h - 4, MAC_WHITE);
+  }
+}
+
+// ===== CHILD COMPONENT MANAGEMENT =====
+
+void addChildButton(MacWindow& window, MacButton* button) {
+  // Allocate or reallocate the child buttons array
+  MacButton** newArray = new MacButton*[window.childButtonCount + 1];
+  
+  // Copy existing buttons to new array
+  for (int i = 0; i < window.childButtonCount; i++) {
+    newArray[i] = window.childButtons[i];
+  }
+  
+  // Add new button
+  newArray[window.childButtonCount] = button;
+  
+  // Clean up old array if it exists
+  if (window.childButtons != nullptr) {
+    delete[] window.childButtons;
+  }
+  
+  // Update window
+  window.childButtons = newArray;
+  window.childButtonCount++;
+}
+
+void removeChildButton(MacWindow& window, MacButton* button) {
+  if (window.childButtonCount == 0 || window.childButtons == nullptr) {
+    return;
+  }
+  
+  // Find the button index
+  int removeIndex = -1;
+  for (int i = 0; i < window.childButtonCount; i++) {
+    if (window.childButtons[i] == button) {
+      removeIndex = i;
+      break;
+    }
+  }
+  
+  if (removeIndex == -1) {
+    return; // Button not found
+  }
+  
+  // Create new array with one less element
+  if (window.childButtonCount == 1) {
+    // Last button being removed
+    delete[] window.childButtons;
+    window.childButtons = nullptr;
+    window.childButtonCount = 0;
+  } else {
+    MacButton** newArray = new MacButton*[window.childButtonCount - 1];
+    
+    // Copy buttons except the one being removed
+    int newIndex = 0;
+    for (int i = 0; i < window.childButtonCount; i++) {
+      if (i != removeIndex) {
+        newArray[newIndex++] = window.childButtons[i];
+      }
+    }
+    
+    delete[] window.childButtons;
+    window.childButtons = newArray;
+    window.childButtonCount--;
+  }
+}
+
+void clearChildButtons(MacWindow& window) {
+  if (window.childButtons != nullptr) {
+    delete[] window.childButtons;
+    window.childButtons = nullptr;
+  }
+  window.childButtonCount = 0;
+}
+
+void drawWindowChildButtons(lgfx::LGFX_Device& lcd, const MacWindow& window) {
+  if (window.childButtons == nullptr || window.childButtonCount == 0) {
+    return;
+  }
+  
+  for (int i = 0; i < window.childButtonCount; i++) {
+    MacButton* btn = window.childButtons[i];
+    if (btn != nullptr) {
+      // Draw button relative to window position
+      if (btn->symbol != SYMBOL_NONE) {
+        drawSymbolButton(lcd, window.x + btn->x, window.y + btn->y, btn->w, btn->h, btn->symbol, btn->pressed);
+      } else {
+        drawButton(lcd, window.x + btn->x, window.y + btn->y, btn->w, btn->h, btn->text, btn->pressed);
+      }
+    }
+  }
+}
+
+MacButton* findButtonAt(const MacWindow& window, int x, int y) {
+  if (window.childButtons == nullptr || window.childButtonCount == 0) {
+    return nullptr;
+  }
+  
+  // Convert absolute coordinates to window-relative coordinates
+  int relativeX = x - window.x;
+  int relativeY = y - window.y;
+  
+  for (int i = 0; i < window.childButtonCount; i++) {
+    MacButton* btn = window.childButtons[i];
+    if (btn != nullptr && isInsideButton(*btn, relativeX, relativeY)) {
+      return btn;
+    }
+  }
+  
+  return nullptr;
+}
+
+// ===== DESKTOP ICON INTERACTION =====
+
+/**
+ * Interactive desktop icon that handles touch for icon clicks
+ * Call this every loop for each desktop icon
+ */
+void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon) {
+  if (!icon.visible) return;
+
+  static bool wasPressed = false;
+  static unsigned long pressTime = 0;
+
+  uint16_t tx, ty;
+  bool touching = lcd.getTouch(&tx, &ty);
+
+  if (touching) {
+    // Check if touch is inside icon bounds
+    bool insideIcon = isInsideDesktopIcon(icon, tx, ty);
+
+    if (insideIcon) {
+      if (!wasPressed) {
+        wasPressed = true;
+        pressTime = millis();
+
+        // Select the icon
+        icon.selected = true;
+        drawDesktopIcon(lcd, icon.x, icon.y, icon.name, true);
+
+        // Call the icon's callback after a brief delay for visual feedback
+        delay(100);
+        if (icon.onClick) {
+          icon.onClick();
+        }
+
+        // Deselect the icon
+        icon.selected = false;
+        if (icon.visible) {  // Only redraw if still visible
+          drawDesktopIcon(lcd, icon.x, icon.y, icon.name, false);
+        }
+
+        wasPressed = false;
+      }
+
+      // Reset press state after timeout
+      if (millis() - pressTime > 500) {
+        wasPressed = false;
+      }
+    }
+  } else {
+    wasPressed = false;
   }
 }

@@ -61,6 +61,12 @@ struct MacWindow {
   bool visible;
   void (*onMinimize)(); // callback when minimize button is clicked
   void (*onClose)();    // callback when close button is clicked
+  void (*onContentClick)(int relativeX, int relativeY); // callback for content clicks with relative coordinates
+  void (*onWindowMoved)(); // callback when window position changes
+  
+  // Child components (buttons, etc.)
+  MacButton** childButtons; // Array of pointers to buttons
+  int childButtonCount;     // Number of child buttons
   
   // Dragging state (internal use)
   bool isDragging;
@@ -112,13 +118,19 @@ extern void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window)
 bool isInsideButton(const MacButton& btn, int tx, int ty);
 void redrawButton(lgfx::LGFX_Device& lcd, MacButton& btn);
 void interactiveButton(lgfx::LGFX_Device& lcd, MacButton& btn);
-void transformTouchCoordinates(uint16_t& x, uint16_t& y);
 
 // ===== WINDOW HELPERS =====
 void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window);
 bool isInsideCloseButton(const MacWindow& window, int tx, int ty);
 bool isInsideMinimizeButton(const MacWindow& window, int tx, int ty);
 bool isInsideTitleBar(const MacWindow& window, int tx, int ty);
+
+// ===== CHILD COMPONENT MANAGEMENT =====
+void addChildButton(MacWindow& window, MacButton* button);
+void removeChildButton(MacWindow& window, MacButton* button);
+void clearChildButtons(MacWindow& window);
+void drawWindowChildButtons(lgfx::LGFX_Device& lcd, const MacWindow& window);
+MacButton* findButtonAt(const MacWindow& window, int x, int y);
 
 // ===== DESKTOP ICON HELPERS =====
 void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon);
