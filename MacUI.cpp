@@ -199,7 +199,7 @@ bool isInsideMinimizeButton(const MacWindow& window, int tx, int ty) {
 
 bool isInsideTitleBar(const MacWindow& window, int tx, int ty) {
   if (!window.visible) return false;
-  int titleBarHeight = 24
+  int titleBarHeight = 24;
   
   // Check if in title bar but not in close or minimize buttons
   bool inTitleBar = tx >= window.x + 2 && tx < window.x + window.w - 2 && ty >= window.y + 2 && ty < window.y + 2 + titleBarHeight;
@@ -311,8 +311,9 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
         window.x = newX;
         window.y = newY;
 
-        // Use optimized smooth drawing
-        drawWindowSmooth(lcd, window, oldX, oldY);
+        // Simple direct drawing approach
+        redrawDesktopArea(lcd, oldX, oldY, window.w + 5, window.h + 5);
+        drawWindow(lcd, window);
       }
     }
 

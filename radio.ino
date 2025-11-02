@@ -215,9 +215,6 @@ void setup() {
 
   drawInterface(lcd);
   
-  // Initialize double buffering for smooth window movement
-  initializeDoubleBuffer();
-
   // connectToWiFi();
 
   // Configure time via NTP after WiFi connected
@@ -287,7 +284,7 @@ void loop() {
 
 // Clean up resources when done (call this if you need to free memory)
 void cleanup() {
-  cleanupDoubleBuffer();
+  // Additional cleanup can be added here if needed
 }
 
 // ===== HELPER FUNCTIONS =====
@@ -471,102 +468,4 @@ void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window) {
   redrawButton(lcd, btnVolUp);
   redrawButton(lcd, btnVolDn);
   redrawButton(lcd, btnStop);
-}
-
-// ===== DOUBLE BUFFERING FUNCTIONS =====
-
-void initializeDoubleBuffer() {
-  // Create a smaller sprite buffer optimized for window dragging
-  if (windowBuffer == nullptr) {
-    windowBuffer = new lgfx::LGFX_Sprite(&lcd);
-    // Use a reasonably sized buffer - enough for window + margin
-    int bufferWidth = min(480, radioWindow.w + 40);   // Max screen width or window + margin
-    int bufferHeight = min(320, radioWindow.h + 40);  // Max screen height or window + margin
-    
-    if (windowBuffer->createSprite(bufferWidth, bufferHeight)) {
-      // Successfully created buffer
-      displayStatus(lcd, "Double buffer ready", 240);
-    } else {
-      // Failed to create buffer - try smaller size
-      bufferWidth = radioWindow.w + 20;
-      bufferHeight = radioWindow.h + 20;
-      
-      if (windowBuffer->createSprite(bufferWidth, bufferHeight)) {
-        displayStatus(lcd, "Small buffer ready", 240);
-      } else {
-        // Fall back to direct drawing
-        delete windowBuffer;
-        windowBuffer = nullptr;
-        displayStatus(lcd, "Direct draw mode", 240);
-      }
-    }
-  }
-}
-
-void cleanupDoubleBuffer() {
-  if (windowBuffer != nullptr) {
-    windowBuffer->deleteSprite();
-    delete windowBuffer;
-    windowBuffer = nullptr;
-  }
-}
-
-void renderBackgroundToBuffer(int x, int y, int w, int h) {
-  if (windowBuffer == nullptr) return;
-  
-  // Clear the buffer
-  windowBuffer->fillScreen(MAC_WHITE);
-  
-  // Draw checkered pattern in the buffer
-  int patternSize = 8;
-  int startX = (x / patternSize) * patternSize;
-  int startY = max(21, (y / patternSize) * patternSize); // Don't overwrite menu bar
-  
-  for (int py = startY; py < y + h; py += patternSize) {
-    for (int px = startX; px < x + w; px += patternSize) {
-      if ((px / patternSize + py / patternSize) % 2 == 0) {
-        // Calculate position in buffer coordinates
-        int bufX = px - x;
-        int bufY = py - y;
-        
-        // Only draw pattern within the specified area and buffer bounds
-        if (bufX >= 0 && bufY >= 0 && bufX < w && bufY < h) {
-          int rectW = min(patternSize, w - bufX);
-          int rectH = min(patternSize, h - bufY);
-          
-          if (rectW > 0 && rectH > 0) {
-            windowBuffer->fillRect(bufX, bufY, rectW, rectH, MAC_LIGHT_GRAY);
-          }
-        }
-      }
-    }
-  }
-}
-
-void drawWindowSmooth(lgfx::LGFX_Device& lcd, MacWindow& window, int oldX, int oldY) {
-  // Optimized approach: reduce flicker with minimal buffer usage
-  if (windowBuffer != nullptr) {
-    
-    // For smooth movement, use a simple optimization:
-    // 1. Clear old position
-    // 2. Draw background for new position 
-    // 3. Draw window at new position
-    // All done with minimal intermediate steps
-    
-    // Clear old window area
-    redrawDesktopArea(lcd, oldX, oldY, window.w + 5, window.h + 5);
-    
-    // Draw window at new position immediately
-    drawWindow(lcd, window);
-    
-  } else {
-    // Standard direct drawing
-    redrawDesktopArea(lcd, oldX, oldY, window.w + 5, window.h + 5);
-    drawWindow(lcd, window);
-  }
-  
-  // Always update button positions after movement
-  if (!window.minimized) {
-    redrawWindowContent(lcd, window);
-  }
 }

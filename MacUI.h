@@ -125,9 +125,4 @@ void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon);
 bool isInsideDesktopIcon(const DesktopIcon& icon, int tx, int ty);
 void redrawDesktopArea(lgfx::LGFX_Device& lcd, int x, int y, int w, int h);
 
-// Double buffering support for smooth window dragging
-extern lgfx::LGFX_Sprite* windowBuffer;
-void renderBackgroundToBuffer(int x, int y, int w, int h);
-void drawWindowSmooth(lgfx::LGFX_Device& lcd, MacWindow& window, int oldX, int oldY);
-
 #endif // MAC_UI_H
