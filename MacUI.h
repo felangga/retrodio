@@ -1,6 +1,8 @@
 /*
  * MacUI.h - Classic Macintosh OS User Interface Library
  * 
+ * Copyright (c) 2025 Felangga
+ * 
  * This header file contains declarations for drawing classic Mac OS UI elements
  * using primitive graphics functions with LovyanGFX library.
  */
@@ -150,7 +152,7 @@ struct DesktopIcon {
 // ===== FUNCTION DECLARATIONS =====
 
 // Main UI drawing functions
-void drawMenuBar(lgfx::LGFX_Device& lcd);
+void drawMenuBar(lgfx::LGFX_Device& lcd, const String& appName);
 void drawCheckeredPattern(lgfx::LGFX_Device& lcd);
 void drawClock(lgfx::LGFX_Device& lcd, const String& time); // added clock drawing
 

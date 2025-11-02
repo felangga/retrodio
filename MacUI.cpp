@@ -1,6 +1,8 @@
 /*
  * MacUI.cpp - Classic Macintosh OS User Interface Library Implementation
  * 
+ * Copyright (c) 2025 Felangga
+ * 
  * This file contains the implementation of classic Mac OS UI drawing functions
  * using primitive graphics functions with LovyanGFX library.
  */
@@ -13,7 +15,7 @@
 /**
  * Draw the classic Mac OS menu bar
  */
-void drawMenuBar(lgfx::LGFX_Device& lcd) {
+void drawMenuBar(lgfx::LGFX_Device& lcd, const String& appName) {
   // Draw menu bar background
   lcd.fillRect(0, 0, screenWidth, 20, MAC_WHITE);
   lcd.drawFastHLine(0, 20, screenWidth, MAC_BLACK);
@@ -25,7 +27,7 @@ void drawMenuBar(lgfx::LGFX_Device& lcd) {
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
   lcd.setTextSize(1);
   lcd.setCursor(30, 6);
-  lcd.print("RetroRadio");
+  lcd.print(appName);
 }
 
 void drawClock(lgfx::LGFX_Device& lcd, const String& time) {

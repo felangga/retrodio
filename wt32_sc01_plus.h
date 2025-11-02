@@ -1,3 +1,12 @@
+/*
+ * wt32_sc01_plus.h - WT32-SC01 Plus Display Configuration
+ * 
+ * Copyright (c) 2025 Felangga
+ * 
+ * Hardware configuration and display setup for the WT32-SC01 Plus
+ * development board with 3.5" capacitive touch screen.
+ */
+
 #ifndef WT32_SC01_PLUS_H
 #define WT32_SC01_PLUS_H
 

@@ -1,3 +1,12 @@
+/*
+ * Radio.ino - Internet Radio Player with Classic Mac OS UI
+ * 
+ * Copyright (c) 2025 Felangga
+ * 
+ * This Arduino sketch implements an internet radio player with a classic
+ * Macintosh OS-style user interface using the MacUI library.
+ */
+
 #include "Arduino.h"
 #include "esp_task_wdt.h"
 #include "WiFi.h"
@@ -83,25 +92,25 @@ void onNext();
 
 void onComponentClick(int componentId) {
   Serial.printf("Component %d clicked\n", componentId);
-  
+
   switch (componentId) {
-    case 100: // Now Playing Label
+    case 100:  // Now Playing Label
       Serial.println("Now Playing label clicked");
       displayStatus(lcd, "Label clicked", 160);
       break;
-      
-    case 101: // Volume Slider
+
+    case 101:  // Volume Slider
       Serial.println("Volume slider clicked");
       displayStatus(lcd, "Volume slider clicked", 160);
       // Here you could implement slider dragging logic
       break;
-      
-    case 102: // Buffer Progress Bar
+
+    case 102:  // Buffer Progress Bar
       Serial.println("Buffer progress clicked");
       displayStatus(lcd, "Progress bar clicked", 160);
       break;
-      
-    case 103: // Auto Play Checkbox
+
+    case 103:  // Auto Play Checkbox
       Serial.println("Auto Play checkbox clicked");
       // Toggle checkbox state
       {
@@ -115,8 +124,8 @@ void onComponentClick(int componentId) {
         }
       }
       break;
-      
-    case 104: // Show Visuals Checkbox
+
+    case 104:  // Show Visuals Checkbox
       Serial.println("Show Visuals checkbox clicked");
       // Toggle checkbox state
       {
@@ -130,27 +139,27 @@ void onComponentClick(int componentId) {
         }
       }
       break;
-      
+
     // Music player control buttons
-    case 1: // Play Button
+    case 1:  // Play Button
       onPlay();
       break;
-    case 2: // Stop Button  
+    case 2:  // Stop Button
       onStop();
       break;
-    case 3: // Volume Up Button
+    case 3:  // Volume Up Button
       onVolUp();
       break;
-    case 4: // Previous Button
+    case 4:  // Previous Button
       onPrev();
       break;
-    case 5: // Next Button
+    case 5:  // Next Button
       onNext();
       break;
-    case 6: // Volume Down Button
+    case 6:  // Volume Down Button
       onVolDown();
       break;
-      
+
     default:
       Serial.printf("Unknown component ID: %d\n", componentId);
       break;
@@ -161,14 +170,14 @@ MacComponent* findComponentById(const MacWindow& window, int id) {
   if (window.childComponents == nullptr || window.childComponentCount == 0) {
     return nullptr;
   }
-  
+
   for (int i = 0; i < window.childComponentCount; i++) {
     MacComponent* component = window.childComponents[i];
     if (component != nullptr && component->id == id) {
       return component;
     }
   }
-  
+
   return nullptr;
 }
 
@@ -320,6 +329,9 @@ void setup() {
 
   try {
     lcd.init();
+    tft.initDMA();
+    tft.startWrite();
+    
     Serial.println("LCD initialized");
 
     lcd.setRotation(lcd.getRotation() ^ 1);
@@ -337,24 +349,24 @@ void setup() {
 
   // Create UI task on Core 1 (default Arduino core)
   xTaskCreatePinnedToCore(
-    uiTask,           // Task function
-    "UI_Task",        // Task name
-    10000,            // Stack size (bytes)
-    NULL,             // Parameter
-    1,                // Priority
-    &uiTaskHandle,    // Task handle
-    1                 // Core (0 or 1)
+    uiTask,         // Task function
+    "UI_Task",      // Task name
+    10000,          // Stack size (bytes)
+    NULL,           // Parameter
+    1,              // Priority
+    &uiTaskHandle,  // Task handle
+    1               // Core (0 or 1)
   );
 
   // Create Audio task on Core 0 (background core)
   xTaskCreatePinnedToCore(
-    audioTask,        // Task function
-    "Audio_Task",     // Task name
-    8000,             // Stack size (bytes) 
-    NULL,             // Parameter
-    2,                // Higher priority for audio
-    &audioTaskHandle, // Task handle
-    0                 // Core (0 or 1)
+    audioTask,         // Task function
+    "Audio_Task",      // Task name
+    8000,              // Stack size (bytes)
+    NULL,              // Parameter
+    2,                 // Higher priority for audio
+    &audioTaskHandle,  // Task handle
+    0                  // Core (0 or 1)
   );
 
   Serial.println("Multi-core tasks created");
@@ -375,14 +387,14 @@ void loop() {
 // UI Task - runs on Core 1 (default Arduino core)
 void uiTask(void* parameter) {
   Serial.println("UI Task started on Core 1");
-  
+
   while (true) {
     static unsigned long lastDebugPrint = 0;
-    
+
     // Debug output every 10 seconds
     if (millis() - lastDebugPrint > 10000) {
-      Serial.printf("UI Task running on Core %d, Free heap: %d bytes\n", 
-                   xPortGetCoreID(), ESP.getFreeHeap());
+      Serial.printf("UI Task running on Core %d, Free heap: %d bytes\n",
+                    xPortGetCoreID(), ESP.getFreeHeap());
       lastDebugPrint = millis();
     }
 
@@ -390,8 +402,8 @@ void uiTask(void* parameter) {
     if (radioWindow.visible) {
       interactiveWindow(lcd, radioWindow);
     }
-    
-    // Handle desktop icon interaction  
+
+    // Handle desktop icon interaction
     if (radioIcon.visible) {
       interactiveDesktopIcon(lcd, radioIcon);
     }
@@ -399,7 +411,7 @@ void uiTask(void* parameter) {
     // Note: Button interactions are now handled inside the window container
     // via onWindowContentClick callback - no need for individual button checks here
 
-   
+
     vTaskDelay(10 / portTICK_PERIOD_MS);  // 10ms delay for UI responsiveness
   }
 }
@@ -407,14 +419,14 @@ void uiTask(void* parameter) {
 // Audio Task - runs on Core 0 (background core)
 void audioTask(void* parameter) {
   Serial.println("Audio Task started on Core 0");
-  
+
   // Initialize audio on this core
   // audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   // audio.setVolume(DEFAULT_VOLUME);
-  
+
   while (true) {
     static unsigned long lastDebugPrint = 0;
-    
+
     // Debug output every 15 seconds
     if (millis() - lastDebugPrint > 15000) {
       Serial.printf("Audio Task running on Core %d\n", xPortGetCoreID());
@@ -425,10 +437,10 @@ void audioTask(void* parameter) {
     // if (isPlaying) {
     //   audio.loop();  // Audio processing
     // }
-    
+
     // Handle WiFi and network tasks
     // WiFi.maintain();
-    
+
     // Update clock (time-based, not UI critical)
     // updateClock();
 
@@ -528,7 +540,7 @@ void initializeAudio() {
 void drawInterface(lgfx::LGFX_Device& lcd) {
   lcd.fillScreen(MAC_WHITE);
   drawCheckeredPattern(lcd);
-  drawMenuBar(lcd);
+  drawMenuBar(lcd, "Retrodio");
 
   // Initialize the radio window with its child components
   initializeRadioWindow();
@@ -593,57 +605,57 @@ void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window) {
 void initializeRadioWindow() {
   // Clear any existing child components
   clearChildComponents(radioWindow);
-  
+
   // Example: Add some components using the flexible system
-  
+
   // Add a label for the now playing area
   MacComponent* nowPlayingLabel = createLabelComponent(15, 40, 180, 20, 100, "Now Playing:", MAC_BLACK);
   nowPlayingLabel->onClick = onComponentClick;
   addChildComponent(radioWindow, nowPlayingLabel);
-  
+
   // Add a volume slider
   MacComponent* volumeSlider = createSliderComponent(320, 80, 80, 20, 101, 0, 21, 10, false);
   volumeSlider->onClick = onComponentClick;
   addChildComponent(radioWindow, volumeSlider);
-  
+
   // Add a progress bar for buffer status
   MacComponent* bufferProgress = createProgressBarComponent(20, 170, 280, 12, 102, 0, 100, 45);
   bufferProgress->onClick = onComponentClick;
   addChildComponent(radioWindow, bufferProgress);
-  
+
   // Add some checkboxes for options
   MacComponent* autoPlayCheck = createCheckBoxComponent(20, 200, 120, 16, 103, "Auto Play", true);
   autoPlayCheck->onClick = onComponentClick;
   addChildComponent(radioWindow, autoPlayCheck);
-  
+
   MacComponent* showVisualsCheck = createCheckBoxComponent(150, 200, 140, 16, 104, "Show Visuals", false);
   showVisualsCheck->onClick = onComponentClick;
   addChildComponent(radioWindow, showVisualsCheck);
-  
+
   // Add music control buttons using the new component system
-  
+
   // Main playback controls - larger and centered
   MacComponent* btnPrev = createButtonComponent(20, 80, 50, 50, 4, "", SYMBOL_PREV);
   btnPrev->onClick = onComponentClick;
   addChildComponent(radioWindow, btnPrev);
-  
+
   MacComponent* btnPlay = createButtonComponent(80, 70, 60, 60, 1, "", SYMBOL_PLAY);
   btnPlay->onClick = onComponentClick;
   addChildComponent(radioWindow, btnPlay);
-  
+
   MacComponent* btnNext = createButtonComponent(150, 80, 50, 50, 5, "", SYMBOL_NEXT);
   btnNext->onClick = onComponentClick;
   addChildComponent(radioWindow, btnNext);
-  
+
   // Volume controls - smaller, positioned on the right
   MacComponent* btnVolUp = createButtonComponent(300, 70, 45, 35, 3, "", SYMBOL_VOL_UP);
   btnVolUp->onClick = onComponentClick;
   addChildComponent(radioWindow, btnVolUp);
-  
+
   MacComponent* btnVolDn = createButtonComponent(300, 110, 45, 35, 6, "", SYMBOL_VOL_DOWN);
   btnVolDn->onClick = onComponentClick;
   addChildComponent(radioWindow, btnVolDn);
-  
+
   // Stop button - separate and smaller
   MacComponent* btnStop = createButtonComponent(90, 140, 40, 40, 2, "", SYMBOL_STOP);
   btnStop->onClick = onComponentClick;
