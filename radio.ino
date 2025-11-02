@@ -66,6 +66,10 @@ void audioTask(void* parameter);
 // Window setup functions
 void initializeRadioWindow();
 
+// Component interaction functions
+void onComponentClick(int componentId);
+MacComponent* findComponentById(const MacWindow& window, int id);
+
 // ===== BUTTON DECLARATIONS =====
 // Forward declarations for button callbacks
 void onPlay();
@@ -75,49 +79,106 @@ void onVolDown();
 void onPrev();
 void onNext();
 
-// Application buttons with callbacks - Music Player Style
-// Redesigned layout: main playback controls in center, volume on sides
-// Using symbols instead of text for a modern music player look
+// ===== COMPONENT INTERACTION HANDLERS =====
 
-// Main playback controls - larger and centered
-MacButton btnPrev{ 40, 120, 50, 50, "", SYMBOL_PREV, 4, false, onPrev };
-MacButton btnPlay{ 100, 110, 60, 60, "", SYMBOL_PLAY, 1, false, onPlay };
-MacButton btnNext{ 170, 120, 50, 50, "", SYMBOL_NEXT, 5, false, onNext };
+void onComponentClick(int componentId) {
+  Serial.printf("Component %d clicked\n", componentId);
+  
+  switch (componentId) {
+    case 100: // Now Playing Label
+      Serial.println("Now Playing label clicked");
+      displayStatus(lcd, "Label clicked", 160);
+      break;
+      
+    case 101: // Volume Slider
+      Serial.println("Volume slider clicked");
+      displayStatus(lcd, "Volume slider clicked", 160);
+      // Here you could implement slider dragging logic
+      break;
+      
+    case 102: // Buffer Progress Bar
+      Serial.println("Buffer progress clicked");
+      displayStatus(lcd, "Progress bar clicked", 160);
+      break;
+      
+    case 103: // Auto Play Checkbox
+      Serial.println("Auto Play checkbox clicked");
+      // Toggle checkbox state
+      {
+        MacComponent* component = findComponentById(radioWindow, componentId);
+        if (component && component->customData) {
+          MacCheckBox* checkbox = (MacCheckBox*)component->customData;
+          checkbox->checked = !checkbox->checked;
+          // Redraw the component
+          drawComponent(lcd, *component, radioWindow.x, radioWindow.y);
+          displayStatus(lcd, checkbox->checked ? "Auto Play ON" : "Auto Play OFF", 160);
+        }
+      }
+      break;
+      
+    case 104: // Show Visuals Checkbox
+      Serial.println("Show Visuals checkbox clicked");
+      // Toggle checkbox state
+      {
+        MacComponent* component = findComponentById(radioWindow, componentId);
+        if (component && component->customData) {
+          MacCheckBox* checkbox = (MacCheckBox*)component->customData;
+          checkbox->checked = !checkbox->checked;
+          // Redraw the component
+          drawComponent(lcd, *component, radioWindow.x, radioWindow.y);
+          displayStatus(lcd, checkbox->checked ? "Visuals ON" : "Visuals OFF", 160);
+        }
+      }
+      break;
+      
+    // Music player control buttons
+    case 1: // Play Button
+      onPlay();
+      break;
+    case 2: // Stop Button  
+      onStop();
+      break;
+    case 3: // Volume Up Button
+      onVolUp();
+      break;
+    case 4: // Previous Button
+      onPrev();
+      break;
+    case 5: // Next Button
+      onNext();
+      break;
+    case 6: // Volume Down Button
+      onVolDown();
+      break;
+      
+    default:
+      Serial.printf("Unknown component ID: %d\n", componentId);
+      break;
+  }
+}
 
-// Volume controls - smaller, positioned on the right
-MacButton btnVolUp{ 240, 110, 45, 35, "", SYMBOL_VOL_UP, 3, false, onVolUp };
-MacButton btnVolDn{ 240, 150, 45, 35, "", SYMBOL_VOL_DOWN, 6, false, onVolDown };
-
-// Stop button - separate and smaller
-MacButton btnStop{ 120, 180, 40, 40, "", SYMBOL_STOP, 2, false, onStop };
-
-// ===== GENERAL BUTTON HELPER FUNCTIONS =====
-
-MacButton* findButtonById(const MacWindow& window, int id) {
-  if (window.childButtons == nullptr || window.childButtonCount == 0) {
+MacComponent* findComponentById(const MacWindow& window, int id) {
+  if (window.childComponents == nullptr || window.childComponentCount == 0) {
     return nullptr;
   }
   
-  for (int i = 0; i < window.childButtonCount; i++) {
-    MacButton* btn = window.childButtons[i];
-    if (btn != nullptr && btn->id == id) {
-      return btn;
+  for (int i = 0; i < window.childComponentCount; i++) {
+    MacComponent* component = window.childComponents[i];
+    if (component != nullptr && component->id == id) {
+      return component;
     }
   }
   
   return nullptr;
 }
 
-void updateButtonSymbol(const MacWindow& window, int buttonId, SymbolType newSymbol) {
-  MacButton* btn = findButtonById(window, buttonId);
-  if (btn != nullptr) {
-    btn->symbol = newSymbol;
-    // Force redraw - the window system will handle absolute positioning
-    if (btn->symbol != SYMBOL_NONE) {
-      drawSymbolButton(lcd, window.x + btn->x, window.y + btn->y, btn->w, btn->h, btn->symbol, btn->pressed);
-    } else {
-      drawButton(lcd, window.x + btn->x, window.y + btn->y, btn->w, btn->h, btn->text, btn->pressed);
-    }
+void updateComponentSymbol(const MacWindow& window, int componentId, SymbolType newSymbol) {
+  MacComponent* component = findComponentById(window, componentId);
+  if (component != nullptr && component->type == COMPONENT_BUTTON && component->customData != nullptr) {
+    MacButton* btnData = (MacButton*)component->customData;
+    btnData->symbol = newSymbol;
+    // Force redraw the component
+    drawComponent(lcd, *component, window.x, window.y);
   }
 }
 
@@ -130,17 +191,17 @@ void onPlay() {
   //   // Currently playing - pause/stop
   //   audio.stopSong();
   //   isPlaying = false;
-  //   updateButtonSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
+  //   updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
   //   displayStatus(lcd, "Paused", 160);
   // } else {
   //   // Currently stopped - start playing
   //   audio.connecttohost(RADIO_URL.c_str());
   //   isPlaying = true;
-  //   updateButtonSymbol(radioWindow, 1, SYMBOL_PAUSE);  // ID 1 is play button
+  //   updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);  // ID 1 is play button
   //   displayStatus(lcd, "Playing", 160);
   // }
   // Force button redraw to show new symbol
-  updateButtonSymbol(radioWindow, 1, SYMBOL_PLAY);  // Just show play for now
+  updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // Just show play for now
 }
 
 void onStop() {
@@ -148,10 +209,10 @@ void onStop() {
   displayStatus(lcd, "Stop pressed", 160);
   // audio.stopSong();
   // isPlaying = false;
-  // updateButtonSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
+  // updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
   // displayStatus(lcd, "Stopped", 160);
   // Force button redraw to show play symbol
-  updateButtonSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
+  updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
 }
 
 void onVolUp() {
@@ -204,58 +265,25 @@ void onOK() {
 
 // Window management callbacks
 void onWindowMinimize() {
-  if (radioWindow.minimized) {
-    // Window was minimized - show desktop icon
-    radioIcon.visible = true;
-    drawDesktopIcon(lcd, radioIcon.x, radioIcon.y, radioIcon.name, false);
-    displayStatus(lcd, "Window minimized to desktop", 300);
-  } else {
-    // Window was restored - hide desktop icon
-    radioIcon.visible = false;
-    // Clear the icon area
-    redrawDesktopArea(lcd, radioIcon.x - 2, radioIcon.y, 36, 50);
-    displayStatus(lcd, "Window restored", 300);
-
-    // Update button positions and redraw content
-    redrawWindowContent(lcd, radioWindow);
-  }
+  handleWindowMinimize(lcd, radioWindow, &radioIcon);
 }
 
 void onWindowClose() {
-  radioIcon.visible = false;  // Hide icon when window is closed
-  displayStatus(lcd, "Window closed", 300);
+  handleWindowClose(lcd, radioWindow, &radioIcon);
 }
 
 void onRadioIconClick() {
-  // Restore window when icon is clicked
-  radioWindow.minimized = false;
-  radioWindow.visible = true;
-  drawInterface(lcd);  // Redraw entire interface
+  handleIconClick(lcd, radioWindow);
 }
 
 // Window content interaction callback
 void onWindowContentClick(int relativeX, int relativeY) {
-  Serial.printf("Window content clicked at relative position: %d, %d\n", relativeX, relativeY);
-  
-  // Use the general child component system to find the clicked button
-  MacButton* clickedButton = findButtonAt(radioWindow, radioWindow.x + relativeX, radioWindow.y + relativeY);
-  
-  if (clickedButton != nullptr && clickedButton->onClick != nullptr) {
-    // Call the button's callback function
-    clickedButton->onClick();
-  }
+  handleWindowContentClick(lcd, radioWindow, relativeX, relativeY);
 }
 
 // Window moved callback
 void onWindowMoved() {
-  Serial.println("Window moved - child buttons automatically positioned relative to window");
-  
-  // With the new system, buttons are positioned relative to the window
-  // so no manual position updates are needed when the window moves
-  // The drawWindowChildButtons function handles absolute positioning automatically
-  
-  // Just redraw the window content
-  redrawWindowContent(lcd, radioWindow);
+  handleWindowMoved(lcd, radioWindow);
 }
 
 // ===== CALLBACK FUNCTIONS =====
@@ -563,33 +591,61 @@ void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window) {
 // ===== DYNAMIC WINDOW SETUP =====
 
 void initializeRadioWindow() {
-  // Clear any existing child buttons
-  clearChildButtons(radioWindow);
+  // Clear any existing child components
+  clearChildComponents(radioWindow);
   
-  // Add all buttons to the window dynamically
-  addChildButton(radioWindow, &btnPrev);
-  addChildButton(radioWindow, &btnPlay);
-  addChildButton(radioWindow, &btnNext);
-  addChildButton(radioWindow, &btnVolUp);
-  addChildButton(radioWindow, &btnVolDn);
-  addChildButton(radioWindow, &btnStop);
+  // Example: Add some components using the flexible system
   
-  // Update button positions relative to window content area (not absolute screen coordinates)
-  // Main playback controls - centered
-  btnPrev.x = 20;
-  btnPrev.y = 80;
-  btnPlay.x = 80;
-  btnPlay.y = 70;
-  btnNext.x = 150;
-  btnNext.y = 80;
-
-  // Volume controls - right side
-  btnVolUp.x = 300;
-  btnVolUp.y = 70;
-  btnVolDn.x = 300;
-  btnVolDn.y = 110;
-
-  // Stop button - below play button
-  btnStop.x = 90;
-  btnStop.y = 140;
+  // Add a label for the now playing area
+  MacComponent* nowPlayingLabel = createLabelComponent(15, 40, 180, 20, 100, "Now Playing:", MAC_BLACK);
+  nowPlayingLabel->onClick = onComponentClick;
+  addChildComponent(radioWindow, nowPlayingLabel);
+  
+  // Add a volume slider
+  MacComponent* volumeSlider = createSliderComponent(320, 80, 80, 20, 101, 0, 21, 10, false);
+  volumeSlider->onClick = onComponentClick;
+  addChildComponent(radioWindow, volumeSlider);
+  
+  // Add a progress bar for buffer status
+  MacComponent* bufferProgress = createProgressBarComponent(20, 170, 280, 12, 102, 0, 100, 45);
+  bufferProgress->onClick = onComponentClick;
+  addChildComponent(radioWindow, bufferProgress);
+  
+  // Add some checkboxes for options
+  MacComponent* autoPlayCheck = createCheckBoxComponent(20, 200, 120, 16, 103, "Auto Play", true);
+  autoPlayCheck->onClick = onComponentClick;
+  addChildComponent(radioWindow, autoPlayCheck);
+  
+  MacComponent* showVisualsCheck = createCheckBoxComponent(150, 200, 140, 16, 104, "Show Visuals", false);
+  showVisualsCheck->onClick = onComponentClick;
+  addChildComponent(radioWindow, showVisualsCheck);
+  
+  // Add music control buttons using the new component system
+  
+  // Main playback controls - larger and centered
+  MacComponent* btnPrev = createButtonComponent(20, 80, 50, 50, 4, "", SYMBOL_PREV);
+  btnPrev->onClick = onComponentClick;
+  addChildComponent(radioWindow, btnPrev);
+  
+  MacComponent* btnPlay = createButtonComponent(80, 70, 60, 60, 1, "", SYMBOL_PLAY);
+  btnPlay->onClick = onComponentClick;
+  addChildComponent(radioWindow, btnPlay);
+  
+  MacComponent* btnNext = createButtonComponent(150, 80, 50, 50, 5, "", SYMBOL_NEXT);
+  btnNext->onClick = onComponentClick;
+  addChildComponent(radioWindow, btnNext);
+  
+  // Volume controls - smaller, positioned on the right
+  MacComponent* btnVolUp = createButtonComponent(300, 70, 45, 35, 3, "", SYMBOL_VOL_UP);
+  btnVolUp->onClick = onComponentClick;
+  addChildComponent(radioWindow, btnVolUp);
+  
+  MacComponent* btnVolDn = createButtonComponent(300, 110, 45, 35, 6, "", SYMBOL_VOL_DOWN);
+  btnVolDn->onClick = onComponentClick;
+  addChildComponent(radioWindow, btnVolDn);
+  
+  // Stop button - separate and smaller
+  MacComponent* btnStop = createButtonComponent(90, 140, 40, 40, 2, "", SYMBOL_STOP);
+  btnStop->onClick = onComponentClick;
+  addChildComponent(radioWindow, btnStop);
 }

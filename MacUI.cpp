@@ -75,8 +75,8 @@ void drawWindow(lgfx::LGFX_Device& lcd, const MacWindow& window) {
   // Draw full window
   drawWindow(lcd, window.x, window.y, window.w, window.h, window.title, window.active);
   
-  // Draw all child buttons
-  drawWindowChildButtons(lcd, window);
+  // Draw all child components (flexible system)
+  drawWindowChildComponents(lcd, window);
 }
 
 /**
@@ -125,44 +125,6 @@ void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
     for (int i = 0; i < 3; i++) {
       lcd.fillCircle(ellipsisX + i * 4, ellipsisY, 1, textColor);
     }
-  }
-}
-
-// ===== BUTTON HELPERS IMPLEMENTATION =====
-bool isInsideButton(const MacButton& btn, int tx, int ty) {
-  return tx >= btn.x && tx < (btn.x + btn.w) && ty >= btn.y && ty < (btn.y + btn.h);
-}
-
-void redrawButton(lgfx::LGFX_Device& lcd, MacButton& btn) {
-  if (btn.symbol != SYMBOL_NONE) {
-    drawSymbolButton(lcd, btn.x, btn.y, btn.w, btn.h, btn.symbol, btn.pressed);
-  } else {
-    drawButton(lcd, btn.x, btn.y, btn.w, btn.h, btn.text, btn.pressed);
-  }
-}
-
-
-/**
- * Interactive button that handles both drawing and touch
- * Call this every loop for each button
- */
-void interactiveButton(lgfx::LGFX_Device& lcd, MacButton& btn) {
-  uint16_t tx, ty;
-  bool touching = lcd.getTouch(&tx, &ty);  // Use lcd parameter for touch
-
-  bool inside = touching && tx >= btn.x && tx < (btn.x + btn.w) && ty >= btn.y && ty < (btn.y + btn.h);
-  bool wasPressed = btn.pressed;
-
-  btn.pressed = inside;
-
-  // Trigger callback on press transition (when button goes from not pressed to pressed)
-  if (inside && !wasPressed && btn.onClick) {
-    btn.onClick();
-  }
-
-  // Only redraw if button state changed to avoid flickering
-  if (btn.pressed != wasPressed) {
-    drawButton(lcd, btn.x, btn.y, btn.w, btn.h, btn.text, btn.pressed);
   }
 }
 
@@ -440,29 +402,6 @@ void displayStatus(lgfx::LGFX_Device& lcd, const String& message, int y) {
  */
 void redrawDesktopArea(lgfx::LGFX_Device& lcd, int x, int y, int w, int h) {
   drawCheckeredPattern(lcd);
-  // // Clear the area first
-  // lcd.fillRect(x, y, w, h, MAC_WHITE);
-
-  // // Redraw checkered pattern in this area using same logic as drawCheckeredPattern
-  // int patternSize = 3;
-  // int startX = (x / patternSize) * patternSize;
-  // int startY = max(21, (y / patternSize) * patternSize);  // Don't overwrite menu bar
-
-  // for (int py = startY; py < y + h; py += patternSize) {
-  //   for (int px = startX; px < x + w; px += patternSize) {
-  //     if ((px / patternSize + py / patternSize) % 2 == 0) {
-  //       // Only draw pattern within the specified area
-  //       int rectX = max(px, x);
-  //       int rectY = max(py, y);
-  //       int rectW = min(px + patternSize, x + w) - rectX;
-  //       int rectH = min(py + patternSize, y + h) - rectY;
-
-  //       if (rectW > 0 && rectH > 0) {
-  //         lcd.fillRect(rectX, rectY, rectW, rectH, MAC_LIGHT_GRAY);
-  //       }
-  //     }
-  //   }
-  // }
 }
 
 /**
@@ -472,6 +411,57 @@ bool isInsideDesktopIcon(const DesktopIcon& icon, int tx, int ty) {
   if (!icon.visible) return false;
   return tx >= icon.x && tx < icon.x + 64 &&  // icon is 64x64 (32x32 + label)
          ty >= icon.y && ty < icon.y + 50;    // 32px icon + 18px label
+}
+
+/**
+ * Interactive desktop icon that handles touch for icon clicks
+ * Call this every loop for each desktop icon
+ */
+void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon) {
+  if (!icon.visible) return;
+
+  static bool wasPressed = false;
+  static unsigned long pressTime = 0;
+
+  uint16_t tx, ty;
+  bool touching = lcd.getTouch(&tx, &ty);
+
+  if (touching) {
+    // Check if touch is inside icon bounds
+    bool insideIcon = isInsideDesktopIcon(icon, tx, ty);
+
+    if (insideIcon) {
+      if (!wasPressed) {
+        wasPressed = true;
+        pressTime = millis();
+
+        // Select the icon
+        icon.selected = true;
+        drawDesktopIcon(lcd, icon.x, icon.y, icon.name, true);
+
+        // Call the icon's callback after a brief delay for visual feedback
+        delay(100);
+        if (icon.onClick) {
+          icon.onClick();
+        }
+
+        // Deselect the icon
+        icon.selected = false;
+        if (icon.visible) {  // Only redraw if still visible
+          drawDesktopIcon(lcd, icon.x, icon.y, icon.name, false);
+        }
+
+        wasPressed = false;
+      }
+
+      // Reset press state after timeout
+      if (millis() - pressTime > 500) {
+        wasPressed = false;
+      }
+    }
+  } else {
+    wasPressed = false;
+  }
 }
 
 /**
@@ -638,99 +628,116 @@ void drawSpectrumVisualization(lgfx::LGFX_Device& lcd, int x, int y, int w, int 
   }
 }
 
-// ===== CHILD COMPONENT MANAGEMENT =====
+// ===== FLEXIBLE COMPONENT MANAGEMENT =====
 
-void addChildButton(MacWindow& window, MacButton* button) {
-  // Allocate or reallocate the child buttons array
-  MacButton** newArray = new MacButton*[window.childButtonCount + 1];
+MacComponent* createComponent(ComponentType type, int x, int y, int w, int h, int id) {
+  MacComponent* component = new MacComponent();
+  component->type = type;
+  component->x = x;
+  component->y = y;
+  component->w = w;
+  component->h = h;
+  component->id = id;
+  component->visible = true;
+  component->enabled = true;
+  component->onClick = nullptr;
+  component->customData = nullptr;
+  return component;
+}
+
+void addChildComponent(MacWindow& window, MacComponent* component) {
+  // Allocate or reallocate the child components array
+  MacComponent** newArray = new MacComponent*[window.childComponentCount + 1];
   
-  // Copy existing buttons to new array
-  for (int i = 0; i < window.childButtonCount; i++) {
-    newArray[i] = window.childButtons[i];
+  // Copy existing components to new array
+  for (int i = 0; i < window.childComponentCount; i++) {
+    newArray[i] = window.childComponents[i];
   }
   
-  // Add new button
-  newArray[window.childButtonCount] = button;
+  // Add new component
+  newArray[window.childComponentCount] = component;
   
   // Clean up old array if it exists
-  if (window.childButtons != nullptr) {
-    delete[] window.childButtons;
+  if (window.childComponents != nullptr) {
+    delete[] window.childComponents;
   }
   
   // Update window
-  window.childButtons = newArray;
-  window.childButtonCount++;
+  window.childComponents = newArray;
+  window.childComponentCount++;
 }
 
-void removeChildButton(MacWindow& window, MacButton* button) {
-  if (window.childButtonCount == 0 || window.childButtons == nullptr) {
+void removeChildComponent(MacWindow& window, MacComponent* component) {
+  if (window.childComponentCount == 0 || window.childComponents == nullptr) {
     return;
   }
   
-  // Find the button index
+  // Find the component index
   int removeIndex = -1;
-  for (int i = 0; i < window.childButtonCount; i++) {
-    if (window.childButtons[i] == button) {
+  for (int i = 0; i < window.childComponentCount; i++) {
+    if (window.childComponents[i] == component) {
       removeIndex = i;
       break;
     }
   }
   
   if (removeIndex == -1) {
-    return; // Button not found
+    return; // Component not found
   }
   
   // Create new array with one less element
-  if (window.childButtonCount == 1) {
-    // Last button being removed
-    delete[] window.childButtons;
-    window.childButtons = nullptr;
-    window.childButtonCount = 0;
+  if (window.childComponentCount == 1) {
+    // Last component being removed
+    delete[] window.childComponents;
+    window.childComponents = nullptr;
+    window.childComponentCount = 0;
   } else {
-    MacButton** newArray = new MacButton*[window.childButtonCount - 1];
+    MacComponent** newArray = new MacComponent*[window.childComponentCount - 1];
     
-    // Copy buttons except the one being removed
+    // Copy components except the one being removed
     int newIndex = 0;
-    for (int i = 0; i < window.childButtonCount; i++) {
+    for (int i = 0; i < window.childComponentCount; i++) {
       if (i != removeIndex) {
-        newArray[newIndex++] = window.childButtons[i];
+        newArray[newIndex++] = window.childComponents[i];
       }
     }
     
-    delete[] window.childButtons;
-    window.childButtons = newArray;
-    window.childButtonCount--;
+    delete[] window.childComponents;
+    window.childComponents = newArray;
+    window.childComponentCount--;
   }
 }
 
-void clearChildButtons(MacWindow& window) {
-  if (window.childButtons != nullptr) {
-    delete[] window.childButtons;
-    window.childButtons = nullptr;
+void clearChildComponents(MacWindow& window) {
+  if (window.childComponents != nullptr) {
+    // Clean up each component's custom data
+    for (int i = 0; i < window.childComponentCount; i++) {
+      if (window.childComponents[i] && window.childComponents[i]->customData) {
+        delete window.childComponents[i]->customData;
+      }
+      delete window.childComponents[i];
+    }
+    delete[] window.childComponents;
+    window.childComponents = nullptr;
   }
-  window.childButtonCount = 0;
+  window.childComponentCount = 0;
 }
 
-void drawWindowChildButtons(lgfx::LGFX_Device& lcd, const MacWindow& window) {
-  if (window.childButtons == nullptr || window.childButtonCount == 0) {
+void drawWindowChildComponents(lgfx::LGFX_Device& lcd, const MacWindow& window) {
+  if (window.childComponents == nullptr || window.childComponentCount == 0) {
     return;
   }
   
-  for (int i = 0; i < window.childButtonCount; i++) {
-    MacButton* btn = window.childButtons[i];
-    if (btn != nullptr) {
-      // Draw button relative to window position
-      if (btn->symbol != SYMBOL_NONE) {
-        drawSymbolButton(lcd, window.x + btn->x, window.y + btn->y, btn->w, btn->h, btn->symbol, btn->pressed);
-      } else {
-        drawButton(lcd, window.x + btn->x, window.y + btn->y, btn->w, btn->h, btn->text, btn->pressed);
-      }
+  for (int i = 0; i < window.childComponentCount; i++) {
+    MacComponent* component = window.childComponents[i];
+    if (component != nullptr && component->visible) {
+      drawComponent(lcd, *component, window.x, window.y);
     }
   }
 }
 
-MacButton* findButtonAt(const MacWindow& window, int x, int y) {
-  if (window.childButtons == nullptr || window.childButtonCount == 0) {
+MacComponent* findComponentAt(const MacWindow& window, int x, int y) {
+  if (window.childComponents == nullptr || window.childComponentCount == 0) {
     return nullptr;
   }
   
@@ -738,65 +745,376 @@ MacButton* findButtonAt(const MacWindow& window, int x, int y) {
   int relativeX = x - window.x;
   int relativeY = y - window.y;
   
-  for (int i = 0; i < window.childButtonCount; i++) {
-    MacButton* btn = window.childButtons[i];
-    if (btn != nullptr && isInsideButton(*btn, relativeX, relativeY)) {
-      return btn;
+  for (int i = 0; i < window.childComponentCount; i++) {
+    MacComponent* component = window.childComponents[i];
+    if (component != nullptr && component->visible && component->enabled) {
+      if (relativeX >= component->x && relativeX < component->x + component->w &&
+          relativeY >= component->y && relativeY < component->y + component->h) {
+        return component;
+      }
     }
   }
   
   return nullptr;
 }
 
-// ===== DESKTOP ICON INTERACTION =====
+// ===== COMPONENT DRAWING FUNCTIONS =====
 
-/**
- * Interactive desktop icon that handles touch for icon clicks
- * Call this every loop for each desktop icon
- */
-void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon) {
-  if (!icon.visible) return;
-
-  static bool wasPressed = false;
-  static unsigned long pressTime = 0;
-
-  uint16_t tx, ty;
-  bool touching = lcd.getTouch(&tx, &ty);
-
-  if (touching) {
-    // Check if touch is inside icon bounds
-    bool insideIcon = isInsideDesktopIcon(icon, tx, ty);
-
-    if (insideIcon) {
-      if (!wasPressed) {
-        wasPressed = true;
-        pressTime = millis();
-
-        // Select the icon
-        icon.selected = true;
-        drawDesktopIcon(lcd, icon.x, icon.y, icon.name, true);
-
-        // Call the icon's callback after a brief delay for visual feedback
-        delay(100);
-        if (icon.onClick) {
-          icon.onClick();
+void drawComponent(lgfx::LGFX_Device& lcd, const MacComponent& component, int windowX, int windowY) {
+  if (!component.visible) return;
+  
+  int absoluteX = windowX + component.x;
+  int absoluteY = windowY + component.y;
+  
+  switch (component.type) {
+    case COMPONENT_BUTTON:
+      // Draw button using component data
+      if (component.customData != nullptr) {
+        MacButton* btnData = (MacButton*)component.customData;
+        if (btnData->symbol != SYMBOL_NONE) {
+          drawSymbolButton(lcd, absoluteX, absoluteY, component.w, component.h, btnData->symbol, btnData->pressed);
+        } else {
+          drawButton(lcd, absoluteX, absoluteY, component.w, component.h, btnData->text, btnData->pressed);
         }
-
-        // Deselect the icon
-        icon.selected = false;
-        if (icon.visible) {  // Only redraw if still visible
-          drawDesktopIcon(lcd, icon.x, icon.y, icon.name, false);
-        }
-
-        wasPressed = false;
       }
-
-      // Reset press state after timeout
-      if (millis() - pressTime > 500) {
-        wasPressed = false;
+      break;
+      
+    case COMPONENT_LABEL:
+      if (component.customData != nullptr) {
+        MacLabel* labelData = (MacLabel*)component.customData;
+        drawLabel(lcd, absoluteX, absoluteY, component.w, component.h, *labelData);
       }
-    }
-  } else {
-    wasPressed = false;
+      break;
+      
+    case COMPONENT_TEXTBOX:
+      if (component.customData != nullptr) {
+        MacTextBox* textboxData = (MacTextBox*)component.customData;
+        drawTextBox(lcd, absoluteX, absoluteY, component.w, component.h, *textboxData);
+      }
+      break;
+      
+    case COMPONENT_CHECKBOX:
+      if (component.customData != nullptr) {
+        MacCheckBox* checkboxData = (MacCheckBox*)component.customData;
+        drawCheckBox(lcd, absoluteX, absoluteY, component.w, component.h, *checkboxData);
+      }
+      break;
+      
+    case COMPONENT_SLIDER:
+      if (component.customData != nullptr) {
+        MacSlider* sliderData = (MacSlider*)component.customData;
+        drawSlider(lcd, absoluteX, absoluteY, component.w, component.h, *sliderData);
+      }
+      break;
+      
+    case COMPONENT_PROGRESS_BAR:
+      if (component.customData != nullptr) {
+        MacProgressBar* progressData = (MacProgressBar*)component.customData;
+        drawProgressBar(lcd, absoluteX, absoluteY, component.w, component.h, *progressData);
+      }
+      break;
+      
+    case COMPONENT_CUSTOM:
+      // Custom components can implement their own drawing logic
+      // For now, just draw a placeholder rectangle
+      lcd.drawRect(absoluteX, absoluteY, component.w, component.h, MAC_GRAY);
+      break;
+      
+    default:
+      // Unknown component type - draw placeholder
+      lcd.drawRect(absoluteX, absoluteY, component.w, component.h, MAC_BLACK);
+      break;
   }
 }
+
+void drawLabel(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacLabel& label) {
+  // Draw background
+  lcd.fillRect(x, y, w, h, label.backgroundColor);
+  
+  // Draw text
+  lcd.setTextColor(label.textColor, label.backgroundColor);
+  lcd.setTextSize(label.textSize);
+  
+  int textX, textY;
+  if (label.centerAlign) {
+    textX = x + (w - label.text.length() * 6 * label.textSize) / 2;
+    textY = y + (h - 8 * label.textSize) / 2;
+  } else {
+    textX = x + 2;
+    textY = y + (h - 8 * label.textSize) / 2;
+  }
+  
+  lcd.setCursor(textX, textY);
+  lcd.print(label.text);
+}
+
+void drawTextBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacTextBox& textbox) {
+  // Draw background and border
+  uint16_t borderColor = textbox.focused ? MAC_BLUE : MAC_BLACK;
+  uint16_t bgColor = MAC_WHITE;
+  
+  lcd.fillRect(x, y, w, h, bgColor);
+  lcd.drawRect(x, y, w, h, borderColor);
+  draw3DFrame(lcd, x + 1, y + 1, w - 2, h - 2, true);
+  
+  // Draw text or placeholder
+  lcd.setTextColor(MAC_BLACK, bgColor);
+  lcd.setTextSize(1);
+  lcd.setCursor(x + 4, y + (h - 8) / 2);
+  
+  if (textbox.text.length() > 0) {
+    lcd.print(textbox.text);
+    
+    // Draw cursor if focused
+    if (textbox.focused) {
+      int cursorX = x + 4 + textbox.cursorPos * 6;
+      lcd.drawFastVLine(cursorX, y + 2, h - 4, MAC_BLACK);
+    }
+  } else if (textbox.placeholder.length() > 0) {
+    lcd.setTextColor(MAC_GRAY, bgColor);
+    lcd.print(textbox.placeholder);
+  }
+}
+
+void drawCheckBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacCheckBox& checkbox) {
+  int boxSize = min(16, min(w, h));
+  int boxX = x + 2;
+  int boxY = y + (h - boxSize) / 2;
+  
+  // Draw checkbox box
+  lcd.fillRect(boxX, boxY, boxSize, boxSize, MAC_WHITE);
+  lcd.drawRect(boxX, boxY, boxSize, boxSize, MAC_BLACK);
+  draw3DFrame(lcd, boxX + 1, boxY + 1, boxSize - 2, boxSize - 2, true);
+  
+  // Draw checkmark if checked
+  if (checkbox.checked) {
+    // Simple checkmark
+    lcd.drawLine(boxX + 3, boxY + boxSize/2, boxX + boxSize/2, boxY + boxSize - 4, MAC_BLACK);
+    lcd.drawLine(boxX + boxSize/2, boxY + boxSize - 4, boxX + boxSize - 3, boxY + 3, MAC_BLACK);
+  }
+  
+  // Draw label
+  lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+  lcd.setTextSize(1);
+  lcd.setCursor(boxX + boxSize + 4, boxY + (boxSize - 8) / 2);
+  lcd.print(checkbox.label);
+}
+
+void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSlider& slider) {
+  if (slider.vertical) {
+    // Vertical slider
+    int trackX = x + w / 2 - 2;
+    int trackW = 4;
+    int trackH = h - 20;
+    int trackY = y + 10;
+    
+    // Draw track
+    lcd.fillRect(trackX, trackY, trackW, trackH, MAC_LIGHT_GRAY);
+    draw3DFrame(lcd, trackX, trackY, trackW, trackH, true);
+    
+    // Calculate thumb position
+    int range = slider.maxValue - slider.minValue;
+    int thumbY = trackY + trackH - ((slider.currentValue - slider.minValue) * trackH / range) - 5;
+    
+    // Draw thumb
+    lcd.fillRect(trackX - 3, thumbY, trackW + 6, 10, MAC_WHITE);
+    draw3DFrame(lcd, trackX - 3, thumbY, trackW + 6, 10, false);
+  } else {
+    // Horizontal slider
+    int trackY = y + h / 2 - 2;
+    int trackH = 4;
+    int trackW = w - 20;
+    int trackX = x + 10;
+    
+    // Draw track
+    lcd.fillRect(trackX, trackY, trackW, trackH, MAC_LIGHT_GRAY);
+    draw3DFrame(lcd, trackX, trackY, trackW, trackH, true);
+    
+    // Calculate thumb position
+    int range = slider.maxValue - slider.minValue;
+    int thumbX = trackX + ((slider.currentValue - slider.minValue) * trackW / range) - 5;
+    
+    // Draw thumb
+    lcd.fillRect(thumbX, trackY - 3, 10, trackH + 6, MAC_WHITE);
+    draw3DFrame(lcd, thumbX, trackY - 3, 10, trackH + 6, false);
+  }
+}
+
+void drawProgressBar(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacProgressBar& progressBar) {
+  // Draw background
+  lcd.fillRect(x, y, w, h, MAC_WHITE);
+  draw3DFrame(lcd, x, y, w, h, true);
+  
+  // Calculate fill width
+  int range = progressBar.maxValue - progressBar.minValue;
+  int fillW = ((progressBar.currentValue - progressBar.minValue) * (w - 4)) / range;
+  
+  // Draw fill
+  if (fillW > 0) {
+    lcd.fillRect(x + 2, y + 2, fillW, h - 4, progressBar.fillColor);
+  }
+  
+  // Draw percentage text if enabled
+  if (progressBar.showPercentage) {
+    int percentage = ((progressBar.currentValue - progressBar.minValue) * 100) / range;
+    String percentText = String(percentage) + "%";
+    
+    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+    lcd.setTextSize(1);
+    int textX = x + (w - percentText.length() * 6) / 2;
+    int textY = y + (h - 8) / 2;
+    lcd.setCursor(textX, textY);
+    lcd.print(percentText);
+  }
+}
+
+// ===== COMPONENT CREATION HELPERS =====
+
+MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const String& text, SymbolType symbol) {
+  MacComponent* component = createComponent(COMPONENT_BUTTON, x, y, w, h, id);
+  
+  // Create button-specific data
+  MacButton* buttonData = new MacButton();
+  buttonData->text = text;
+  buttonData->symbol = symbol;
+  buttonData->pressed = false;
+  
+  component->customData = buttonData;
+  return component;
+}
+
+MacComponent* createLabelComponent(int x, int y, int w, int h, int id, const String& text, uint16_t textColor) {
+  MacComponent* component = createComponent(COMPONENT_LABEL, x, y, w, h, id);
+  
+  // Create label-specific data
+  MacLabel* labelData = new MacLabel();
+  labelData->text = text;
+  labelData->textColor = textColor;
+  labelData->backgroundColor = MAC_WHITE;
+  labelData->textSize = 1;
+  labelData->centerAlign = false;
+  
+  component->customData = labelData;
+  return component;
+}
+
+MacComponent* createTextBoxComponent(int x, int y, int w, int h, int id, const String& placeholder) {
+  MacComponent* component = createComponent(COMPONENT_TEXTBOX, x, y, w, h, id);
+  
+  // Create textbox-specific data
+  MacTextBox* textboxData = new MacTextBox();
+  textboxData->text = "";
+  textboxData->placeholder = placeholder;
+  textboxData->focused = false;
+  textboxData->cursorPos = 0;
+  textboxData->maxLength = 50;
+  
+  component->customData = textboxData;
+  return component;
+}
+
+MacComponent* createCheckBoxComponent(int x, int y, int w, int h, int id, const String& label, bool checked) {
+  MacComponent* component = createComponent(COMPONENT_CHECKBOX, x, y, w, h, id);
+  
+  // Create checkbox-specific data
+  MacCheckBox* checkboxData = new MacCheckBox();
+  checkboxData->label = label;
+  checkboxData->checked = checked;
+  
+  component->customData = checkboxData;
+  return component;
+}
+
+MacComponent* createSliderComponent(int x, int y, int w, int h, int id, int minVal, int maxVal, int currentVal, bool vertical) {
+  MacComponent* component = createComponent(COMPONENT_SLIDER, x, y, w, h, id);
+  
+  // Create slider-specific data
+  MacSlider* sliderData = new MacSlider();
+  sliderData->minValue = minVal;
+  sliderData->maxValue = maxVal;
+  sliderData->currentValue = currentVal;
+  sliderData->vertical = vertical;
+  
+  component->customData = sliderData;
+  return component;
+}
+
+MacComponent* createProgressBarComponent(int x, int y, int w, int h, int id, int minVal, int maxVal, int currentVal) {
+  MacComponent* component = createComponent(COMPONENT_PROGRESS_BAR, x, y, w, h, id);
+  
+  // Create progress bar-specific data
+  MacProgressBar* progressData = new MacProgressBar();
+  progressData->minValue = minVal;
+  progressData->maxValue = maxVal;
+  progressData->currentValue = currentVal;
+  progressData->fillColor = MAC_BLUE;
+  progressData->showPercentage = true;
+  
+  component->customData = progressData;
+  return component;
+}
+
+// ===== GENERIC WINDOW MANAGEMENT HELPERS =====
+// These are utility functions that can be called from user-defined callbacks
+
+void handleWindowMinimize(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon) {
+  if (window.minimized) {
+    // Window was minimized - show desktop icon if provided
+    if (associatedIcon) {
+      associatedIcon->visible = true;
+      drawDesktopIcon(lcd, associatedIcon->x, associatedIcon->y, associatedIcon->name, false);
+    }
+    displayStatus(lcd, "Window minimized to desktop", 300);
+  } else {
+    // Window was restored - hide desktop icon if provided
+    if (associatedIcon) {
+      associatedIcon->visible = false;
+      // Clear the icon area
+      redrawDesktopArea(lcd, associatedIcon->x - 2, associatedIcon->y, 36, 50);
+    }
+    displayStatus(lcd, "Window restored", 300);
+    
+    // Redraw the window content
+    drawWindow(lcd, window);
+  }
+}
+
+void handleWindowClose(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon) {
+  if (associatedIcon) {
+    associatedIcon->visible = false;  // Hide icon when window is closed
+  }
+  displayStatus(lcd, "Window closed", 300);
+}
+
+void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window) {
+  // Restore window when icon is clicked
+  window.minimized = false;
+  window.visible = true;
+  // Trigger a full interface redraw to show the restored window
+  drawWindow(lcd, window);
+}
+
+void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int relativeX, int relativeY) {
+  Serial.printf("Window content clicked at relative position: %d, %d\n", relativeX, relativeY);
+  
+  // Check for components at the clicked position
+  MacComponent* clickedComponent = findComponentAt(window, window.x + relativeX, window.y + relativeY);
+  
+  if (clickedComponent != nullptr && clickedComponent->onClick != nullptr) {
+    // Call the component's callback function with component ID
+    clickedComponent->onClick(clickedComponent->id);
+  }
+}
+
+void handleWindowMoved(lgfx::LGFX_Device& lcd, MacWindow& window) {
+  Serial.println("Window moved - child components automatically positioned relative to window");
+  
+  // With the component system, all components are positioned relative to the window
+  // so no manual position updates are needed when the window moves
+  // The drawWindowChildComponents function handles absolute positioning automatically
+  
+  // Just redraw the window content
+  drawWindow(lcd, window);
+}
+
+// ===== EXISTING CODE CONTINUES =====

@@ -24,6 +24,18 @@ extern const uint32_t screenHeight;
 #define MAC_DARK_GRAY 0x4208
 #define MAC_BLUE      0x001F
 
+// ===== COMPONENT TYPES =====
+enum ComponentType {
+  COMPONENT_BUTTON,
+  COMPONENT_LABEL,
+  COMPONENT_TEXTBOX,
+  COMPONENT_CHECKBOX,
+  COMPONENT_SLIDER,
+  COMPONENT_PROGRESS_BAR,
+  COMPONENT_IMAGE,
+  COMPONENT_CUSTOM
+};
+
 // ===== SYMBOL TYPES FOR BUTTONS =====
 enum SymbolType {
   SYMBOL_PLAY,
@@ -36,17 +48,66 @@ enum SymbolType {
   SYMBOL_NONE
 };
 
-// ===== BUTTON STRUCT =====
-struct MacButton {
+// ===== BASE COMPONENT STRUCT =====
+struct MacComponent {
+  ComponentType type;
   int x;
   int y;
   int w;
   int h;
+  int id;
+  bool visible;
+  bool enabled;
+  void (*onClick)(int componentId); // Generic callback with component ID
+  void* customData; // Pointer to component-specific data
+};
+
+// ===== BUTTON STRUCT =====
+struct MacButton {
   String text;
   SymbolType symbol;  // symbol to draw instead of text (SYMBOL_NONE for text buttons)
-  int id;        // application-specific identifier
   bool pressed;  // current pressed state
-  void (*onClick)(); // callback function when pressed
+};
+
+// ===== LABEL STRUCT =====
+struct MacLabel {
+  String text;
+  uint16_t textColor;
+  uint16_t backgroundColor;
+  int textSize;
+  bool centerAlign;
+};
+
+// ===== TEXTBOX STRUCT =====
+struct MacTextBox {
+  String text;
+  String placeholder;
+  bool focused;
+  int cursorPos;
+  int maxLength;
+};
+
+// ===== CHECKBOX STRUCT =====
+struct MacCheckBox {
+  String label;
+  bool checked;
+};
+
+// ===== SLIDER STRUCT =====
+struct MacSlider {
+  int minValue;
+  int maxValue;
+  int currentValue;
+  bool vertical;
+};
+
+// ===== PROGRESS BAR STRUCT =====
+struct MacProgressBar {
+  int minValue;
+  int maxValue;
+  int currentValue;
+  uint16_t fillColor;
+  bool showPercentage;
 };
 
 // ===== WINDOW STRUCT =====
@@ -64,9 +125,9 @@ struct MacWindow {
   void (*onContentClick)(int relativeX, int relativeY); // callback for content clicks with relative coordinates
   void (*onWindowMoved)(); // callback when window position changes
   
-  // Child components (buttons, etc.)
-  MacButton** childButtons; // Array of pointers to buttons
-  int childButtonCount;     // Number of child buttons
+  // Child components (flexible system)
+  MacComponent** childComponents; // Array of pointers to components
+  int childComponentCount;        // Number of child components
   
   // Dragging state (internal use)
   bool isDragging;
@@ -111,26 +172,43 @@ void drawSpectrumVisualization(lgfx::LGFX_Device& lcd, int x, int y, int w, int 
 // Utility functions
 void displayStatus(lgfx::LGFX_Device& lcd, const String& message, int y = 160);
 
-// Helper function to redraw window content after move (implemented in main application)
-extern void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window);
-
-// ===== BUTTON HELPERS =====
-bool isInsideButton(const MacButton& btn, int tx, int ty);
-void redrawButton(lgfx::LGFX_Device& lcd, MacButton& btn);
-void interactiveButton(lgfx::LGFX_Device& lcd, MacButton& btn);
-
 // ===== WINDOW HELPERS =====
 void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window);
 bool isInsideCloseButton(const MacWindow& window, int tx, int ty);
 bool isInsideMinimizeButton(const MacWindow& window, int tx, int ty);
 bool isInsideTitleBar(const MacWindow& window, int tx, int ty);
 
-// ===== CHILD COMPONENT MANAGEMENT =====
-void addChildButton(MacWindow& window, MacButton* button);
-void removeChildButton(MacWindow& window, MacButton* button);
-void clearChildButtons(MacWindow& window);
-void drawWindowChildButtons(lgfx::LGFX_Device& lcd, const MacWindow& window);
-MacButton* findButtonAt(const MacWindow& window, int x, int y);
+// ===== FLEXIBLE COMPONENT MANAGEMENT =====
+MacComponent* createComponent(ComponentType type, int x, int y, int w, int h, int id);
+void addChildComponent(MacWindow& window, MacComponent* component);
+void removeChildComponent(MacWindow& window, MacComponent* component);
+void clearChildComponents(MacWindow& window);
+void drawWindowChildComponents(lgfx::LGFX_Device& lcd, const MacWindow& window);
+MacComponent* findComponentAt(const MacWindow& window, int x, int y);
+
+// Component-specific drawing functions
+void drawComponent(lgfx::LGFX_Device& lcd, const MacComponent& component, int windowX, int windowY);
+void drawLabel(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacLabel& label);
+void drawTextBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacTextBox& textbox);
+void drawCheckBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacCheckBox& checkbox);
+void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSlider& slider);
+void drawProgressBar(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacProgressBar& progressBar);
+
+// Component creation helpers
+MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const String& text, SymbolType symbol = SYMBOL_NONE);
+MacComponent* createLabelComponent(int x, int y, int w, int h, int id, const String& text, uint16_t textColor = MAC_BLACK);
+MacComponent* createTextBoxComponent(int x, int y, int w, int h, int id, const String& placeholder = "");
+MacComponent* createCheckBoxComponent(int x, int y, int w, int h, int id, const String& label, bool checked = false);
+MacComponent* createSliderComponent(int x, int y, int w, int h, int id, int minVal, int maxVal, int currentVal, bool vertical = false);
+MacComponent* createProgressBarComponent(int x, int y, int w, int h, int id, int minVal, int maxVal, int currentVal);
+
+// ===== GENERIC WINDOW MANAGEMENT HELPERS =====
+// Utility functions that can be called from user-defined callbacks
+void handleWindowMinimize(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon = nullptr);
+void handleWindowClose(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon = nullptr);
+void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window);
+void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int relativeX, int relativeY);
+void handleWindowMoved(lgfx::LGFX_Device& lcd, MacWindow& window);
 
 // ===== DESKTOP ICON HELPERS =====
 void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon);
