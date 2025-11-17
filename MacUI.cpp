@@ -9,6 +9,21 @@
 
 #include "MacUI.h"
 
+// Sprite buffer for double buffering components
+lgfx::LGFX_Sprite* componentSprite = nullptr;
+
+/**
+ * Initialize sprite buffer for double buffering
+ * Call this once during setup after lcd.init()
+ */
+void initComponentBuffer(lgfx::LGFX_Device* lcd, int maxWidth, int maxHeight) {
+  if (componentSprite == nullptr) {
+    componentSprite = new lgfx::LGFX_Sprite(lcd);
+    componentSprite->setColorDepth(16);
+    componentSprite->createSprite(maxWidth, maxHeight);
+  }
+}
+
 /**
  * Draw the classic Mac OS menu bar
  */
@@ -806,6 +821,13 @@ void drawComponent(lgfx::LGFX_Device& lcd, const MacComponent& component, int wi
       }
       break;
       
+    case COMPONENT_RUNNING_TEXT:
+      if (component.customData != nullptr) {
+        MacRunningText* runningTextData = (MacRunningText*)component.customData;
+        drawRunningText(lcd, absoluteX, absoluteY, component.w, component.h, *runningTextData);
+      }
+      break;
+      
     case COMPONENT_CUSTOM:
       // Custom components can implement their own drawing logic
       // For now, just draw a placeholder rectangle
@@ -960,7 +982,126 @@ void drawProgressBar(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const M
   }
 }
 
-// ===== COMPONENT CREATION HELPERS =====
+void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunningText& runningText) {
+  // Use sprite buffer if available for flicker-free updates
+  bool useSprite = (componentSprite != nullptr && w <= componentSprite->width() && h <= componentSprite->height());
+  
+  if (useSprite) {
+    // Draw to sprite buffer first
+    componentSprite->fillRect(0, 0, w, h, runningText.backgroundColor);
+    
+    // Draw 3D frame on sprite
+    // Inset frame (shadow on top/left, highlight on bottom/right)
+    componentSprite->drawFastHLine(0, 0, w, MAC_DARK_GRAY);
+    componentSprite->drawFastVLine(0, 0, h, MAC_DARK_GRAY);
+    componentSprite->drawFastHLine(0, h - 1, w, MAC_WHITE);
+    componentSprite->drawFastVLine(w - 1, 0, h, MAC_WHITE);
+  } else {
+    // Fall back to direct drawing
+    lcd.fillRect(x, y, w, h, runningText.backgroundColor);
+    draw3DFrame(lcd, x, y, w, h, true);
+  }
+  
+  // Calculate text width in pixels
+  int contentW = w - 4;
+  int textWidth = runningText.text.length() * 6 * runningText.textSize;
+  
+  // Update scroll position if scrolling is enabled
+  if (runningText.scrollEnabled) {
+    unsigned long currentTime = millis();
+    
+    // Check if text fits completely within the content area
+    if (textWidth <= contentW) {
+      // Text fits completely, no need to scroll - just keep it centered
+      runningText.scrollOffset = 0;
+    } else {
+      // Text needs scrolling
+      
+      // Check if we're in pause state
+      if (runningText.isPaused) {
+        if (currentTime - runningText.pauseStartTime >= runningText.pauseDuration) {
+          // Pause is over, resume scrolling
+          runningText.isPaused = false;
+          runningText.lastUpdate = currentTime;
+        }
+      } else {
+        // Normal scrolling
+        if (currentTime - runningText.lastUpdate >= runningText.updateInterval) {
+          runningText.scrollOffset += runningText.scrollSpeed;
+          runningText.lastUpdate = currentTime;
+          
+          // Check scroll boundaries and pause when text completes one cycle
+          if (runningText.scrollSpeed > 0) {
+            // Scrolling left (text moving right to left)
+            if (runningText.scrollOffset > textWidth + 20) {
+              // Text has scrolled completely off screen, reset and pause
+              runningText.scrollOffset = 0;
+              runningText.isPaused = true;
+              runningText.pauseStartTime = currentTime;
+            }
+          } else if (runningText.scrollSpeed < 0) {
+            // Scrolling right (text moving left to right)
+            if (runningText.scrollOffset < -(contentW + 20)) {
+              // Text has scrolled completely off screen, reset and pause
+              runningText.scrollOffset = 0;
+              runningText.isPaused = true;
+              runningText.pauseStartTime = currentTime;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Set up clipping region to prevent text from drawing outside the component
+  int contentX = useSprite ? 2 : x + 2;
+  int contentY = useSprite ? 2 : y + 2;
+  int contentH = h - 4;
+  
+  lgfx::LGFX_Device* drawTarget = useSprite ? (lgfx::LGFX_Device*)componentSprite : &lcd;
+  
+  // Clear the content area
+  drawTarget->fillRect(contentX, contentY, contentW, contentH, runningText.backgroundColor);
+  
+  // Set text properties
+  drawTarget->setTextColor(runningText.textColor, runningText.backgroundColor);
+  drawTarget->setTextSize(runningText.textSize);
+  
+  // Calculate text position
+  int textX = contentX + (runningText.scrollEnabled ? -runningText.scrollOffset : 0);
+  int textY = contentY + (contentH - 8 * runningText.textSize) / 2;
+  
+  // Draw the text (it will be clipped by the content area)
+  drawTarget->setClipRect(contentX, contentY, contentW, contentH);
+  drawTarget->setCursor(textX, textY);
+  drawTarget->print(runningText.text);
+  
+  // If scrolling and text is wrapping around, draw it again on the other side
+  // Only draw wrap-around if actively scrolling (not paused and offset is significant)
+  if (runningText.scrollEnabled && !runningText.isPaused && runningText.scrollOffset != 0) {
+    if (runningText.scrollSpeed > 0 && runningText.scrollOffset > contentW / 2) {
+      // Draw text coming in from the right (only when first text is halfway scrolled out)
+      int wrapTextX = textX + textWidth + 20;  // 20 pixel gap between repeats
+      drawTarget->setCursor(wrapTextX, textY);
+      drawTarget->print(runningText.text);
+    } else if (runningText.scrollSpeed < 0 && runningText.scrollOffset < -(contentW / 2)) {
+      // Draw text coming in from the left (only when first text is halfway scrolled out)
+      int wrapTextX = textX - textWidth - 20;  // 20 pixel gap between repeats
+      drawTarget->setCursor(wrapTextX, textY);
+      drawTarget->print(runningText.text);
+    }
+  }
+  
+  // Clear clipping
+  drawTarget->clearClipRect();
+  
+  // Push sprite buffer to screen if used
+  if (useSprite) {
+    componentSprite->pushSprite(&lcd, x, y);
+  }
+}
+
+// ===== COMPONENT CREATION HELPERS ===
 
 MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const String& text, SymbolType symbol) {
   MacComponent* component = createComponent(COMPONENT_BUTTON, x, y, w, h, id);
@@ -1044,6 +1185,69 @@ MacComponent* createProgressBarComponent(int x, int y, int w, int h, int id, int
   
   component->customData = progressData;
   return component;
+}
+
+MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, const String& text, int scrollSpeed, uint16_t textColor, int textSize) {
+  MacComponent* component = createComponent(COMPONENT_RUNNING_TEXT, x, y, w, h, id);
+  
+  // Create running text-specific data
+  MacRunningText* runningTextData = new MacRunningText();
+  runningTextData->text = text;
+  runningTextData->textColor = textColor;
+  runningTextData->backgroundColor = MAC_WHITE;
+  runningTextData->textSize = textSize;
+  runningTextData->scrollOffset = 0;
+  runningTextData->scrollSpeed = scrollSpeed;
+  runningTextData->lastUpdate = millis();
+  runningTextData->updateInterval = 50;  // Update every 50ms for smooth scrolling
+  runningTextData->scrollEnabled = true;
+  runningTextData->isPaused = true;      // Start in paused state to show full text first
+  runningTextData->pauseStartTime = millis();
+  runningTextData->pauseDuration = 2000; // Pause for 2 seconds when text is fully visible
+  
+  component->customData = runningTextData;
+  return component;
+}
+
+/**
+ * Helper function to update running text properties dynamically
+ * Pass nullptr for parameters you don't want to change
+ */
+void updateRunningTextProperties(MacComponent* component, const String* newText, int* newTextSize, 
+                                  uint16_t* newTextColor, uint16_t* newBgColor, 
+                                  int* newScrollSpeed, int* newPauseDuration) {
+  if (component == nullptr || component->type != COMPONENT_RUNNING_TEXT || component->customData == nullptr) {
+    return;
+  }
+  
+  MacRunningText* runningTextData = (MacRunningText*)component->customData;
+  
+  if (newText != nullptr) {
+    runningTextData->text = *newText;
+    runningTextData->scrollOffset = 0;  // Reset scroll position when text changes
+    runningTextData->isPaused = true;
+    runningTextData->pauseStartTime = millis();
+  }
+  
+  if (newTextSize != nullptr) {
+    runningTextData->textSize = *newTextSize;
+  }
+  
+  if (newTextColor != nullptr) {
+    runningTextData->textColor = *newTextColor;
+  }
+  
+  if (newBgColor != nullptr) {
+    runningTextData->backgroundColor = *newBgColor;
+  }
+  
+  if (newScrollSpeed != nullptr) {
+    runningTextData->scrollSpeed = *newScrollSpeed;
+  }
+  
+  if (newPauseDuration != nullptr) {
+    runningTextData->pauseDuration = *newPauseDuration;
+  }
 }
 
 // ===== GENERIC WINDOW MANAGEMENT HELPERS =====
@@ -1130,4 +1334,31 @@ void handleWindowMoved(lgfx::LGFX_Device& lcd, MacWindow& window) {
   drawWindow(lcd, window);
 }
 
-// ===== EXISTING CODE CONTINUES =====
+/**
+ * Update and redraw running text components for animation
+ * Call this in your UI loop to keep running text scrolling
+ */
+void updateRunningTextComponents(lgfx::LGFX_Device& lcd, MacWindow& window) {
+  if (!window.visible || window.childComponents == nullptr || window.childComponentCount == 0) {
+    return;
+  }
+  
+  for (int i = 0; i < window.childComponentCount; i++) {
+    MacComponent* component = window.childComponents[i];
+    if (component != nullptr && component->visible && component->type == COMPONENT_RUNNING_TEXT) {
+      if (component->customData != nullptr) {
+        MacRunningText* runningTextData = (MacRunningText*)component->customData;
+        
+        // Check if it's time to update
+        unsigned long currentTime = millis();
+        if (runningTextData->scrollEnabled && 
+            currentTime - runningTextData->lastUpdate >= runningTextData->updateInterval) {
+          // Redraw this component to animate the scroll
+          drawComponent(lcd, *component, window.x, window.y);
+        }
+      }
+    }
+  }
+}
+
+// ===== EXISTING CODE CONTINUES ===

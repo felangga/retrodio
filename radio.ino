@@ -337,6 +337,10 @@ void setup() {
     lcd.setRotation(lcd.getRotation() ^ 1);
     Serial.println("LCD rotation set");
 
+    // Initialize sprite buffer for flicker-free component updates
+    initComponentBuffer(&lcd, 420, 50);  // Max component size
+    Serial.println("Sprite buffer initialized");
+
     lcd.fillScreen(MAC_WHITE);
     Serial.println("Screen cleared");
 
@@ -406,6 +410,11 @@ void uiTask(void* parameter) {
     // Handle desktop icon interaction
     if (radioIcon.visible) {
       interactiveDesktopIcon(lcd, radioIcon);
+    }
+
+    // Update running text components for animation
+    if (radioWindow.visible) {
+      updateRunningTextComponents(lcd, radioWindow);
     }
 
     // Note: Button interactions are now handled inside the window container
@@ -560,41 +569,41 @@ void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window) {
   if (!window.visible || window.minimized) return;
 
   // Draw now playing info area at the top
-  draw3DFrame(lcd, window.x + 10, window.y + 35, 200, 25, true);
-  lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  lcd.setTextSize(1);
-  lcd.setCursor(window.x + 15, window.y + 43);
-  if (isPlaying) {
-    lcd.println("♪ Now Playing: Radio Stream");
-  } else {
-    lcd.println("Radio Ready - Press Play");
-  }
+  // draw3DFrame(lcd, window.x + 10, window.y + 35, 200, 25, true);
+  // lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+  // lcd.setTextSize(1);
+  // lcd.setCursor(window.x + 15, window.y + 43);
+  // if (isPlaying) {
+  //   lcd.println("♪ Now Playing: Radio Stream");
+  // } else {
+  //   lcd.println("Radio Ready - Press Play");
+  // }
 
   // Draw spectrum visualization next to the info
-  drawSpectrumVisualization(lcd, window.x + 220, window.y + 35, 80, 25, isPlaying);
+  // drawSpectrumVisualization(lcd, window.x + 220, window.y + 35, 80, 25, isPlaying);
 
   // Draw volume indicator
-  draw3DFrame(lcd, window.x + 310, window.y + 35, 90, 25, true);
-  lcd.setCursor(window.x + 315, window.y + 43);
-  lcd.printf("Volume: %d", 10);  // Fixed value instead of audio.getVolume()
+  // draw3DFrame(lcd, window.x + 310, window.y + 35, 90, 25, true);
+  // lcd.setCursor(window.x + 315, window.y + 43);
+  // lcd.printf("Volume: %d", 10);  // Fixed value instead of audio.getVolume()
 
-  // Draw a fake progress bar area (since it's streaming, we'll show activity)
-  draw3DFrame(lcd, window.x + 20, window.y + 160, 280, 8, true);
-  if (isPlaying) {
-    // Show some activity in the progress bar
-    static int progressPos = 0;
-    progressPos = (progressPos + 5) % 260;
-    lcd.fillRect(window.x + 30 + progressPos, window.y + 162, 20, 4, MAC_BLUE);
-  }
+  // // Draw a fake progress bar area (since it's streaming, we'll show activity)
+  // draw3DFrame(lcd, window.x + 20, window.y + 160, 280, 8, true);
+  // if (isPlaying) {
+  //   // Show some activity in the progress bar
+  //   static int progressPos = 0;
+  //   progressPos = (progressPos + 5) % 260;
+  //   lcd.fillRect(window.x + 30 + progressPos, window.y + 162, 20, 4, MAC_BLUE);
+  // }
 
-  // Draw status area at the bottom
-  draw3DFrame(lcd, window.x + 20, window.y + 190, 280, 30, true);
-  lcd.setCursor(window.x + 25, window.y + 200);
-  if (isPlaying) {
-    lcd.println("♪ Streaming... Internet Radio v1.0");
-  } else {
-    lcd.println("Ready to play - Internet Radio v1.0");
-  }
+  // // Draw status area at the bottom
+  // draw3DFrame(lcd, window.x + 20, window.y + 190, 280, 30, true);
+  // lcd.setCursor(window.x + 25, window.y + 200);
+  // if (isPlaying) {
+  //   lcd.println("♪ Streaming... Internet Radio v1.0");
+  // } else {
+  //   lcd.println("Ready to play - Internet Radio v1.0");
+  // }
 
 }
 
@@ -604,37 +613,48 @@ void initializeRadioWindow() {
   // Clear any existing child components
   clearChildComponents(radioWindow);
 
-  // Example: Add some components using the flexible system
-
   // Add a label for the now playing area
   MacComponent* nowPlayingLabel = createLabelComponent(15, 40, 180, 20, 100, "Now Playing:", MAC_BLACK);
   nowPlayingLabel->onClick = onComponentClick;
   addChildComponent(radioWindow, nowPlayingLabel);
 
   // Main playback controls - larger and centered
-  MacComponent* btnPrev = createButtonComponent(20, 80, 50, 50, 4, "", SYMBOL_PREV);
+  MacComponent* btnPrev = createButtonComponent(130, 165, 50, 50, 4, "", SYMBOL_PREV);
   btnPrev->onClick = onComponentClick;
   addChildComponent(radioWindow, btnPrev);
 
-  MacComponent* btnPlay = createButtonComponent(80, 70, 60, 60, 1, "", SYMBOL_PLAY);
+  MacComponent* btnPlay = createButtonComponent(180, 160, 60, 60, 1, "", SYMBOL_PLAY);
   btnPlay->onClick = onComponentClick;
   addChildComponent(radioWindow, btnPlay);
 
-  MacComponent* btnNext = createButtonComponent(150, 80, 50, 50, 5, "", SYMBOL_NEXT);
+  MacComponent* btnNext = createButtonComponent(240, 165, 50, 50, 5, "", SYMBOL_NEXT);
   btnNext->onClick = onComponentClick;
   addChildComponent(radioWindow, btnNext);
 
+
+  MacComponent* runningText = createRunningTextComponent(
+    10, 40,           // x, y position
+    380, 15,          // width, height
+    200,              // component ID
+    "♪ Now Playing: Internet Radio Stream - Your favorite station!",
+    2,                // scroll speed (2 pixels per update)
+    MAC_BLACK,        // text color
+    2                 // text size
+  );
+  runningText->onClick = onComponentClick;
+  addChildComponent(radioWindow, runningText);
+
   // Volume controls - smaller, positioned on the right
-  MacComponent* btnVolUp = createButtonComponent(300, 70, 45, 35, 3, "", SYMBOL_VOL_UP);
-  btnVolUp->onClick = onComponentClick;
-  addChildComponent(radioWindow, btnVolUp);
+  // MacComponent* btnVolUp = createButtonComponent(300, 70, 45, 35, 3, "", SYMBOL_VOL_UP);
+  // btnVolUp->onClick = onComponentClick;
+  // addChildComponent(radioWindow, btnVolUp);
 
-  MacComponent* btnVolDn = createButtonComponent(300, 110, 45, 35, 6, "", SYMBOL_VOL_DOWN);
-  btnVolDn->onClick = onComponentClick;
-  addChildComponent(radioWindow, btnVolDn);
+  // MacComponent* btnVolDn = createButtonComponent(300, 110, 45, 35, 6, "", SYMBOL_VOL_DOWN);
+  // btnVolDn->onClick = onComponentClick;
+  // addChildComponent(radioWindow, btnVolDn);
 
-  // Stop button - separate and smaller
-  MacComponent* btnStop = createButtonComponent(90, 140, 40, 40, 2, "", SYMBOL_STOP);
-  btnStop->onClick = onComponentClick;
-  addChildComponent(radioWindow, btnStop);
+  // // Stop button - separate and smaller
+  // MacComponent* btnStop = createButtonComponent(90, 140, 40, 40, 2, "", SYMBOL_STOP);
+  // btnStop->onClick = onComponentClick;
+  // addChildComponent(radioWindow, btnStop);
 }

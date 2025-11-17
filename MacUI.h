@@ -18,6 +18,9 @@
 extern const uint32_t screenWidth;
 extern const uint32_t screenHeight;
 
+// Sprite buffer for double buffering (defined in implementation)
+extern lgfx::LGFX_Sprite* componentSprite;
+
 // ===== CLASSIC MAC OS UI COLORS =====
 #define MAC_WHITE     0xFFFF
 #define MAC_BLACK     0x0000
@@ -34,6 +37,7 @@ enum ComponentType {
   COMPONENT_CHECKBOX,
   COMPONENT_SLIDER,
   COMPONENT_PROGRESS_BAR,
+  COMPONENT_RUNNING_TEXT,
   COMPONENT_IMAGE,
   COMPONENT_CUSTOM
 };
@@ -112,6 +116,22 @@ struct MacProgressBar {
   bool showPercentage;
 };
 
+// ===== RUNNING TEXT STRUCT =====
+struct MacRunningText {
+  String text;
+  uint16_t textColor;
+  uint16_t backgroundColor;
+  int textSize;
+  int scrollOffset;           // Current scroll position in pixels
+  int scrollSpeed;            // Pixels to scroll per update (can be negative for right-to-left)
+  unsigned long lastUpdate;   // Last update time in milliseconds
+  int updateInterval;         // Update interval in milliseconds
+  bool scrollEnabled;         // Enable/disable scrolling
+  bool isPaused;              // Pause state when text is fully visible
+  unsigned long pauseStartTime; // Time when pause started
+  int pauseDuration;          // How long to pause in milliseconds (default: 2000ms)
+};
+
 // ===== WINDOW STRUCT =====
 struct MacWindow {
   int x;
@@ -187,14 +207,17 @@ void removeChildComponent(MacWindow& window, MacComponent* component);
 void clearChildComponents(MacWindow& window);
 void drawWindowChildComponents(lgfx::LGFX_Device& lcd, const MacWindow& window);
 MacComponent* findComponentAt(const MacWindow& window, int x, int y);
+void updateRunningTextComponents(lgfx::LGFX_Device& lcd, MacWindow& window);
 
 // Component-specific drawing functions
 void drawComponent(lgfx::LGFX_Device& lcd, const MacComponent& component, int windowX, int windowY);
+void initComponentBuffer(lgfx::LGFX_Device* lcd, int maxWidth, int maxHeight);
 void drawLabel(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacLabel& label);
 void drawTextBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacTextBox& textbox);
 void drawCheckBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacCheckBox& checkbox);
 void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSlider& slider);
 void drawProgressBar(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacProgressBar& progressBar);
+void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunningText& runningText);
 
 // Component creation helpers
 MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const String& text, SymbolType symbol = SYMBOL_NONE);
@@ -203,6 +226,12 @@ MacComponent* createTextBoxComponent(int x, int y, int w, int h, int id, const S
 MacComponent* createCheckBoxComponent(int x, int y, int w, int h, int id, const String& label, bool checked = false);
 MacComponent* createSliderComponent(int x, int y, int w, int h, int id, int minVal, int maxVal, int currentVal, bool vertical = false);
 MacComponent* createProgressBarComponent(int x, int y, int w, int h, int id, int minVal, int maxVal, int currentVal);
+MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, const String& text, int scrollSpeed = 2, uint16_t textColor = MAC_BLACK, int textSize = 1);
+
+// Helper to update running text properties
+void updateRunningTextProperties(MacComponent* component, const String* newText = nullptr, int* newTextSize = nullptr, 
+                                  uint16_t* newTextColor = nullptr, uint16_t* newBgColor = nullptr, 
+                                  int* newScrollSpeed = nullptr, int* newPauseDuration = nullptr);
 
 // ===== GENERIC WINDOW MANAGEMENT HELPERS =====
 // Utility functions that can be called from user-defined callbacks
