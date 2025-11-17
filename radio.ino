@@ -57,7 +57,7 @@ void onWindowContentClick(int relativeX, int relativeY);
 void onWindowMoved();
 
 // Main radio window - declared early so callbacks can reference it
-MacWindow radioWindow{ 20, 40, 420, 240, "Internet Radio Player", true, false, true, onWindowMinimize, onWindowClose, onWindowContentClick, onWindowMoved, nullptr, 0, false, 0, 0 };
+MacWindow radioWindow{ 20, 40, 420, 240, "Radio", true, false, true, onWindowMinimize, onWindowClose, onWindowContentClick, onWindowMoved, nullptr, 0, false, 0, 0 };
 
 // Desktop icon for minimized radio window
 DesktopIcon radioIcon{ 50, 60, "Radio Player", "window", false, false, &radioWindow, onRadioIconClick };
@@ -613,26 +613,6 @@ void initializeRadioWindow() {
   nowPlayingLabel->onClick = onComponentClick;
   addChildComponent(radioWindow, nowPlayingLabel);
 
-  // Add a volume slider
-  MacComponent* volumeSlider = createSliderComponent(320, 80, 80, 20, 101, 0, 21, 10, false);
-  volumeSlider->onClick = onComponentClick;
-  addChildComponent(radioWindow, volumeSlider);
-
-  // Add a progress bar for buffer status
-  MacComponent* bufferProgress = createProgressBarComponent(20, 170, 280, 12, 102, 0, 100, 45);
-  bufferProgress->onClick = onComponentClick;
-  addChildComponent(radioWindow, bufferProgress);
-
-  // Add some checkboxes for options
-  MacComponent* autoPlayCheck = createCheckBoxComponent(20, 200, 120, 16, 103, "Auto Play", true);
-  autoPlayCheck->onClick = onComponentClick;
-  addChildComponent(radioWindow, autoPlayCheck);
-
-  MacComponent* showVisualsCheck = createCheckBoxComponent(150, 200, 140, 16, 104, "Show Visuals", false);
-  showVisualsCheck->onClick = onComponentClick;
-  addChildComponent(radioWindow, showVisualsCheck);
-
-  // Add music control buttons using the new component system
 
   // Main playback controls - larger and centered
   MacComponent* btnPrev = createButtonComponent(20, 80, 50, 50, 4, "", SYMBOL_PREV);

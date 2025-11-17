@@ -472,16 +472,13 @@ void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon) {
 void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbol, uint16_t color) {
   switch (symbol) {
     case SYMBOL_PLAY:
-      // Draw triangle pointing right
       for (int i = 0; i < size; i++) {
-        int lineHeight = (i * 2 * size) / size;
-        if (lineHeight > size) lineHeight = 2 * size - lineHeight;
+        int lineHeight = ((size - i) * size) / size;
         lcd.drawFastVLine(x + i, y + (size - lineHeight) / 2, lineHeight, color);
       }
       break;
 
     case SYMBOL_PAUSE:
-      // Draw two vertical bars
       {
         int barWidth = size / 4;
         int spacing = size / 3;
@@ -491,32 +488,32 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
       break;
 
     case SYMBOL_STOP:
-      // Draw filled square
       lcd.fillRect(x, y, size, size, color);
       break;
 
     case SYMBOL_PREV:
-      // Draw triangle pointing left with bar
-      lcd.fillRect(x, y, 2, size, color);  // Left bar
-      for (int i = 0; i < size - 4; i++) {
-        int lineHeight = ((size - 4 - i) * 2 * (size - 4)) / (size - 4);
-        if (lineHeight > size - 4) lineHeight = 2 * (size - 4) - lineHeight;
-        lcd.drawFastVLine(x + 3 + i, y + (size - lineHeight) / 2, lineHeight, color);
+      {
+        lcd.fillRect(x, y, 2, size, color); 
+        int triSize = size - 4;
+        for (int i = 0; i < triSize; i++) {
+          int lineHeight = ((i + 1) * size) / triSize;
+          lcd.drawFastVLine(x + 3 + i, y + (size - lineHeight) / 2, lineHeight, color);
+        }
       }
       break;
 
     case SYMBOL_NEXT:
-      // Draw triangle pointing right with bar
-      for (int i = 0; i < size - 4; i++) {
-        int lineHeight = (i * 2 * (size - 4)) / (size - 4);
-        if (lineHeight > size - 4) lineHeight = 2 * (size - 4) - lineHeight;
-        lcd.drawFastVLine(x + i, y + (size - lineHeight) / 2, lineHeight, color);
+      {
+        int triSize = size - 4;
+        for (int i = 0; i < triSize; i++) {
+          int lineHeight = ((triSize - i) * size) / triSize;
+          lcd.drawFastVLine(x + i, y + (size - lineHeight) / 2, lineHeight, color);
+        }
+        lcd.fillRect(x + size - 2, y, 2, size, color);  
       }
-      lcd.fillRect(x + size - 2, y, 2, size, color);  // Right bar
       break;
 
     case SYMBOL_VOL_UP:
-      // Draw speaker with sound waves
       lcd.fillRect(x, y + size / 3, size / 3, size / 3, color);
       lcd.fillRect(x + size / 3, y + size / 4, size / 6, size / 2, color);
       // Sound waves
@@ -529,16 +526,13 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
       break;
 
     case SYMBOL_VOL_DOWN:
-      // Draw speaker only (no waves)
       lcd.fillRect(x, y + size / 3, size / 3, size / 3, color);
       lcd.fillRect(x + size / 3, y + size / 4, size / 6, size / 2, color);
-      // Draw minus sign
       lcd.fillRect(x + size / 2 + 2, y + size / 2 - 1, size / 4, 2, color);
       break;
 
     case SYMBOL_NONE:
     default:
-      // Do nothing for text buttons
       break;
   }
 }
