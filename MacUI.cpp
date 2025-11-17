@@ -9,9 +9,6 @@
 
 #include "MacUI.h"
 
-// Screen dimensions are now properly defined in wt32_sc01_plus.h using inline
-// This allows the constants to be shared across multiple files without conflicts
-
 /**
  * Draw the classic Mac OS menu bar
  */
@@ -85,8 +82,8 @@ void drawWindow(lgfx::LGFX_Device& lcd, const MacWindow& window) {
  * Draw a classic Mac OS button with rounded corners and ellipsis
  */
 void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& text, bool pressed) {
-  // Choose colors based on pressed state
-  uint16_t bgColor = pressed ? MAC_DARK_GRAY : MAC_WHITE;
+  // Choose colors based on pressed state - inverted when pressed
+  uint16_t bgColor = pressed ? MAC_BLACK : MAC_WHITE;
   uint16_t textColor = pressed ? MAC_WHITE : MAC_BLACK;
   uint16_t borderColor = MAC_BLACK;
 
@@ -541,12 +538,11 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
  * Draw a button with a symbol instead of text
  */
 void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, SymbolType symbol, bool pressed) {
-  // Colors
-  uint16_t bgColor = pressed ? MAC_GRAY : MAC_WHITE;
+  // Inverted colors when pressed
+  uint16_t bgColor = pressed ? MAC_BLACK : MAC_WHITE;
   uint16_t borderColor = MAC_BLACK;
-  uint16_t symbolColor = MAC_BLACK;
+  uint16_t symbolColor = pressed ? MAC_WHITE : MAC_BLACK;
 
-  // Fill button area
   lcd.fillRect(x + 1, y + 1, w - 2, h - 2, bgColor);
 
   // Clear corner pixels for rounded effect
@@ -572,7 +568,7 @@ void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, Symbol
   lcd.drawPixel(x + w - 2, y + h - 2, borderColor);
 
   // Draw the symbol centered in the button
-  int symbolSize = min(w, h) - 16;  // Leave some padding
+  int symbolSize = min(w, h) - 32;  // Leave some padding
   int symbolX = x + (w - symbolSize) / 2;
   int symbolY = y + (h - symbolSize) / 2;
 
@@ -1096,9 +1092,30 @@ void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int rel
   // Check for components at the clicked position
   MacComponent* clickedComponent = findComponentAt(window, window.x + relativeX, window.y + relativeY);
   
-  if (clickedComponent != nullptr && clickedComponent->onClick != nullptr) {
-    // Call the component's callback function with component ID
-    clickedComponent->onClick(clickedComponent->id);
+  if (clickedComponent != nullptr) {
+    // Handle button press visual feedback
+    if (clickedComponent->type == COMPONENT_BUTTON && clickedComponent->customData != nullptr) {
+      MacButton* btnData = (MacButton*)clickedComponent->customData;
+      
+      // Set pressed state and redraw
+      btnData->pressed = true;
+      drawComponent(lcd, *clickedComponent, window.x, window.y);
+      
+      // Brief delay for visual feedback
+      delay(100);
+      
+      // Call the callback if it exists
+      if (clickedComponent->onClick != nullptr) {
+        clickedComponent->onClick(clickedComponent->id);
+      }
+      
+      // Release pressed state and redraw
+      btnData->pressed = false;
+      drawComponent(lcd, *clickedComponent, window.x, window.y);
+    } else if (clickedComponent->onClick != nullptr) {
+      // Non-button components just call the callback
+      clickedComponent->onClick(clickedComponent->id);
+    }
   }
 }
 

@@ -596,8 +596,6 @@ void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window) {
     lcd.println("Ready to play - Internet Radio v1.0");
   }
 
-  // Child buttons are automatically drawn by the window system
-  // No need to manually position or redraw buttons here
 }
 
 // ===== DYNAMIC WINDOW SETUP =====
@@ -612,7 +610,6 @@ void initializeRadioWindow() {
   MacComponent* nowPlayingLabel = createLabelComponent(15, 40, 180, 20, 100, "Now Playing:", MAC_BLACK);
   nowPlayingLabel->onClick = onComponentClick;
   addChildComponent(radioWindow, nowPlayingLabel);
-
 
   // Main playback controls - larger and centered
   MacComponent* btnPrev = createButtonComponent(20, 80, 50, 50, 4, "", SYMBOL_PREV);
