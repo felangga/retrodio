@@ -6,9 +6,6 @@
 
 #include "MacUI.h"
 
-/**
- * Draw a classic Mac OS button with rounded corners and ellipsis
- */
 void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& text, bool pressed) {
   // Choose colors based on pressed state - inverted when pressed
   uint16_t bgColor = pressed ? MAC_BLACK : MAC_WHITE;
@@ -44,15 +41,6 @@ void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
   int textY = y + (h - 16) / 2;
   lcd.setCursor(textX, textY);
   lcd.print(text);
-
-  // Draw ellipsis (three dots) below text for classic Mac look
-  if (h > 24) {
-    int ellipsisY = textY + 18;
-    int ellipsisX = x + w / 2 - 6;
-    for (int i = 0; i < 3; i++) {
-      lcd.fillCircle(ellipsisX + i * 4, ellipsisY, 1, textColor);
-    }
-  }
 }
 
 /**

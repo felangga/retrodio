@@ -619,15 +619,15 @@ void initializeRadioWindow() {
   addChildComponent(radioWindow, nowPlayingLabel);
 
   // Main playback controls - larger and centered
-  MacComponent* btnPrev = createButtonComponent(130, 165, 50, 50, 4, "", SYMBOL_PREV);
+  MacComponent* btnPrev = createButtonComponent(30, 165, 50, 50, 4, "", SYMBOL_PREV);
   btnPrev->onClick = onComponentClick;
   addChildComponent(radioWindow, btnPrev);
 
-  MacComponent* btnPlay = createButtonComponent(180, 160, 60, 60, 1, "", SYMBOL_PLAY);
+  MacComponent* btnPlay = createButtonComponent(80, 160, 60, 60, 1, "", SYMBOL_PLAY);
   btnPlay->onClick = onComponentClick;
   addChildComponent(radioWindow, btnPlay);
 
-  MacComponent* btnNext = createButtonComponent(240, 165, 50, 50, 5, "", SYMBOL_NEXT);
+  MacComponent* btnNext = createButtonComponent(140, 165, 50, 50, 5, "", SYMBOL_NEXT);
   btnNext->onClick = onComponentClick;
   addChildComponent(radioWindow, btnNext);
 
@@ -635,7 +635,7 @@ void initializeRadioWindow() {
     10, 40,           // x, y position
     400, 25,          // width, height
     200,              // component ID
-    "Swaragama FM - Your Favorite Radio Station!",
+    "Swaragama FM",
     2,                // scroll speed (2 pixels per update)
     MAC_BLACK,        // text color
     3                 // text size

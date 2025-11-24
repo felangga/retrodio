@@ -208,6 +208,8 @@ void updateRunningTextComponents(lgfx::LGFX_Device& lcd, MacWindow& window);
 // Component-specific drawing functions
 void drawComponent(lgfx::LGFX_Device& lcd, const MacComponent& component, int windowX, int windowY);
 void initComponentBuffer(lgfx::LGFX_Device* lcd, int maxWidth, int maxHeight);
+
+// Individual component drawing functions (implemented in separate files)
 void drawLabel(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacLabel& label);
 void drawTextBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacTextBox& textbox);
 void drawCheckBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacCheckBox& checkbox);
@@ -218,10 +220,6 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunn
 // Component creation helpers
 MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const String& text, SymbolType symbol = SYMBOL_NONE);
 MacComponent* createLabelComponent(int x, int y, int w, int h, int id, const String& text, uint16_t textColor = MAC_BLACK);
-MacComponent* createTextBoxComponent(int x, int y, int w, int h, int id, const String& placeholder = "");
-MacComponent* createCheckBoxComponent(int x, int y, int w, int h, int id, const String& label, bool checked = false);
-MacComponent* createSliderComponent(int x, int y, int w, int h, int id, int minVal, int maxVal, int currentVal, bool vertical = false);
-MacComponent* createProgressBarComponent(int x, int y, int w, int h, int id, int minVal, int maxVal, int currentVal);
 MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, const String& text, int scrollSpeed = 2, uint16_t textColor = MAC_BLACK, int textSize = 1);
 
 // Helper to update running text properties
@@ -232,6 +230,7 @@ void updateRunningTextProperties(MacComponent* component, const String* newText 
 // ===== GENERIC WINDOW MANAGEMENT HELPERS =====
 // Utility functions that can be called from user-defined callbacks
 void handleWindowClose(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon = nullptr);
+void handleWindowMinimize(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon = nullptr);
 void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window);
 void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int relativeX, int relativeY);
 void handleWindowMoved(lgfx::LGFX_Device& lcd, MacWindow& window);
