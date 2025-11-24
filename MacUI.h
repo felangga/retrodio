@@ -174,6 +174,7 @@ struct DesktopIcon {
 // Main UI drawing functions
 void drawMenuBar(lgfx::LGFX_Device& lcd, const String& appName);
 void drawCheckeredPattern(lgfx::LGFX_Device& lcd);
+void drawCheckeredPatternArea(lgfx::LGFX_Device& lcd, int x, int y, int w, int h);
 void drawClock(lgfx::LGFX_Device& lcd, const String& time); // added clock drawing
 
 // Window and dialog functions

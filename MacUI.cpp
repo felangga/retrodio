@@ -11,6 +11,7 @@
 
 // Sprite buffer for double buffering components
 lgfx::LGFX_Sprite* componentSprite = nullptr;
+lgfx::LGFX_Sprite* windowSprite = nullptr;
 
 /**
  * Initialize sprite buffer for double buffering
@@ -21,6 +22,21 @@ void initComponentBuffer(lgfx::LGFX_Device* lcd, int maxWidth, int maxHeight) {
     componentSprite = new lgfx::LGFX_Sprite(lcd);
     componentSprite->setColorDepth(16);
     componentSprite->createSprite(maxWidth, maxHeight);
+    componentSprite->fillSprite(MAC_WHITE);  // Initialize with white background
+  }
+  
+  // Create a larger sprite for entire window (if memory allows)
+  if (windowSprite == nullptr) {
+    windowSprite = new lgfx::LGFX_Sprite(lcd);
+    windowSprite->setColorDepth(16);
+    // Try to create sprite for entire window, fall back if memory insufficient
+    if (!windowSprite->createSprite(430, 250)) {
+      Serial.println("Warning: Could not create window sprite buffer");
+      delete windowSprite;
+      windowSprite = nullptr;
+    } else {
+      windowSprite->fillSprite(MAC_WHITE);  // Initialize with white background
+    }
   }
 }
 
@@ -89,8 +105,12 @@ void drawWindow(lgfx::LGFX_Device& lcd, const MacWindow& window) {
   // Draw full window
   drawWindow(lcd, window.x, window.y, window.w, window.h, window.title, window.active);
   
-  // Draw all child components (flexible system)
-  drawWindowChildComponents(lcd, window);
+  // Skip drawing child components during drag to reduce flicker
+  // They'll be redrawn once the drag ends
+  if (!window.isDragging) {
+    // Draw all child components (flexible system)
+    drawWindowChildComponents(lcd, window);
+  }
 }
 
 /**
@@ -242,13 +262,14 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
       // Handle ongoing drag
       if (window.isDragging) {
         static unsigned long lastDragUpdate = 0;
+        static int lastDrawnX = window.x;
+        static int lastDrawnY = window.y;
         unsigned long now = millis();
 
         // Limit drag update frequency to reduce flicker
-        if (now - lastDragUpdate < 30) {  // Max 33 FPS for smooth movement
+        if (now - lastDragUpdate < 50) {  // Slower updates (20 FPS) for smoother appearance
           return;
         }
-        lastDragUpdate = now;
 
         int newX = tx - window.dragOffsetX;
         int newY = ty - window.dragOffsetY;
@@ -258,7 +279,9 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
         newY = max(21, min(newY, (int)screenHeight - window.h));  // 21 to leave menu bar visible
 
         // Only update if position actually changed significantly (reduce micro-movements)
-        if (abs(newX - window.x) > 2 || abs(newY - window.y) > 2) {
+        if (abs(newX - lastDrawnX) > 8 || abs(newY - lastDrawnY) > 8) {
+          lastDragUpdate = now;
+          
           // Store old position
           int oldX = window.x;
           int oldY = window.y;
@@ -266,10 +289,26 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
           // Update position
           window.x = newX;
           window.y = newY;
+          lastDrawnX = newX;
+          lastDrawnY = newY;
 
-          // Simple direct drawing approach
-          redrawDesktopArea(lcd, oldX, oldY, window.w + 5, window.h + 5);
-          drawWindow(lcd, window);
+          // Draw dotted rectangle outline during drag for classic Mac look
+          lcd.startWrite();
+          
+          // Clear old position
+          drawCheckeredPatternArea(lcd, oldX, oldY, window.w + 5, window.h + 5);
+          
+          // Draw dotted rectangle at new position
+          for (int i = 0; i < window.w; i += 4) {
+            lcd.drawPixel(window.x + i, window.y, MAC_BLACK);
+            lcd.drawPixel(window.x + i, window.y + window.h - 1, MAC_BLACK);
+          }
+          for (int i = 0; i < window.h; i += 4) {
+            lcd.drawPixel(window.x, window.y + i, MAC_BLACK);
+            lcd.drawPixel(window.x + window.w - 1, window.y + i, MAC_BLACK);
+          }
+          
+          lcd.endWrite();
           
           // Notify that window moved (so buttons can update positions)
           if (window.onWindowMoved) {
@@ -287,6 +326,10 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
     // Touch released - stop dragging
     if (window.isDragging) {
       window.isDragging = false;
+      // Redraw window with all components now that dragging has ended
+      lcd.startWrite();
+      drawWindow(lcd, window);
+      lcd.endWrite();
     }
     wasPressed = false;
   }
@@ -301,6 +344,32 @@ void drawCheckeredPattern(lgfx::LGFX_Device& lcd) {
     for (int x = 0; x < screenWidth; x += patternSize) {
       if ((x / patternSize + y / patternSize) % 2 == 0) {
         lcd.fillRect(x, y, patternSize, patternSize, MAC_LIGHT_GRAY);
+      }
+    }
+  }
+}
+
+/**
+ * Draw checkered pattern in a specific area (optimized for window dragging)
+ */
+void drawCheckeredPatternArea(lgfx::LGFX_Device& lcd, int startX, int startY, int w, int h) {
+  int patternSize = 3;
+  
+  // Constrain to valid screen area
+  startY = max(21, startY);  // Don't draw over menu bar
+  int endX = min((int)screenWidth, startX + w);
+  int endY = min((int)screenHeight, startY + h);
+  
+  // Align to pattern grid for seamless appearance
+  int gridStartX = (startX / patternSize) * patternSize;
+  int gridStartY = (startY / patternSize) * patternSize;
+  
+  for (int y = gridStartY; y < endY; y += patternSize) {
+    for (int x = gridStartX; x < endX; x += patternSize) {
+      if ((x / patternSize + y / patternSize) % 2 == 0) {
+        lcd.fillRect(x, y, patternSize, patternSize, MAC_LIGHT_GRAY);
+      } else {
+        lcd.fillRect(x, y, patternSize, patternSize, MAC_WHITE);
       }
     }
   }
@@ -985,24 +1054,16 @@ void drawProgressBar(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const M
 void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunningText& runningText) {
   // Use sprite buffer if available for flicker-free updates
   bool useSprite = (componentSprite != nullptr && w <= componentSprite->width() && h <= componentSprite->height());
-  
+ 
   if (useSprite) {
     // Draw to sprite buffer first
     componentSprite->fillRect(0, 0, w, h, runningText.backgroundColor);
-    
-    // Draw 3D frame on sprite
-    // Inset frame (shadow on top/left, highlight on bottom/right)
-    componentSprite->drawFastHLine(0, 0, w, MAC_DARK_GRAY);
-    componentSprite->drawFastVLine(0, 0, h, MAC_DARK_GRAY);
-    componentSprite->drawFastHLine(0, h - 1, w, MAC_WHITE);
-    componentSprite->drawFastVLine(w - 1, 0, h, MAC_WHITE);
   } else {
     // Fall back to direct drawing
     lcd.fillRect(x, y, w, h, runningText.backgroundColor);
-    draw3DFrame(lcd, x, y, w, h, true);
   }
   
-  // Calculate text width in pixels
+  // Calculate text width in pixels based on text size
   int contentW = w - 4;
   int textWidth = runningText.text.length() * 6 * runningText.textSize;
   
@@ -1015,8 +1076,7 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunn
       // Text fits completely, no need to scroll - just keep it centered
       runningText.scrollOffset = 0;
     } else {
-      // Text needs scrolling
-      
+    
       // Check if we're in pause state
       if (runningText.isPaused) {
         if (currentTime - runningText.pauseStartTime >= runningText.pauseDuration) {
@@ -1053,33 +1113,31 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunn
     }
   }
   
-  // Set up clipping region to prevent text from drawing outside the component
-  int contentX = useSprite ? 2 : x + 2;
-  int contentY = useSprite ? 2 : y + 2;
-  int contentH = h - 4;
+  // Set up drawing coordinates
+  int contentX = useSprite ? 0 : x;
+  int contentY = useSprite ? 0 : y;
+  int contentH = h;
   
   lgfx::LGFX_Device* drawTarget = useSprite ? (lgfx::LGFX_Device*)componentSprite : &lcd;
-  
-  // Clear the content area
-  drawTarget->fillRect(contentX, contentY, contentW, contentH, runningText.backgroundColor);
   
   // Set text properties
   drawTarget->setTextColor(runningText.textColor, runningText.backgroundColor);
   drawTarget->setTextSize(runningText.textSize);
+  drawTarget->setTextWrap(false);  // Disable text wrapping to prevent multi-line text
   
   // Calculate text position
   int textX = contentX + (runningText.scrollEnabled ? -runningText.scrollOffset : 0);
   int textY = contentY + (contentH - 8 * runningText.textSize) / 2;
   
-  // Draw the text (it will be clipped by the content area)
-  drawTarget->setClipRect(contentX, contentY, contentW, contentH);
+  // Draw the text (it will be clipped by the component area)
+  drawTarget->setClipRect(contentX, contentY, w, contentH);
   drawTarget->setCursor(textX, textY);
   drawTarget->print(runningText.text);
   
   // If scrolling and text is wrapping around, draw it again on the other side
   // Only draw wrap-around if actively scrolling (not paused and offset is significant)
   if (runningText.scrollEnabled && !runningText.isPaused && runningText.scrollOffset != 0) {
-    if (runningText.scrollSpeed > 0 && runningText.scrollOffset > contentW / 2) {
+    if (runningText.scrollSpeed > 0 && runningText.scrollOffset > contentW / 4) {
       // Draw text coming in from the right (only when first text is halfway scrolled out)
       int wrapTextX = textX + textWidth + 20;  // 20 pixel gap between repeats
       drawTarget->setCursor(wrapTextX, textY);
@@ -1097,7 +1155,10 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunn
   
   // Push sprite buffer to screen if used
   if (useSprite) {
+    // Set clipping on the main lcd to prevent overflow
+    lcd.setClipRect(x, y, w, h);
     componentSprite->pushSprite(&lcd, x, y);
+    lcd.clearClipRect();
   }
 }
 
@@ -1324,14 +1385,9 @@ void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int rel
 }
 
 void handleWindowMoved(lgfx::LGFX_Device& lcd, MacWindow& window) {
-  Serial.println("Window moved - child components automatically positioned relative to window");
-  
-  // With the component system, all components are positioned relative to the window
-  // so no manual position updates are needed when the window moves
-  // The drawWindowChildComponents function handles absolute positioning automatically
-  
-  // Just redraw the window content
-  drawWindow(lcd, window);
+  // During dragging, don't constantly redraw - the drawing happens in interactiveWindow
+  // This callback is just for notification purposes
+  // Components are positioned relative to window, so no updates needed
 }
 
 /**
@@ -1340,6 +1396,11 @@ void handleWindowMoved(lgfx::LGFX_Device& lcd, MacWindow& window) {
  */
 void updateRunningTextComponents(lgfx::LGFX_Device& lcd, MacWindow& window) {
   if (!window.visible || window.childComponents == nullptr || window.childComponentCount == 0) {
+    return;
+  }
+  
+  // Skip updates if window is being dragged to prevent flicker
+  if (window.isDragging) {
     return;
   }
   

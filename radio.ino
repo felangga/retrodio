@@ -634,12 +634,12 @@ void initializeRadioWindow() {
 
   MacComponent* runningText = createRunningTextComponent(
     10, 40,           // x, y position
-    380, 15,          // width, height
+    370, 15,          // width, height
     200,              // component ID
     "♪ Now Playing: Internet Radio Stream - Your favorite station!",
     2,                // scroll speed (2 pixels per update)
     MAC_BLACK,        // text color
-    2                 // text size
+    3                 // text size
   );
   runningText->onClick = onComponentClick;
   addChildComponent(radioWindow, runningText);
