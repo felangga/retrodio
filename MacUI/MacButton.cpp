@@ -71,6 +71,18 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
       lcd.fillRect(x + size / 2 + 2, y + size / 2 - 1, size / 4, 2, color);
       break;
 
+    case SYMBOL_LIST:
+      {
+        int lineHeight = 2;
+        int spacing = size / 4;
+        int lineWidth = size;
+        int startY = y + (size - (3 * lineHeight + 2 * spacing)) / 2;
+        lcd.fillRect(x, startY, lineWidth, lineHeight, color);
+        lcd.fillRect(x, startY + lineHeight + spacing, lineWidth, lineHeight, color);
+        lcd.fillRect(x, startY + 2 * (lineHeight + spacing), lineWidth, lineHeight, color);
+      }
+      break;
+
     case SYMBOL_NONE:
     default:
       break;

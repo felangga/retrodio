@@ -17,6 +17,9 @@
 #include "MacUI/MacSlider.cpp"
 #include "MacUI/MacProgressBar.cpp"
 #include "MacUI/MacRunningText.cpp"
+#include "MacUI/MacListView.cpp"
+#include "MacUI/MacInputField.cpp"
+#include "MacUI/MacKeyboard.cpp"
 
 // Sprite buffer for double buffering components
 lgfx::LGFX_Sprite* componentSprite = nullptr;
@@ -210,10 +213,47 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
           return;
         }
 
+        // Check if touch is on a ListView component for swipe scrolling (only if window is visible)
+        MacComponent* touchedComponent = findComponentAt(window, tx, ty);
+        if (window.visible && touchedComponent && touchedComponent->type == COMPONENT_LISTVIEW && touchedComponent->customData) {
+          MacListView* listViewData = (MacListView*)touchedComponent->customData;
+          listViewData->isTouching = true;
+          listViewData->touchStartY = ty;
+          listViewData->lastTouchY = ty;
+          listViewData->touchStartTime = millis();
+        }
+
         // Handle window content interactions (buttons, etc.)
         // This allows the window to manage all its child components
         if (window.onContentClick) {
           window.onContentClick(tx - window.x, ty - window.y); // Pass relative coordinates
+        }
+      } else if (window.visible) {
+        // Handle ongoing swipe for ListView (only if window is visible)
+        for (int i = 0; i < window.childComponentCount; i++) {
+          MacComponent* component = window.childComponents[i];
+          if (component && component->type == COMPONENT_LISTVIEW && component->customData) {
+            MacListView* listViewData = (MacListView*)component->customData;
+            if (listViewData->isTouching) {
+              int deltaY = ty - listViewData->lastTouchY;
+              
+              // Update scroll offset (inverted for natural scrolling)
+              int oldOffset = listViewData->scrollOffset;
+              listViewData->scrollOffset -= deltaY;
+              
+              // Constrain scroll offset
+              int visibleHeight = component->h - 4;
+              int maxScroll = max(0, listViewData->itemCount * listViewData->itemHeight - visibleHeight);
+              listViewData->scrollOffset = max(0, min(listViewData->scrollOffset, maxScroll));
+              
+              // Redraw if scroll changed
+              if (oldOffset != listViewData->scrollOffset) {
+                drawComponent(lcd, *component, window.x, window.y);
+              }
+              
+              listViewData->lastTouchY = ty;
+            }
+          }
         }
       }
 
@@ -281,7 +321,7 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
       }
     }
   } else {
-    // Touch released - stop dragging
+    // Touch released - stop dragging and ListView swiping
     if (window.isDragging) {
       window.isDragging = false;
       // Redraw window with all components now that dragging has ended
@@ -289,6 +329,16 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
       drawWindow(lcd, window);
       lcd.endWrite();
     }
+    
+    // Reset ListView touch state
+    for (int i = 0; i < window.childComponentCount; i++) {
+      MacComponent* component = window.childComponents[i];
+      if (component && component->type == COMPONENT_LISTVIEW && component->customData) {
+        MacListView* listViewData = (MacListView*)component->customData;
+        listViewData->isTouching = false;
+      }
+    }
+    
     wasPressed = false;
   }
 }
@@ -544,7 +594,8 @@ void drawWindowChildComponents(lgfx::LGFX_Device& lcd, const MacWindow& window) 
 }
 
 MacComponent* findComponentAt(const MacWindow& window, int x, int y) {
-  if (window.childComponents == nullptr || window.childComponentCount == 0) {
+  // Don't find components if window is not visible
+  if (!window.visible || window.childComponents == nullptr || window.childComponentCount == 0) {
     return nullptr;
   }
   
@@ -627,6 +678,27 @@ void drawComponent(lgfx::LGFX_Device& lcd, const MacComponent& component, int wi
       }
       break;
       
+    case COMPONENT_LISTVIEW:
+      if (component.customData != nullptr) {
+        MacListView* listViewData = (MacListView*)component.customData;
+        drawListView(lcd, absoluteX, absoluteY, component.w, component.h, *listViewData);
+      }
+      break;
+      
+    case COMPONENT_INPUT_FIELD:
+      if (component.customData != nullptr) {
+        MacInputField* inputFieldData = (MacInputField*)component.customData;
+        drawInputField(lcd, absoluteX, absoluteY, component.w, component.h, *inputFieldData);
+      }
+      break;
+      
+    case COMPONENT_KEYBOARD:
+      if (component.customData != nullptr) {
+        MacKeyboard* keyboardData = (MacKeyboard*)component.customData;
+        drawKeyboard(lcd, absoluteX, absoluteY, component.w, component.h, *keyboardData);
+      }
+      break;
+      
     case COMPONENT_CUSTOM:
       // Custom components can implement their own drawing logic
       // For now, just draw a placeholder rectangle
@@ -668,6 +740,9 @@ void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window) {
 }
 
 void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int relativeX, int relativeY) {
+  // Ignore clicks if window is not visible
+  if (!window.visible) return;
+  
   Serial.printf("Window content clicked at relative position: %d, %d\n", relativeX, relativeY);
   
   // Check for components at the clicked position
@@ -693,6 +768,32 @@ void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int rel
       // Release pressed state and redraw
       btnData->pressed = false;
       drawComponent(lcd, *clickedComponent, window.x, window.y);
+    } else if (clickedComponent->type == COMPONENT_LISTVIEW && clickedComponent->customData != nullptr) {
+      // Handle ListView - this is now just for tap detection, scrolling happens in interactiveWindow
+      MacListView* listViewData = (MacListView*)clickedComponent->customData;
+      
+      // Check if this was a tap (not a swipe)
+      int swipeDistance = abs(relativeY - listViewData->touchStartY);
+      unsigned long swipeDuration = millis() - listViewData->touchStartTime;
+      
+      // If movement was small and quick, it's a tap
+      if (swipeDistance < 10 && swipeDuration < 300) {
+        // Calculate which item was clicked
+        int clickedY = relativeY - clickedComponent->y;
+        int clickedItemIndex = (clickedY + listViewData->scrollOffset) / listViewData->itemHeight;
+        
+        if (clickedItemIndex >= 0 && clickedItemIndex < listViewData->itemCount) {
+          // Update selection
+          listViewData->selectedIndex = clickedItemIndex;
+          drawComponent(lcd, *clickedComponent, window.x, window.y);
+          
+          // Call item click callback if set
+          if (listViewData->onItemClick != nullptr) {
+            delay(100);  // Brief visual feedback
+            listViewData->onItemClick(clickedItemIndex, listViewData->items[clickedItemIndex].data);
+          }
+        }
+      }
     } else if (clickedComponent->onClick != nullptr) {
       // Non-button components just call the callback
       clickedComponent->onClick(clickedComponent->id);

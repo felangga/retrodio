@@ -38,6 +38,9 @@ enum ComponentType {
   COMPONENT_SLIDER,
   COMPONENT_PROGRESS_BAR,
   COMPONENT_RUNNING_TEXT,
+  COMPONENT_LISTVIEW,
+  COMPONENT_INPUT_FIELD,
+  COMPONENT_KEYBOARD,
   COMPONENT_IMAGE,
   COMPONENT_CUSTOM
 };
@@ -51,6 +54,7 @@ enum SymbolType {
   SYMBOL_NEXT,
   SYMBOL_VOL_UP,
   SYMBOL_VOL_DOWN,
+  SYMBOL_LIST,
   SYMBOL_NONE
 };
 
@@ -91,6 +95,32 @@ struct MacTextBox {
   bool focused;
   int cursorPos;
   int maxLength;
+  unsigned long lastCursorBlink; // For cursor blinking animation
+  bool cursorVisible;
+};
+
+// ===== INPUT FIELD STRUCT (Enhanced text input with keyboard support) =====
+struct MacInputField {
+  String text;
+  String placeholder;
+  bool focused;
+  int cursorPos;
+  int maxLength;
+  unsigned long lastCursorBlink;
+  bool cursorVisible;
+  void (*onTextChanged)(int componentId, const String& text); // Callback when text changes
+};
+
+// ===== KEYBOARD STRUCT =====
+struct MacKeyboard {
+  bool visible;
+  int x;
+  int y;
+  int w;
+  int h;
+  int targetInputId; // ID of the input field this keyboard is linked to
+  bool shiftActive;  // Shift key state (for uppercase)
+  int selectedKey;   // Currently highlighted key (-1 for none)
 };
 
 // ===== CHECKBOX STRUCT =====
@@ -130,6 +160,31 @@ struct MacRunningText {
   bool isPaused;              // Pause state when text is fully visible
   unsigned long pauseStartTime; // Time when pause started
   int pauseDuration;          // How long to pause in milliseconds (default: 2000ms)
+};
+
+// ===== LISTVIEW STRUCT =====
+struct MacListViewItem {
+  String text;
+  void* data;  // Custom data pointer for each item
+};
+
+struct MacListView {
+  MacListViewItem* items;     // Array of list items
+  int itemCount;              // Number of items
+  int selectedIndex;          // Currently selected item (-1 if none)
+  int scrollOffset;           // Vertical scroll offset in pixels
+  int itemHeight;             // Height of each item in pixels
+  int visibleItemCount;       // Number of items visible at once
+  uint16_t textColor;
+  uint16_t backgroundColor;
+  uint16_t selectedColor;     // Background color for selected item
+  int textSize;
+  void (*onItemClick)(int index, void* itemData);  // Callback when item is clicked
+  // Touch/swipe tracking
+  bool isTouching;            // Currently being touched
+  int lastTouchY;             // Last touch Y position
+  int touchStartY;            // Touch start Y position
+  unsigned long touchStartTime; // Touch start time for detecting taps vs swipes
 };
 
 // ===== WINDOW STRUCT =====
@@ -216,16 +271,28 @@ void drawCheckBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacC
 void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSlider& slider);
 void drawProgressBar(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacProgressBar& progressBar);
 void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunningText& runningText);
+void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListView& listView);
+void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInputField& inputField);
+void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboard& keyboard);
 
 // Component creation helpers
 MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const String& text, SymbolType symbol = SYMBOL_NONE);
 MacComponent* createLabelComponent(int x, int y, int w, int h, int id, const String& text, uint16_t textColor = MAC_BLACK);
 MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, const String& text, int scrollSpeed = 2, uint16_t textColor = MAC_BLACK, int textSize = 1);
+MacComponent* createListViewComponent(int x, int y, int w, int h, int id, MacListViewItem* items, int itemCount, int itemHeight = 30);
+MacComponent* createInputFieldComponent(int x, int y, int w, int h, int id, const String& placeholder = "", int maxLength = 50);
+MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int targetInputId);
 
 // Helper to update running text properties
 void updateRunningTextProperties(MacComponent* component, const String* newText = nullptr, int* newTextSize = nullptr, 
                                   uint16_t* newTextColor = nullptr, uint16_t* newBgColor = nullptr, 
                                   int* newScrollSpeed = nullptr, int* newPauseDuration = nullptr);
+
+// Helper to update input field components (cursor blinking)
+void updateInputFieldComponents(lgfx::LGFX_Device& lcd, MacWindow& window);
+
+// Helper to handle keyboard touch input
+bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent, MacComponent* inputComponent, int touchX, int touchY);
 
 // ===== GENERIC WINDOW MANAGEMENT HELPERS =====
 // Utility functions that can be called from user-defined callbacks

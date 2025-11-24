@@ -14,26 +14,15 @@
 #include "esp32-hal-psram.h"
 #include "wt32_sc01_plus.h"
 #include "MacUI.h"
+#include "config.h"
 #include <time.h>
 
-// ===== CONFIGURATION =====
-
-// WiFi credentials (consider moving to separate config file for security)
-const String WIFI_SSID = "WTM-KB32";
-const String WIFI_PASSWORD = "kpbl3224";
-
-// Radio stream URL
-const String RADIO_URL = "http://202.65.114.229:9314/";
-
-// Audio settings
-#define DEFAULT_VOLUME 10  // Range: 0-21
-
-// NTP config
-static const char* NTP_SERVER = "pool.ntp.org";
-static const long GMT_OFFSET_SEC = 0;  // adjust as needed
-static const int DST_OFFSET_SEC = 0;   // adjust daylight saving
-
 // ===== GLOBAL OBJECTS =====
+
+const int btnStationID = 7;
+const int btnAddStationID = 8;
+const int btnSaveStationID = 9;
+const int btnCancelAddStationID = 10;
 
 static LGFX lcd;  // Display instance
 Audio audio;      // Audio streaming instance
@@ -56,11 +45,28 @@ void onRadioIconClick();
 void onWindowContentClick(int relativeX, int relativeY);
 void onWindowMoved();
 
+// Station window callbacks
+void onStationWindowMinimize();
+void onStationWindowClose();
+void onStationWindowContentClick(int relativeX, int relativeY);
+void onStationWindowMoved();
+
+// Add Station window callbacks
+void onAddStationWindowMinimize();
+void onAddStationWindowClose();
+void onAddStationWindowContentClick(int relativeX, int relativeY);
+void onAddStationWindowMoved();
+
 // Main radio window - declared early so callbacks can reference it
 MacWindow radioWindow{ 20, 40, 420, 240, "Radio", true, false, true, onWindowMinimize, onWindowClose, onWindowContentClick, onWindowMoved, nullptr, 0, false, 0, 0 };
+MacWindow stationWindow{ 20, 40, 420, 240, "Station List", true, false, true, onStationWindowMinimize, onStationWindowClose, onStationWindowContentClick, onStationWindowMoved, nullptr, 0, false, 0, 0 };
+MacWindow addStationWindow{ 60, 40, 360, 160, "Add Station", true, false, true, onAddStationWindowMinimize, onAddStationWindowClose, onAddStationWindowContentClick, onAddStationWindowMoved, nullptr, 0, false, 0, 0 };
 
 // Desktop icon for minimized radio window
 DesktopIcon radioIcon{ 50, 60, "Radio Player", "window", false, false, &radioWindow, onRadioIconClick };
+
+// Global keyboard component (overlays bottom half of screen)
+MacComponent* globalKeyboard = nullptr;
 
 // ===== FUNCTION PROTOTYPES =====
 
@@ -74,6 +80,8 @@ void audioTask(void* parameter);
 
 // Window setup functions
 void initializeRadioWindow();
+void initializeStationWindow();
+void initializeAddStationWindow();
 
 // Component interaction functions
 void onComponentClick(int componentId);
@@ -158,6 +166,94 @@ void onComponentClick(int componentId) {
       break;
     case 6:  // Volume Down Button
       onVolDown();
+      break;
+    case btnStationID:  // Station List Button
+      // Hide radio window
+      radioWindow.visible = false;
+      // Redraw background
+      drawCheckeredPattern(lcd);
+      drawMenuBar(lcd, "Retrodio");
+      // Show station window
+      stationWindow.visible = true;
+      stationWindow.minimized = false;
+      drawWindow(lcd, stationWindow);
+      break;
+    
+    case btnAddStationID:  // Add Station Button
+      Serial.println("Add Station button pressed");
+      displayStatus(lcd, "Opening Add Station", 160);
+      // Hide station window
+      stationWindow.visible = false;
+      // Show add station window
+      addStationWindow.visible = true;
+      addStationWindow.minimized = false;
+      drawCheckeredPattern(lcd);
+      drawMenuBar(lcd, "Retrodio");
+      drawWindow(lcd, addStationWindow);
+      break;
+    
+    case btnSaveStationID:  // Save Station Button
+      Serial.println("Save Station button pressed");
+      
+      // Get the input values from the input fields
+      {
+        MacComponent* nameInputComp = findComponentById(addStationWindow, 401);
+        MacComponent* urlInputComp = findComponentById(addStationWindow, 403);
+        
+        if (nameInputComp && urlInputComp) {
+          MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
+          MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+          
+          String stationName = nameInput->text;
+          String stationURL = urlInput->text;
+          
+          // Validate inputs
+          if (stationName.length() > 0 && stationURL.length() > 0) {
+            Serial.printf("Saving station: %s - %s\n", stationName.c_str(), stationURL.c_str());
+            displayStatus(lcd, "Station Saved: " + stationName, 160);
+            
+            // TODO: Add station to list (expand stationItems array)
+            // For now, just show success message
+            
+            // Clear input fields
+            nameInput->text = "";
+            nameInput->cursorPos = 0;
+            urlInput->text = "";
+            urlInput->cursorPos = 0;
+          } else {
+            displayStatus(lcd, "Please fill all fields", 160);
+            return; // Don't close window if validation fails
+          }
+        }
+      }
+      
+      // Hide keyboard and close add station window
+      if (globalKeyboard) {
+        MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+        keyboard->visible = false;
+      }
+      
+      addStationWindow.visible = false;
+      stationWindow.visible = true;
+      drawCheckeredPattern(lcd);
+      drawMenuBar(lcd, "Retrodio");
+      drawWindow(lcd, stationWindow);
+      break;
+    
+    case btnCancelAddStationID:  // Cancel Add Station Button
+      Serial.println("Cancel Add Station button pressed");
+      
+      // Hide keyboard and close add station window
+      if (globalKeyboard) {
+        MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+        keyboard->visible = false;
+      }
+      
+      addStationWindow.visible = false;
+      stationWindow.visible = true;
+      drawCheckeredPattern(lcd);
+      drawMenuBar(lcd, "Retrodio");
+      drawWindow(lcd, stationWindow);
       break;
 
     default:
@@ -295,6 +391,154 @@ void onWindowMoved() {
   handleWindowMoved(lcd, radioWindow);
 }
 
+// Station window callbacks
+void onStationWindowMinimize() {
+  // Close station window and return to radio window
+  stationWindow.visible = false;
+  radioWindow.visible = true;
+  drawCheckeredPattern(lcd);
+  drawMenuBar(lcd, "Retrodio");
+  drawWindow(lcd, radioWindow);
+}
+
+void onStationWindowClose() {
+  // Close station window and return to radio window
+  stationWindow.visible = false;
+  radioWindow.visible = true;
+  drawCheckeredPattern(lcd);
+  drawMenuBar(lcd, "Retrodio");
+  drawWindow(lcd, radioWindow);
+}
+
+void onStationWindowContentClick(int relativeX, int relativeY) {
+  handleWindowContentClick(lcd, stationWindow, relativeX, relativeY);
+}
+
+void onStationWindowMoved() {
+  handleWindowMoved(lcd, stationWindow);
+}
+
+// Add Station window callbacks
+void onAddStationWindowMinimize() {
+  // Hide keyboard if visible
+  if (globalKeyboard) {
+    MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+    keyboard->visible = false;
+  }
+  
+  // Close add station window and return to station list
+  addStationWindow.visible = false;
+  stationWindow.visible = true;
+  drawCheckeredPattern(lcd);
+  drawMenuBar(lcd, "Retrodio");
+  drawWindow(lcd, stationWindow);
+}
+
+void onAddStationWindowClose() {
+  // Hide keyboard if visible
+  if (globalKeyboard) {
+    MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+    keyboard->visible = false;
+  }
+  
+  // Close add station window and return to station list
+  addStationWindow.visible = false;
+  stationWindow.visible = true;
+  drawCheckeredPattern(lcd);
+  drawMenuBar(lcd, "Retrodio");
+  drawWindow(lcd, stationWindow);
+}
+
+void onAddStationWindowContentClick(int relativeX, int relativeY) {
+  // Find input components
+  MacComponent* nameInputComp = nullptr;
+  MacComponent* urlInputComp = nullptr;
+  
+  for (int i = 0; i < addStationWindow.childComponentCount; i++) {
+    MacComponent* comp = addStationWindow.childComponents[i];
+    if (comp->id == 401) {
+      nameInputComp = comp;
+    } else if (comp->id == 403) {
+      urlInputComp = comp;
+    }
+  }
+  
+  if (globalKeyboard && nameInputComp && urlInputComp) {
+    MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+    
+    // Check if input fields were clicked to change focus
+    if (relativeX >= nameInputComp->x && relativeX <= nameInputComp->x + nameInputComp->w &&
+        relativeY >= nameInputComp->y && relativeY <= nameInputComp->y + nameInputComp->h) {
+      // Switch to name input
+      MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
+      MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+      
+      nameInput->focused = true;
+      urlInput->focused = false;
+      keyboard->targetInputId = 401;
+      keyboard->visible = true;
+      
+      // Redraw both input fields and keyboard
+      drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
+      drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
+      drawComponent(lcd, *globalKeyboard, 0, 0);
+      return;
+    }
+    
+    if (relativeX >= urlInputComp->x && relativeX <= urlInputComp->x + urlInputComp->w &&
+        relativeY >= urlInputComp->y && relativeY <= urlInputComp->y + urlInputComp->h) {
+      // Switch to URL input
+      MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
+      MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+      
+      nameInput->focused = false;
+      urlInput->focused = true;
+      keyboard->targetInputId = 403;
+      keyboard->visible = true;
+      
+      // Redraw both input fields and keyboard
+      drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
+      drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
+      drawComponent(lcd, *globalKeyboard, 0, 0);
+      return;
+    }
+    
+    // If we reach here and keyboard is visible, user clicked something else (not input fields)
+    // Hide the keyboard and unfocus all input fields
+    if (keyboard->visible) {
+      keyboard->visible = false;
+      
+      if (nameInputComp && nameInputComp->customData) {
+        MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
+        nameInput->focused = false;
+      }
+      if (urlInputComp && urlInputComp->customData) {
+        MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+        urlInput->focused = false;
+      }
+      
+      // Redraw input fields to remove focus indicators
+      if (nameInputComp) drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
+      if (urlInputComp) drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
+      
+      // Redraw desktop area where keyboard was
+      int keyboardHeight = screenHeight / 2;
+      int keyboardY = screenHeight - keyboardHeight;
+      drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
+      
+      // Redraw the window
+      drawWindow(lcd, addStationWindow);
+    }
+  }
+  
+  // Handle other component clicks (buttons)
+  handleWindowContentClick(lcd, addStationWindow, relativeX, relativeY);
+}
+
+void onAddStationWindowMoved() {
+  handleWindowMoved(lcd, addStationWindow);
+}
+
 // ===== CALLBACK FUNCTIONS =====
 
 /**
@@ -391,6 +635,8 @@ void loop() {
 // UI Task - runs on Core 1 (default Arduino core)
 void uiTask(void* parameter) {
   Serial.println("UI Task started on Core 1");
+  
+  int touchX, touchY; // Touch coordinates
 
   while (true) {
     static unsigned long lastDebugPrint = 0;
@@ -402,8 +648,73 @@ void uiTask(void* parameter) {
       lastDebugPrint = millis();
     }
 
+    // Handle global keyboard input first if visible
+    if (globalKeyboard) {
+      MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+      if (keyboard->visible && lcd.getTouch(&touchX, &touchY)) {
+        // Check if touch is within keyboard area
+        int keyboardHeight = screenHeight / 2;
+        int keyboardY = screenHeight - keyboardHeight;
+        
+        if (touchY >= keyboardY) {
+          // Touch is within keyboard area - handle keyboard input
+          MacComponent* activeInputComp = nullptr;
+          if (addStationWindow.visible) {
+            for (int i = 0; i < addStationWindow.childComponentCount; i++) {
+              MacComponent* comp = addStationWindow.childComponents[i];
+              if (comp->id == keyboard->targetInputId) {
+                activeInputComp = comp;
+                break;
+              }
+            }
+          }
+          
+          if (activeInputComp && handleKeyboardTouch(lcd, globalKeyboard, activeInputComp, touchX, touchY)) {
+            // Redraw the active input field after keyboard input
+            drawComponent(lcd, *activeInputComp, addStationWindow.x, addStationWindow.y);
+            delay(100); // Debounce
+            while(lcd.getTouch(&touchX, &touchY)) { delay(10); } // Wait for release
+            continue;
+          }
+        } else {
+          // Touch is outside keyboard area - hide keyboard and unfocus inputs
+          keyboard->visible = false;
+          
+          // Unfocus all input fields
+          if (addStationWindow.visible) {
+            for (int i = 0; i < addStationWindow.childComponentCount; i++) {
+              MacComponent* comp = addStationWindow.childComponents[i];
+              if (comp->type == COMPONENT_INPUT_FIELD && comp->customData) {
+                MacInputField* inputField = (MacInputField*)comp->customData;
+                inputField->focused = false;
+                drawComponent(lcd, *comp, addStationWindow.x, addStationWindow.y);
+              }
+            }
+          }
+          
+          // Redraw desktop area where keyboard was
+          drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
+          
+          // Redraw any visible windows
+          if (addStationWindow.visible) drawWindow(lcd, addStationWindow);
+          if (stationWindow.visible) drawWindow(lcd, stationWindow);
+          if (radioWindow.visible) drawWindow(lcd, radioWindow);
+          
+          delay(100); // Debounce
+          while(lcd.getTouch(&touchX, &touchY)) { delay(10); } // Wait for release
+          
+          // Continue to handle the touch event normally (for buttons, etc)
+        }
+      }
+    }
+    
     // Handle window interaction (minimize/close buttons)
-    if (radioWindow.visible) {
+    // Only handle one window at a time - add station window takes priority, then station window, then radio window
+    if (addStationWindow.visible) {
+      interactiveWindow(lcd, addStationWindow);
+    } else if (stationWindow.visible) {
+      interactiveWindow(lcd, stationWindow);
+    } else if (radioWindow.visible) {
       interactiveWindow(lcd, radioWindow);
     }
 
@@ -413,8 +724,47 @@ void uiTask(void* parameter) {
     }
 
     // Update running text components for animation
-    if (radioWindow.visible) {
+    if (radioWindow.visible && !stationWindow.visible && !addStationWindow.visible) {
       updateRunningTextComponents(lcd, radioWindow);
+    }
+    
+    if (stationWindow.visible && !addStationWindow.visible) {
+      updateRunningTextComponents(lcd, stationWindow);
+    }
+    
+    if (addStationWindow.visible) {
+      updateRunningTextComponents(lcd, addStationWindow);
+      updateInputFieldComponents(lcd, addStationWindow);
+    }
+    
+    // Draw global keyboard if visible (overlay on top of everything)
+    if (globalKeyboard) {
+      MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+      static bool lastKeyboardVisible = false;
+      
+      if (keyboard->visible && !lastKeyboardVisible) {
+        // Keyboard just became visible - draw it
+        drawComponent(lcd, *globalKeyboard, 0, 0);
+        lastKeyboardVisible = true;
+      } else if (!keyboard->visible && lastKeyboardVisible) {
+        // Keyboard just became hidden - redraw desktop area
+        int keyboardHeight = screenHeight / 2;
+        int keyboardY = screenHeight - keyboardHeight;
+        drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
+        
+        // Redraw any windows that might be in that area
+        if (radioWindow.visible) {
+          drawWindow(lcd, radioWindow);
+        }
+        if (stationWindow.visible) {
+          drawWindow(lcd, stationWindow);
+        }
+        if (addStationWindow.visible) {
+          drawWindow(lcd, addStationWindow);
+        }
+        
+        lastKeyboardVisible = false;
+      }
     }
 
     // Note: Button interactions are now handled inside the window container
@@ -489,7 +839,7 @@ void updateClock() {
 void connectToWiFi() {
   displayStatus(lcd, "Connecting to WiFi...", 160);
 
-  WiFi.begin(WIFI_SSID.c_str(), WIFI_PASSWORD.c_str());
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 30) {
@@ -523,7 +873,7 @@ void initializeAudio() {
 
   displayStatus(lcd, "Connecting to stream...", 180);
 
-  if (audio.connecttohost(RADIO_URL.c_str())) {
+  if (audio.connecttohost(RADIO_URL)) {
     displayStatus(lcd, "Stream connected!", 180);
 
     lcd.fillRect(45, 180, 175, 15, MAC_WHITE);
@@ -553,10 +903,26 @@ void drawInterface(lgfx::LGFX_Device& lcd) {
 
   // Initialize the radio window with its child components
   initializeRadioWindow();
+  initializeStationWindow();
+  initializeAddStationWindow();
+  
+  // Initialize global keyboard (bottom half of screen)
+  if (globalKeyboard == nullptr) {
+    int keyboardHeight = screenHeight / 2;
+    int keyboardY = screenHeight - keyboardHeight;
+    globalKeyboard = createKeyboardComponent(0, keyboardY, screenWidth, keyboardHeight, 404, 401);
+    // Keyboard starts hidden
+    MacKeyboard* kb = (MacKeyboard*)globalKeyboard->customData;
+    kb->visible = false;
+  }
 
   // Draw the window using the new window system
   // This will automatically draw all child buttons
   drawWindow(lcd, radioWindow);
+  
+  // Station and add station windows start hidden
+  stationWindow.visible = false;
+  addStationWindow.visible = false;
 
   // Only draw content if window is not minimized
   if (!radioWindow.minimized && radioWindow.visible) {
@@ -627,6 +993,10 @@ void initializeRadioWindow() {
   btnPlay->onClick = onComponentClick;
   addChildComponent(radioWindow, btnPlay);
 
+  MacComponent* btnStation = createButtonComponent(300, 165, 50, 50, btnStationID, "", SYMBOL_LIST);
+  btnStation->onClick = onComponentClick;
+  addChildComponent(radioWindow, btnStation);
+
   MacComponent* btnNext = createButtonComponent(140, 165, 50, 50, 5, "", SYMBOL_NEXT);
   btnNext->onClick = onComponentClick;
   addChildComponent(radioWindow, btnNext);
@@ -668,4 +1038,94 @@ void initializeRadioWindow() {
   // MacComponent* btnStop = createButtonComponent(90, 140, 40, 40, 2, "", SYMBOL_STOP);
   // btnStop->onClick = onComponentClick;
   // addChildComponent(radioWindow, btnStop);
+}
+
+// ===== STATION LIST DATA =====
+// Define your radio stations here
+MacListViewItem stationItems[] = {
+  {"Swaragama FM - Jogja", nullptr},
+  {"Prambors FM - Jakarta", nullptr},
+  {"Gen FM - Semarang", nullptr},
+  {"Trijaya FM - Jakarta", nullptr},
+  {"Radio Elshinta - Jakarta", nullptr},
+  {"Radio Sonora - Jakarta", nullptr},
+  {"MNC Trijaya FM", nullptr},
+  {"Hard Rock FM", nullptr},
+  {"RRI Pro 1", nullptr},
+  {"Ardan FM", nullptr}
+};
+
+const int stationItemCount = sizeof(stationItems) / sizeof(stationItems[0]);
+
+void onStationItemClick(int index, void* itemData) {
+  Serial.printf("Station selected: %d - %s\n", index, stationItems[index].text.c_str());
+  // Here you can add logic to switch to the selected station
+  // For example: switchToStation(index);
+  
+  // Close station window and show radio window
+  stationWindow.visible = false;
+  radioWindow.visible = true;
+  drawCheckeredPattern(lcd);
+  drawMenuBar(lcd, "Retrodio");
+  drawWindow(lcd, radioWindow);
+}
+
+void initializeStationWindow() {
+  // Clear any existing child components
+  clearChildComponents(stationWindow);
+  
+  // Add "Add Station" button at the bottom
+  MacComponent* btnAddStation = createButtonComponent(310, 35, 90, 30, btnAddStationID, "Add +");
+  btnAddStation->onClick = onComponentClick;
+  addChildComponent(stationWindow, btnAddStation);
+  
+  // Create the list view component (reduced width to accommodate button)
+  MacComponent* stationList = createListViewComponent(
+    10, 35,           // x, y position (below title bar)
+    290, 195,         // width, height (reduced from 400)
+    300,              // component ID
+    stationItems,     // array of items
+    stationItemCount, // number of items
+    30                // item height
+  );
+  
+  // Set the item click callback
+  if (stationList && stationList->customData) {
+    MacListView* listViewData = (MacListView*)stationList->customData;
+    listViewData->onItemClick = onStationItemClick;
+  }
+  
+  stationList->onClick = onComponentClick;
+  addChildComponent(stationWindow, stationList);
+}
+
+void initializeAddStationWindow() {
+  // Clear any existing child components
+  clearChildComponents(addStationWindow);
+  
+  // Add labels for field names
+  MacComponent* lblStationName = createLabelComponent(20, 40, 120, 20, 400, "Station Name:");
+  addChildComponent(addStationWindow, lblStationName);
+  
+  // Add input field for station name
+  MacComponent* txtStationName = createInputFieldComponent(150, 40, 190, 25, 401, "Enter station name", 50);
+  txtStationName->onClick = onComponentClick;
+  addChildComponent(addStationWindow, txtStationName);
+  
+  MacComponent* lblStationURL = createLabelComponent(20, 75, 120, 20, 402, "Station URL:");
+  addChildComponent(addStationWindow, lblStationURL);
+  
+  // Add input field for station URL
+  MacComponent* txtStationURL = createInputFieldComponent(150, 75, 190, 25, 403, "https://...", 200);
+  txtStationURL->onClick = onComponentClick;
+  addChildComponent(addStationWindow, txtStationURL);
+  
+  // Add Save and Cancel buttons
+  MacComponent* btnSave = createButtonComponent(80, 115, 80, 30, btnSaveStationID, "Save");
+  btnSave->onClick = onComponentClick;
+  addChildComponent(addStationWindow, btnSave);
+  
+  MacComponent* btnCancel = createButtonComponent(180, 115, 80, 30, btnCancelAddStationID, "Cancel");
+  btnCancel->onClick = onComponentClick;
+  addChildComponent(addStationWindow, btnCancel);
 }
