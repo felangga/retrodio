@@ -631,18 +631,29 @@ void initializeRadioWindow() {
   btnNext->onClick = onComponentClick;
   addChildComponent(radioWindow, btnNext);
 
-
-  MacComponent* runningText = createRunningTextComponent(
+  MacComponent* txtRadioName = createRunningTextComponent(
     10, 40,           // x, y position
-    370, 15,          // width, height
+    400, 25,          // width, height
     200,              // component ID
-    "♪ Now Playing: Internet Radio Stream - Your favorite station!",
+    "Swaragama FM - Your Favorite Radio Station!",
     2,                // scroll speed (2 pixels per update)
     MAC_BLACK,        // text color
     3                 // text size
   );
-  runningText->onClick = onComponentClick;
-  addChildComponent(radioWindow, runningText);
+  txtRadioName->onClick = onComponentClick;
+  addChildComponent(radioWindow, txtRadioName);
+
+  MacComponent* txtRadioDetails = createRunningTextComponent(
+    10, 70,           // x, y position
+    400, 15,          // width, height
+    201,              // component ID
+    "Now Playing: Internet Radio Stream - Enjoy your favorite music and shows all day long!",
+    2,                // scroll speed (2 pixels per update)
+    MAC_BLACK,        // text color
+    1                 // text size
+  );
+  txtRadioDetails->onClick = onComponentClick;
+  addChildComponent(radioWindow, txtRadioDetails);
 
   // Volume controls - smaller, positioned on the right
   // MacComponent* btnVolUp = createButtonComponent(300, 70, 45, 35, 3, "", SYMBOL_VOL_UP);

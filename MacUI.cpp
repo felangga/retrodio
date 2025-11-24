@@ -151,15 +151,6 @@ void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
   int textY = y + (h - 16) / 2;                  // Adjusted for larger text (16 pixels high)
   lcd.setCursor(textX, textY);
   lcd.print(text);
-
-  // Draw ellipsis (three dots) below text for classic Mac look
-  if (h > 24) {                     // Only if button is tall enough (adjusted threshold for larger text)
-    int ellipsisY = textY + 18;     // Adjusted spacing for larger text
-    int ellipsisX = x + w / 2 - 6;  // Center the ellipsis
-    for (int i = 0; i < 3; i++) {
-      lcd.fillCircle(ellipsisX + i * 4, ellipsisY, 1, textColor);
-    }
-  }
 }
 
 // ===== WINDOW INTERACTION HELPERS =====
@@ -205,8 +196,6 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
   bool touching = lcd.getTouch(&tx, &ty);
 
   if (touching) {
-    lcd.drawPixel(tx, ty, MAC_BLACK);
-
     // Check if touch is inside window bounds
     bool insideWindow = tx >= window.x && tx < window.x + window.w && 
                        ty >= window.y && ty < window.y + window.h;
