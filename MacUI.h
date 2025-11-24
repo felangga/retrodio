@@ -184,13 +184,9 @@ void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
 void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, SymbolType symbol, bool pressed = false);
 void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbol, uint16_t color = MAC_BLACK);
 void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, bool inset = false);
-void drawScrollBar(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, bool vertical = true);
 
 // Desktop elements
 void drawDesktopIcon(lgfx::LGFX_Device& lcd, int x, int y, const String& name, bool selected = false);
-
-// Music player elements
-void drawSpectrumVisualization(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, bool active);
 
 // Utility functions
 void displayStatus(lgfx::LGFX_Device& lcd, const String& message, int y = 160);
@@ -204,7 +200,6 @@ bool isInsideTitleBar(const MacWindow& window, int tx, int ty);
 // ===== FLEXIBLE COMPONENT MANAGEMENT =====
 MacComponent* createComponent(ComponentType type, int x, int y, int w, int h, int id);
 void addChildComponent(MacWindow& window, MacComponent* component);
-void removeChildComponent(MacWindow& window, MacComponent* component);
 void clearChildComponents(MacWindow& window);
 void drawWindowChildComponents(lgfx::LGFX_Device& lcd, const MacWindow& window);
 MacComponent* findComponentAt(const MacWindow& window, int x, int y);
@@ -236,7 +231,6 @@ void updateRunningTextProperties(MacComponent* component, const String* newText 
 
 // ===== GENERIC WINDOW MANAGEMENT HELPERS =====
 // Utility functions that can be called from user-defined callbacks
-void handleWindowMinimize(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon = nullptr);
 void handleWindowClose(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon = nullptr);
 void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window);
 void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int relativeX, int relativeY);
