@@ -6,6 +6,77 @@
 
 #include "MacUI.h"
 
+/**
+ * Draw a symbol (play, pause, stop, etc.) at the specified position
+ */
+void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbol, uint16_t color) {
+  switch (symbol) {
+    case SYMBOL_PLAY:
+      for (int i = 0; i < size; i++) {
+        int lineHeight = ((size - i) * size) / size;
+        lcd.drawFastVLine(x + i, y + (size - lineHeight) / 2, lineHeight, color);
+      }
+      break;
+
+    case SYMBOL_PAUSE:
+      {
+        int barWidth = size / 4;
+        int spacing = size / 3;
+        lcd.fillRect(x, y, barWidth, size, color);
+        lcd.fillRect(x + barWidth + spacing, y, barWidth, size, color);
+      }
+      break;
+
+    case SYMBOL_STOP:
+      lcd.fillRect(x, y, size, size, color);
+      break;
+
+    case SYMBOL_PREV:
+      {
+        lcd.fillRect(x, y, 2, size, color); 
+        int triSize = size - 4;
+        for (int i = 0; i < triSize; i++) {
+          int lineHeight = ((i + 1) * size) / triSize;
+          lcd.drawFastVLine(x + 3 + i, y + (size - lineHeight) / 2, lineHeight, color);
+        }
+      }
+      break;
+
+    case SYMBOL_NEXT:
+      {
+        int triSize = size - 4;
+        for (int i = 0; i < triSize; i++) {
+          int lineHeight = ((triSize - i) * size) / triSize;
+          lcd.drawFastVLine(x + i, y + (size - lineHeight) / 2, lineHeight, color);
+        }
+        lcd.fillRect(x + size - 2, y, 2, size, color);  
+      }
+      break;
+
+    case SYMBOL_VOL_UP:
+      lcd.fillRect(x, y + size / 3, size / 3, size / 3, color);
+      lcd.fillRect(x + size / 3, y + size / 4, size / 6, size / 2, color);
+      // Sound waves
+      for (int i = 1; i <= 3; i++) {
+        int waveX = x + size / 2 + i * size / 8;
+        int waveY = y + size / 2 - i * size / 12;
+        int waveH = i * size / 6;
+        lcd.drawFastVLine(waveX, waveY, waveH, color);
+      }
+      break;
+
+    case SYMBOL_VOL_DOWN:
+      lcd.fillRect(x, y + size / 3, size / 3, size / 3, color);
+      lcd.fillRect(x + size / 3, y + size / 4, size / 6, size / 2, color);
+      lcd.fillRect(x + size / 2 + 2, y + size / 2 - 1, size / 4, 2, color);
+      break;
+
+    case SYMBOL_NONE:
+    default:
+      break;
+  }
+}
+
 void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& text, bool pressed) {
   // Choose colors based on pressed state - inverted when pressed
   uint16_t bgColor = pressed ? MAC_BLACK : MAC_WHITE;
