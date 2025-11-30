@@ -20,6 +20,13 @@ const char* keyboardRowsShift[] = {
   "ZXCVBNM"
 };
 
+const char* keyboardRowsSymbol[] = {
+  "[]{}#%^*+=",
+  "-_\\|~<>$/",
+  ".,;:!?'\"@",
+  "()&`"
+};
+
 const int rowCount = 4;
 
 void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboard& keyboard) {
@@ -35,7 +42,19 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
   
   // Draw each row
   for (int row = 0; row < rowCount; row++) {
-    const char* keys = keyboard.shiftActive ? keyboardRowsShift[row] : keyboardRows[row];
+    // Select the appropriate keyboard layout
+    const char* keys;
+    if (keyboard.selectedKey == -2) {
+      // Symbol mode
+      keys = keyboardRowsSymbol[row];
+    } else if (keyboard.shiftActive) {
+      // Shift mode (uppercase/special)
+      keys = keyboardRowsShift[row];
+    } else {
+      // Normal mode
+      keys = keyboardRows[row];
+    }
+    
     int keyCount = strlen(keys);
     int rowWidth = w - 10;
     int keyWidth = (rowWidth - (keyCount - 1) * keySpacing) / keyCount;
@@ -53,11 +72,14 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
       
       // Draw key label
       lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-      lcd.setTextSize(1);
-      lcd.setTextDatum(textdatum_t::middle_center);
+      lcd.setTextSize(2);
       
       char keyChar[2] = {keys[i], '\0'};
-      lcd.drawString(keyChar, keyX + keyWidth / 2, rowY + (rowHeight - keySpacing) / 2);
+      // Center text manually
+      int textW = lcd.textWidth(keyChar);
+      int textH = 16; // Approximate height for size 2
+      lcd.setCursor(keyX + (keyWidth - textW) / 2, rowY + (rowHeight - keySpacing - textH) / 2);
+      lcd.print(keyChar);
     }
   }
   
@@ -65,7 +87,7 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
   int specialRowY = y + h - 32;
   int specialKeyHeight = 28;
   
-  // Shift key (left)
+  // Shift/Sym key (left)
   int shiftX = x + 5;
   int shiftW = 50;
   draw3DFrame(lcd, shiftX, specialRowY, shiftW, specialKeyHeight, keyboard.shiftActive);
@@ -74,8 +96,8 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
   lcd.setTextColor(keyboard.shiftActive ? MAC_WHITE : MAC_BLACK, 
                    keyboard.shiftActive ? MAC_DARK_GRAY : MAC_WHITE);
   lcd.setTextSize(1);
-  lcd.setTextDatum(textdatum_t::middle_center);
-  lcd.drawString("Shift", shiftX + shiftW / 2, specialRowY + specialKeyHeight / 2);
+  lcd.setCursor(shiftX + 8, specialRowY + 10);
+  lcd.print(keyboard.selectedKey == -2 ? "ABC" : "Sym");
   
   // Space bar (center)
   int spaceX = shiftX + shiftW + 5;
@@ -83,7 +105,9 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
   draw3DFrame(lcd, spaceX, specialRowY, spaceW, specialKeyHeight, false);
   lcd.fillRect(spaceX + 2, specialRowY + 2, spaceW - 4, specialKeyHeight - 4, MAC_WHITE);
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  lcd.drawString("Space", spaceX + spaceW / 2, specialRowY + specialKeyHeight / 2);
+  lcd.setTextSize(1);
+  lcd.setCursor(spaceX + spaceW / 2 - 18, specialRowY + 10);
+  lcd.print("Space");
   
   // Backspace key (right)
   int backspaceX = spaceX + spaceW + 5;
@@ -91,7 +115,9 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
   draw3DFrame(lcd, backspaceX, specialRowY, backspaceW, specialKeyHeight, false);
   lcd.fillRect(backspaceX + 2, specialRowY + 2, backspaceW - 4, specialKeyHeight - 4, MAC_WHITE);
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  lcd.drawString("Del", backspaceX + backspaceW / 2, specialRowY + specialKeyHeight / 2);
+  lcd.setTextSize(1);
+  lcd.setCursor(backspaceX + 15, specialRowY + 10);
+  lcd.print("Del");
 }
 
 MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int targetInputId) {
@@ -140,9 +166,17 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
   // Check special keys first (bottom row)
   int specialRowY = h - 32 - y;
   if (relY >= specialRowY) {
-    // Shift key
+    // Shift/Symbol toggle key
     if (relX >= 5 && relX <= 55) {
-      keyboard->shiftActive = !keyboard->shiftActive;
+      if (keyboard->selectedKey == -2) {
+        // Currently in symbol mode, switch back to normal
+        keyboard->selectedKey = -1;
+        keyboard->shiftActive = false;
+      } else {
+        // Switch to symbol mode
+        keyboard->selectedKey = -2;
+        keyboard->shiftActive = false;
+      }
       drawKeyboard(lcd, x, y, w, h, *keyboard);
       return true;
     }
@@ -171,7 +205,19 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
   // Check regular keys
   int row = (relY - 5) / rowHeight;
   if (row >= 0 && row < rowCount) {
-    const char* keys = keyboard->shiftActive ? keyboardRowsShift[row] : keyboardRows[row];
+    // Select the appropriate keyboard layout
+    const char* keys;
+    if (keyboard->selectedKey == -2) {
+      // Symbol mode
+      keys = keyboardRowsSymbol[row];
+    } else if (keyboard->shiftActive) {
+      // Shift mode (uppercase/special)
+      keys = keyboardRowsShift[row];
+    } else {
+      // Normal mode
+      keys = keyboardRows[row];
+    }
+    
     int keyCount = strlen(keys);
     int rowWidth = w - 10;
     int keyWidth = (rowWidth - (keyCount - 1) * keySpacing) / keyCount;
@@ -186,8 +232,8 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
                            inputField->text.substring(inputField->cursorPos);
         inputField->cursorPos++;
         
-        // Auto-disable shift after typing a character (except for special chars)
-        if (keyboard->shiftActive && row > 0) {
+        // Auto-disable shift after typing a character (in normal mode only)
+        if (keyboard->shiftActive && keyboard->selectedKey != -2 && row > 0) {
           keyboard->shiftActive = false;
           drawKeyboard(lcd, x, y, w, h, *keyboard);
         }

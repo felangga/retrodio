@@ -168,8 +168,17 @@ void onComponentClick(int componentId) {
       onVolDown();
       break;
     case btnStationID:  // Station List Button
-      // Hide radio window
+      // Hide radio window immediately to stop event processing
       radioWindow.visible = false;
+      
+      // Wait for touch release to prevent button redraw on new window
+      {
+        int tx, ty;
+        delay(200);
+        while(lcd.getTouch(&tx, &ty)) { delay(10); }
+        delay(50); // Extra delay to ensure touch system is clear
+      }
+      
       // Redraw background
       drawCheckeredPattern(lcd);
       drawMenuBar(lcd, "Retrodio");
@@ -182,8 +191,18 @@ void onComponentClick(int componentId) {
     case btnAddStationID:  // Add Station Button
       Serial.println("Add Station button pressed");
       displayStatus(lcd, "Opening Add Station", 160);
-      // Hide station window
+      
+      // Hide station window immediately to stop event processing
       stationWindow.visible = false;
+      
+      // Wait for touch release to prevent button redraw on new window
+      {
+        int tx, ty;
+        delay(200);
+        while(lcd.getTouch(&tx, &ty)) { delay(10); }
+        delay(50); // Extra delay to ensure touch system is clear
+      }
+      
       // Show add station window
       addStationWindow.visible = true;
       addStationWindow.minimized = false;
@@ -482,6 +501,11 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
       drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *globalKeyboard, 0, 0);
+      
+      // Wait for touch release to prevent immediate hide
+      int tx, ty;
+      delay(150);
+      while(lcd.getTouch(&tx, &ty)) { delay(10); }
       return;
     }
     
@@ -500,6 +524,11 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
       drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *globalKeyboard, 0, 0);
+      
+      // Wait for touch release to prevent immediate hide
+      int tx, ty;
+      delay(150);
+      while(lcd.getTouch(&tx, &ty)) { delay(10); }
       return;
     }
     
@@ -517,16 +546,12 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
         urlInput->focused = false;
       }
       
-      // Redraw input fields to remove focus indicators
-      if (nameInputComp) drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
-      if (urlInputComp) drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
-      
-      // Redraw desktop area where keyboard was
+      // Clear keyboard area
       int keyboardHeight = screenHeight / 2;
       int keyboardY = screenHeight - keyboardHeight;
       drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
       
-      // Redraw the window
+      // Redraw the window and its components
       drawWindow(lcd, addStationWindow);
     }
   }
@@ -637,6 +662,7 @@ void uiTask(void* parameter) {
   Serial.println("UI Task started on Core 1");
   
   int touchX, touchY; // Touch coordinates
+  bool keyboardWasVisible = false; // Track keyboard state
 
   while (true) {
     static unsigned long lastDebugPrint = 0;
@@ -702,8 +728,6 @@ void uiTask(void* parameter) {
           
           delay(100); // Debounce
           while(lcd.getTouch(&touchX, &touchY)) { delay(10); } // Wait for release
-          
-          // Continue to handle the touch event normally (for buttons, etc)
         }
       }
     }
@@ -737,33 +761,35 @@ void uiTask(void* parameter) {
       updateInputFieldComponents(lcd, addStationWindow);
     }
     
-    // Draw global keyboard if visible (overlay on top of everything)
+    // Handle global keyboard visibility changes
     if (globalKeyboard) {
       MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
-      static bool lastKeyboardVisible = false;
       
-      if (keyboard->visible && !lastKeyboardVisible) {
+      if (keyboard->visible && !keyboardWasVisible) {
         // Keyboard just became visible - draw it
         drawComponent(lcd, *globalKeyboard, 0, 0);
-        lastKeyboardVisible = true;
-      } else if (!keyboard->visible && lastKeyboardVisible) {
-        // Keyboard just became hidden - redraw desktop area
+        keyboardWasVisible = true;
+      } else if (!keyboard->visible && keyboardWasVisible) {
+        // Keyboard just became hidden - clear the area
         int keyboardHeight = screenHeight / 2;
         int keyboardY = screenHeight - keyboardHeight;
         drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
         
-        // Redraw any windows that might be in that area
-        if (radioWindow.visible) {
-          drawWindow(lcd, radioWindow);
-        }
-        if (stationWindow.visible) {
-          drawWindow(lcd, stationWindow);
-        }
-        if (addStationWindow.visible) {
+        // Redraw any windows that overlap with keyboard area
+        if (addStationWindow.visible && 
+            (addStationWindow.y + addStationWindow.h > keyboardY)) {
           drawWindow(lcd, addStationWindow);
         }
+        if (stationWindow.visible && 
+            (stationWindow.y + stationWindow.h > keyboardY)) {
+          drawWindow(lcd, stationWindow);
+        }
+        if (radioWindow.visible && 
+            (radioWindow.y + radioWindow.h > keyboardY)) {
+          drawWindow(lcd, radioWindow);
+        }
         
-        lastKeyboardVisible = false;
+        keyboardWasVisible = false;
       }
     }
 

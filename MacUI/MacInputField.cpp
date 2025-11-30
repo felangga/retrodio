@@ -14,11 +14,10 @@ void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInput
   
   // Set text properties
   lcd.setTextSize(1);
-  lcd.setTextDatum(textdatum_t::middle_left);
   
   // Calculate text position
   int textX = x + 5;
-  int textY = y + h / 2;
+  int textY = y + (h - 8) / 2;  // 8 is approximate text height for size 1
   
   // Handle cursor blinking (500ms interval)
   unsigned long currentTime = millis();
@@ -28,14 +27,12 @@ void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInput
   }
   
   if (inputField.text.length() > 0) {
-    // Draw the text
-    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-    
     // Calculate visible text (scroll if needed)
     int maxVisibleWidth = w - 15;  // Leave space for cursor and padding
     String displayText = inputField.text;
     
     // Measure text width
+    lcd.setTextSize(1);
     int textWidth = lcd.textWidth(displayText.c_str());
     int scrollOffset = 0;
     
@@ -52,7 +49,13 @@ void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInput
     
     // Set clipping region for text
     lcd.setClipRect(x + 2, y + 2, w - 4, h - 4);
-    lcd.drawString(displayText.c_str(), textX - scrollOffset, textY);
+    
+    // Draw the text with explicit colors
+    lcd.setTextColor(MAC_BLACK);
+    lcd.setTextSize(1);
+    lcd.setCursor(textX - scrollOffset, textY);
+    lcd.print(displayText);
+    
     lcd.clearClipRect();
     
     // Draw cursor if focused
@@ -67,8 +70,10 @@ void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInput
     }
   } else {
     // Show placeholder text if empty
-    lcd.setTextColor(MAC_GRAY, MAC_WHITE);
-    lcd.drawString(inputField.placeholder.c_str(), textX, textY);
+    lcd.setTextColor(MAC_GRAY);
+    lcd.setTextSize(1);
+    lcd.setCursor(textX, textY);
+    lcd.print(inputField.placeholder);
     
     // Draw cursor at start if focused
     if (inputField.focused && inputField.cursorVisible) {
