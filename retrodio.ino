@@ -686,7 +686,7 @@ void uiTask(void* parameter) {
     //   lastDebugPrint = millis();
     // }
 
-    // updateClock();
+    updateClock();
 
     // Handle global keyboard input first if visible
     if (globalKeyboard) {
@@ -785,16 +785,20 @@ void uiTask(void* parameter) {
     if (radioWindow.visible) {
       bool needsUpdate = false;
 
-      // Update station name when server metadata arrives
+      // Prioritize server station name over user-selected name
+      // Once server sends metadata, always use it
       if (serverStationName.length() > 0 && serverStationName != currentStationName) {
         currentStationName = serverStationName;
+        metadataReceived = true;
         needsUpdate = true;
+        Serial.printf("Station name from server: %s\n", serverStationName.c_str());
       }
 
       // Update track info when it changes
       if (currentTrackInfo != lastTrackInfo) {
         lastTrackInfo = currentTrackInfo;
         needsUpdate = true;
+        Serial.printf("Track info updated: %s\n", currentTrackInfo.c_str());
       }
 
       // Update when description changes
@@ -877,8 +881,9 @@ void updateClock() {
   lastClockUpdate = now;
 
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    return;  // keep previous
+  // Use timeout parameter (10ms) to prevent blocking the UI task
+  if (!getLocalTime(&timeinfo, 10)) {
+    return;  // keep previous, NTP not synced yet
   }
   char buf[9];  // HH:MM:SS
   strftime(buf, sizeof(buf), "%H:%M:%S", &timeinfo);
@@ -914,6 +919,10 @@ void connectToWiFi() {
     lcd.println("Connected:");
     lcd.setCursor(275, 175);
     lcd.println(WiFi.localIP().toString());
+
+    // Initialize NTP time synchronization
+    displayStatus(lcd, "Syncing time...", 180);
+    configTime(GMT_OFFSET_SEC, DST_OFFSET_SEC, NTP_SERVER);
   } else {
     displayStatus(lcd, "WiFi Failed!", 160);
   }
@@ -1148,27 +1157,60 @@ void initializeRadioWindow() {
 }
 
 // ===== STATION LIST DATA =====
-// Define your radio stations here
+// Station URLs structure
+struct StationURL {
+  const char* url;
+};
+
+// Define your radio stations here with their streaming URLs
+StationURL stationURLs[] = {
+  {"http://202.65.114.229:9314/"},           // Swaragama FM - Jogja
+  {"https://ig.idstreamer.com:8090/live"},   // Prambors FM - Jakarta (placeholder, update with real URL)
+  {"https://ig.idstreamer.com:8090/live"},   // Gen FM - Semarang (placeholder, update with real URL)
+  {"https://ig.idstreamer.com:8090/live"},   // Trijaya FM - Jakarta (placeholder, update with real URL)
+  {"https://ig.idstreamer.com:8090/live"},   // Radio Elshinta - Jakarta (placeholder, update with real URL)
+  {"https://ig.idstreamer.com:8090/live"},   // Radio Sonora - Jakarta (placeholder, update with real URL)
+  {"https://ig.idstreamer.com:8090/live"},   // MNC Trijaya FM (placeholder, update with real URL)
+  {"https://ig.idstreamer.com:8090/live"},   // Hard Rock FM (placeholder, update with real URL)
+  {"https://ig.idstreamer.com:8090/live"},   // RRI Pro 1 (placeholder, update with real URL)
+  {"https://ig.idstreamer.com:8090/live"}    // Ardan FM (placeholder, update with real URL)
+};
+
 MacListViewItem stationItems[] = {
-  {"Swaragama FM - Jogja", nullptr},
-  {"Prambors FM - Jakarta", nullptr},
-  {"Gen FM - Semarang", nullptr},
-  {"Trijaya FM - Jakarta", nullptr},
-  {"Radio Elshinta - Jakarta", nullptr},
-  {"Radio Sonora - Jakarta", nullptr},
-  {"MNC Trijaya FM", nullptr},
-  {"Hard Rock FM", nullptr},
-  {"RRI Pro 1", nullptr},
-  {"Ardan FM", nullptr}
+  {"Swaragama FM - Jogja", &stationURLs[0]},
+  {"Prambors FM - Jakarta", &stationURLs[1]},
+  {"Gen FM - Semarang", &stationURLs[2]},
+  {"Trijaya FM - Jakarta", &stationURLs[3]},
+  {"Radio Elshinta - Jakarta", &stationURLs[4]},
+  {"Radio Sonora - Jakarta", &stationURLs[5]},
+  {"MNC Trijaya FM", &stationURLs[6]},
+  {"Hard Rock FM", &stationURLs[7]},
+  {"RRI Pro 1", &stationURLs[8]},
+  {"Ardan FM", &stationURLs[9]}
 };
 
 const int stationItemCount = sizeof(stationItems) / sizeof(stationItems[0]);
 
 void onStationItemClick(int index, void* itemData) {
   Serial.printf("Station selected: %d - %s\n", index, stationItems[index].text.c_str());
-  // Here you can add logic to switch to the selected station
-  // For example: switchToStation(index);
-  
+
+  // Update current station name (will be replaced by server metadata when available)
+  currentStationName = stationItems[index].text;
+
+  // Clear previous metadata
+  serverStationName = "";
+  currentTrackInfo = "";
+  lastTrackInfo = "";
+  stationDescription = "";
+  metadataReceived = false;
+
+  // Update the UI to show the selected station name immediately
+  updateStationMetadata(currentStationName, "Connecting to station...");
+
+  // TODO: Add station URLs to stationItems array and connect to the station
+  // audio.connecttohost(stationURL);
+  // isPlaying = true;
+
   // Close station window and show radio window
   stationWindow.visible = false;
   radioWindow.visible = true;
