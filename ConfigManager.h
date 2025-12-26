@@ -10,9 +10,8 @@
 #define CONFIG_MANAGER_H
 
 #include <Arduino.h>
-#include <FS.h>
-#include <LittleFS.h>
 #include <ArduinoJson.h>
+#include <LittleFS.h>
 
 // Maximum stations supported
 #define MAX_STATIONS 50
@@ -28,7 +27,7 @@ struct Station {
 };
 
 class ConfigManager {
-public:
+ public:
   // Initialize the configuration manager
   static bool begin();
 
@@ -54,7 +53,7 @@ public:
   static void factoryReset();
   static void printDebugInfo();
 
-private:
+ private:
   // Current settings
   static int volume;
   static String lastStation;
@@ -68,4 +67,4 @@ private:
   static bool createDefaultStations();
 };
 
-#endif // CONFIG_MANAGER_H
+#endif  // CONFIG_MANAGER_H
