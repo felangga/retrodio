@@ -71,6 +71,7 @@ void drawMenuBar(lgfx::LGFX_Device& lcd, const String& appName) {
 }
 
 void drawClock(lgfx::LGFX_Device& lcd, const String& time) {
+  lcd.setTextColor(MAC_BLACK, MAC_WHITE);
   lcd.fillRect(screenWidth - 80, 0, 80, 20, MAC_WHITE);
   lcd.setCursor(screenWidth - 80, 6);
   lcd.print(time);

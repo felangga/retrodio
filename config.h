@@ -11,14 +11,15 @@
 #define CONFIG_H
 
 // ===== WiFi Configuration =====
-#define WIFI_SSID "WTM-KB32"
-#define WIFI_PASSWORD "kpbl3224"
+#define WIFI_SSID "KENARI"
+#define WIFI_PASSWORD "tamankenari"
 
 // ===== Radio Stream Configuration =====
-#define RADIO_URL "http://202.65.114.229:9314/"
+// swaragama  "http://202.65.114.229:9314/" 
+#define RADIO_URL "https://ig.idstreamer.com:8090/live"
 
 // ===== Audio Settings =====
-#define DEFAULT_VOLUME 10  // Range: 0-21
+#define DEFAULT_VOLUME 5  // Range: 0-21
 
 // ===== NTP Configuration =====
 #define NTP_SERVER "pool.ntp.org"
