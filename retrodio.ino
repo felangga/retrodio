@@ -621,35 +621,23 @@ void my_audio_info(Audio::msg_t m) {
 // ===== MAIN FUNCTIONS =====
 
 void setup() {
-  Serial.begin(115200);
-  delay(1000);
-  Serial.println("Starting radio application...");
-
   try {
     lcd.init();
     tft.initDMA();
     tft.startWrite();
-    
-    Serial.println("LCD initialized");
-
     lcd.setRotation(lcd.getRotation() ^ 1);
-    Serial.println("LCD rotation set");
-
-    // Initialize sprite buffer for flicker-free component updates
-    initComponentBuffer(&lcd, 420, 50);  // Max component size
-    Serial.println("Sprite buffer initialized");
-
+    initComponentBuffer(&lcd, 420, 50);
     lcd.fillScreen(MAC_WHITE);
-    Serial.println("Screen cleared");
-
     drawInterface(lcd);
-    Serial.println("Interface drawn");
   } catch (...) {
-    Serial.println("Error in setup!");
     while (1) delay(1000);
   }
 
   connectToWiFi();
+
+  Serial.begin(115200);
+  Serial.println("Starting radio application...");
+
   initializeAudio();
 
   // Create UI task on Core 1 (default Arduino core)
@@ -675,13 +663,9 @@ void setup() {
   );
 }
 
-/**
- * Arduino main loop
- * Handles audio streaming
- */
 void loop() {
   // Main loop is now empty - all work is done in tasks
-  vTaskDelay(1000 / portTICK_PERIOD_MS);  // Just keep the main loop alive
+  vTaskDelay(100 / portTICK_PERIOD_MS);  // Just keep the main loop alive
 }
 
 // ===== MULTI-CORE TASKS =====
@@ -701,6 +685,8 @@ void uiTask(void* parameter) {
     //                 xPortGetCoreID(), ESP.getFreeHeap());
     //   lastDebugPrint = millis();
     // }
+
+    // updateClock();
 
     // Handle global keyboard input first if visible
     if (globalKeyboard) {
@@ -795,9 +781,6 @@ void uiTask(void* parameter) {
       }
     }
 
-    // Update clock from UI task (moved from audio task)
-    updateClock();
-
     // Check for metadata updates from audio stream (only for radio window)
     if (radioWindow.visible) {
       bool needsUpdate = false;
@@ -864,10 +847,6 @@ void uiTask(void* parameter) {
       }
     }
 
-    // Note: Button interactions are now handled inside the window container
-    // via onWindowContentClick callback - no need for individual button checks here
-
-
     vTaskDelay(10 / portTICK_PERIOD_MS);  // 10ms delay for UI responsiveness
   }
 }
@@ -877,17 +856,8 @@ void audioTask(void* parameter) {
   Serial.println("Audio Task started on Core 0");
 
   while (true) {
-    static unsigned long lastDebugPrint = 0;
-
-    // Debug output disabled during playback to avoid stuttering
-    // if (millis() - lastDebugPrint > 30000 && !isPlaying) {
-    //   Serial.printf("Audio Task running on Core %d\n", xPortGetCoreID());
-    //   lastDebugPrint = millis();
-    // }
-
-    // Handle audio processing (CRITICAL - highest priority)
     if (isPlaying) {
-      audio.loop();  // Audio processing
+       audio.loop();  // Audio processing
     }
 
     vTaskDelay(1 / portTICK_PERIOD_MS);  // 1ms delay for audio precision
