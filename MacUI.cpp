@@ -43,7 +43,6 @@ void initComponentBuffer(lgfx::LGFX_Device* lcd, int maxWidth, int maxHeight) {
     windowSprite->setColorDepth(16);
     // Try to create sprite for entire window, fall back if memory insufficient
     if (!windowSprite->createSprite(430, 250)) {
-      Serial.println("Warning: Could not create window sprite buffer");
       delete windowSprite;
       windowSprite = nullptr;
     } else {
@@ -743,9 +742,7 @@ void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window) {
 void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int relativeX, int relativeY) {
   // Ignore clicks if window is not visible
   if (!window.visible) return;
-  
-  Serial.printf("Window content clicked at relative position: %d, %d\n", relativeX, relativeY);
-  
+
   // Check for components at the clicked position
   MacComponent* clickedComponent = findComponentAt(window, window.x + relativeX, window.y + relativeY);
   

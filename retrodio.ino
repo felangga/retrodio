@@ -1,21 +1,21 @@
 /*
  * Radio.ino - Internet Radio Player with Classic Mac OS UI
- * 
+ *
  * Copyright (c) 2025 Felangga
- * 
+ *
  * This Arduino sketch implements an internet radio player with a classic
  * Macintosh OS-style user interface using the MacUI library.
  */
 
-#include "Arduino.h"
-#include "esp_task_wdt.h"
-#include "WiFi.h"
+#include <Arduino.h>
+#include <WiFi.h>
+#include <time.h>
 #include "Audio.h"
-#include "esp32-hal-psram.h"
-#include "wt32_sc01_plus.h"
 #include "MacUI.h"
 #include "config.h"
-#include <time.h>
+#include "esp32-hal-psram.h"
+#include "esp_task_wdt.h"
+#include "wt32_sc01_plus.h"
 
 // ===== GLOBAL OBJECTS =====
 
@@ -37,17 +37,13 @@ String lastClockText;
 
 // Music player state
 bool isPlaying = false;
+String currentStationName = "Retrodio";  // Default station name
 
-// Station metadata from audio stream
-String currentStationName = "Retrodio";    // Currently displayed station name
-String serverStationName = "";              // Station name from server (evt_name)
-String currentTrackInfo = "";               // Current track from StreamTitle (evt_streamtitle)
-String lastTrackInfo = "";                  // Track previous value to detect changes
-String stationDescription = "";             // Station description from server
-String lastDescription = "";                // Track description changes
-String streamBitrate = "";                  // Stream bitrate information
-String lastBitrate = "";                    // Track bitrate changes
-bool metadataReceived = false;              // Flag to know when server sent metadata
+// Metadata from audio stream server
+String serverStationName = "";    // Station name from server (evt_name)
+String currentTrackInfo = "";     // Current track from StreamTitle (evt_streamtitle)
+String lastTrackInfo = "";        // Track previous value to detect changes
+bool metadataReceived = false;    // Flag to know when server sent metadata
 
 // Forward declarations for callbacks
 void onWindowMinimize();
@@ -69,12 +65,61 @@ void onAddStationWindowContentClick(int relativeX, int relativeY);
 void onAddStationWindowMoved();
 
 // Main radio window - declared early so callbacks can reference it
-MacWindow radioWindow{ 20, 40, 420, 240, "Radio", true, false, true, onWindowMinimize, onWindowClose, onWindowContentClick, onWindowMoved, nullptr, 0, false, 0, 0 };
-MacWindow stationWindow{ 20, 40, 420, 240, "Station List", true, false, true, onStationWindowMinimize, onStationWindowClose, onStationWindowContentClick, onStationWindowMoved, nullptr, 0, false, 0, 0 };
-MacWindow addStationWindow{ 60, 40, 360, 160, "Add Station", true, false, true, onAddStationWindowMinimize, onAddStationWindowClose, onAddStationWindowContentClick, onAddStationWindowMoved, nullptr, 0, false, 0, 0 };
+MacWindow radioWindow{20,
+                      40,
+                      420,
+                      240,
+                      "Radio",
+                      true,
+                      false,
+                      true,
+                      onWindowMinimize,
+                      onWindowClose,
+                      onWindowContentClick,
+                      onWindowMoved,
+                      nullptr,
+                      0,
+                      false,
+                      0,
+                      0};
+MacWindow stationWindow{20,
+                        40,
+                        420,
+                        240,
+                        "Station List",
+                        true,
+                        false,
+                        true,
+                        onStationWindowMinimize,
+                        onStationWindowClose,
+                        onStationWindowContentClick,
+                        onStationWindowMoved,
+                        nullptr,
+                        0,
+                        false,
+                        0,
+                        0};
+MacWindow addStationWindow{60,
+                           40,
+                           360,
+                           160,
+                           "Add Station",
+                           true,
+                           false,
+                           true,
+                           onAddStationWindowMinimize,
+                           onAddStationWindowClose,
+                           onAddStationWindowContentClick,
+                           onAddStationWindowMoved,
+                           nullptr,
+                           0,
+                           false,
+                           0,
+                           0};
 
 // Desktop icon for minimized radio window
-DesktopIcon radioIcon{ 50, 60, "Radio Player", "window", false, false, &radioWindow, onRadioIconClick };
+DesktopIcon radioIcon{50,    60,    "Radio Player", "window",
+                      false, false, &radioWindow,   onRadioIconClick};
 
 // Global keyboard component (overlays bottom half of screen)
 MacComponent* globalKeyboard = nullptr;
@@ -110,27 +155,21 @@ void onNext();
 // ===== COMPONENT INTERACTION HANDLERS =====
 
 void onComponentClick(int componentId) {
-  Serial.printf("Component %d clicked\n", componentId);
-
   switch (componentId) {
     case 100:  // Now Playing Label
-      Serial.println("Now Playing label clicked");
       displayStatus(lcd, "Label clicked", 160);
       break;
 
     case 101:  // Volume Slider
-      Serial.println("Volume slider clicked");
       displayStatus(lcd, "Volume slider clicked", 160);
       // Here you could implement slider dragging logic
       break;
 
     case 102:  // Buffer Progress Bar
-      Serial.println("Buffer progress clicked");
       displayStatus(lcd, "Progress bar clicked", 160);
       break;
 
     case 103:  // Auto Play Checkbox
-      Serial.println("Auto Play checkbox clicked");
       // Toggle checkbox state
       {
         MacComponent* component = findComponentById(radioWindow, componentId);
@@ -145,7 +184,6 @@ void onComponentClick(int componentId) {
       break;
 
     case 104:  // Show Visuals Checkbox
-      Serial.println("Show Visuals checkbox clicked");
       // Toggle checkbox state
       {
         MacComponent* component = findComponentById(radioWindow, componentId);
@@ -181,15 +219,17 @@ void onComponentClick(int componentId) {
     case btnStationID:  // Station List Button
       // Hide radio window immediately to stop event processing
       radioWindow.visible = false;
-      
+
       // Wait for touch release to prevent button redraw on new window
       {
         int tx, ty;
         delay(200);
-        while(lcd.getTouch(&tx, &ty)) { delay(10); }
-        delay(50); // Extra delay to ensure touch system is clear
+        while (lcd.getTouch(&tx, &ty)) {
+          delay(10);
+        }
+        delay(50);  // Extra delay to ensure touch system is clear
       }
-      
+
       // Redraw background
       drawCheckeredPattern(lcd);
       drawMenuBar(lcd, "Retrodio");
@@ -198,22 +238,23 @@ void onComponentClick(int componentId) {
       stationWindow.minimized = false;
       drawWindow(lcd, stationWindow);
       break;
-    
+
     case btnAddStationID:  // Add Station Button
-      Serial.println("Add Station button pressed");
       displayStatus(lcd, "Opening Add Station", 160);
-      
+
       // Hide station window immediately to stop event processing
       stationWindow.visible = false;
-      
+
       // Wait for touch release to prevent button redraw on new window
       {
         int tx, ty;
         delay(200);
-        while(lcd.getTouch(&tx, &ty)) { delay(10); }
-        delay(50); // Extra delay to ensure touch system is clear
+        while (lcd.getTouch(&tx, &ty)) {
+          delay(10);
+        }
+        delay(50);  // Extra delay to ensure touch system is clear
       }
-      
+
       // Show add station window
       addStationWindow.visible = true;
       addStationWindow.minimized = false;
@@ -221,30 +262,27 @@ void onComponentClick(int componentId) {
       drawMenuBar(lcd, "Retrodio");
       drawWindow(lcd, addStationWindow);
       break;
-    
+
     case btnSaveStationID:  // Save Station Button
-      Serial.println("Save Station button pressed");
-      
       // Get the input values from the input fields
       {
         MacComponent* nameInputComp = findComponentById(addStationWindow, 401);
         MacComponent* urlInputComp = findComponentById(addStationWindow, 403);
-        
+
         if (nameInputComp && urlInputComp) {
           MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
           MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
-          
+
           String stationName = nameInput->text;
           String stationURL = urlInput->text;
-          
+
           // Validate inputs
           if (stationName.length() > 0 && stationURL.length() > 0) {
-            Serial.printf("Saving station: %s - %s\n", stationName.c_str(), stationURL.c_str());
             displayStatus(lcd, "Station Saved: " + stationName, 160);
-            
+
             // TODO: Add station to list (expand stationItems array)
             // For now, just show success message
-            
+
             // Clear input fields
             nameInput->text = "";
             nameInput->cursorPos = 0;
@@ -252,33 +290,31 @@ void onComponentClick(int componentId) {
             urlInput->cursorPos = 0;
           } else {
             displayStatus(lcd, "Please fill all fields", 160);
-            return; // Don't close window if validation fails
+            return;  // Don't close window if validation fails
           }
         }
       }
-      
+
       // Hide keyboard and close add station window
       if (globalKeyboard) {
         MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
         keyboard->visible = false;
       }
-      
+
       addStationWindow.visible = false;
       stationWindow.visible = true;
       drawCheckeredPattern(lcd);
       drawMenuBar(lcd, "Retrodio");
       drawWindow(lcd, stationWindow);
       break;
-    
+
     case btnCancelAddStationID:  // Cancel Add Station Button
-      Serial.println("Cancel Add Station button pressed");
-      
       // Hide keyboard and close add station window
       if (globalKeyboard) {
         MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
         keyboard->visible = false;
       }
-      
+
       addStationWindow.visible = false;
       stationWindow.visible = true;
       drawCheckeredPattern(lcd);
@@ -287,7 +323,6 @@ void onComponentClick(int componentId) {
       break;
 
     default:
-      Serial.printf("Unknown component ID: %d\n", componentId);
       break;
   }
 }
@@ -309,7 +344,8 @@ MacComponent* findComponentById(const MacWindow& window, int id) {
 
 void updateComponentSymbol(const MacWindow& window, int componentId, SymbolType newSymbol) {
   MacComponent* component = findComponentById(window, componentId);
-  if (component != nullptr && component->type == COMPONENT_BUTTON && component->customData != nullptr) {
+  if (component != nullptr && component->type == COMPONENT_BUTTON &&
+      component->customData != nullptr) {
     MacButton* btnData = (MacButton*)component->customData;
     btnData->symbol = newSymbol;
     // Force redraw the component
@@ -320,8 +356,6 @@ void updateComponentSymbol(const MacWindow& window, int componentId, SymbolType 
 // ===== BUTTON CALLBACKS =====
 
 void onPlay() {
-  Serial.println("Play button pressed");
-  displayStatus(lcd, "Play pressed", 160);
   if (isPlaying) {
     // Currently playing - pause/stop
     audio.stopSong();
@@ -330,28 +364,25 @@ void onPlay() {
     displayStatus(lcd, "Paused", 160);
   } else {
     // Currently stopped - start playing
-    audio.connecttohost(RADIO_URL);
-    isPlaying = true;
-    updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);  // ID 1 is play button
-    displayStatus(lcd, "Playing", 160);
+    displayStatus(lcd, "Connecting...", 160);
+    if (audio.connecttohost(RADIO_URL)) {
+      isPlaying = true;
+      updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);  // ID 1 is play button
+      displayStatus(lcd, "Playing", 160);
+    } else {
+      displayStatus(lcd, "Connection failed", 160);
+    }
   }
-  // Force button redraw to show new symbol
-  updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // Just show play for now
 }
 
 void onStop() {
-  Serial.println("Stop button pressed");
-  displayStatus(lcd, "Stop pressed", 160);
   audio.stopSong();
   isPlaying = false;
   updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
   displayStatus(lcd, "Stopped", 160);
-  // Force button redraw to show play symbol
-  updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
 }
 
 void onVolUp() {
-  Serial.println("Volume Up pressed");
   displayStatus(lcd, "Vol Up pressed", 160);
   // audio.setVolume(min(21, audio.getVolume() + 1));
   // displayStatus(lcd, "Volume: " + String(audio.getVolume()), 160);
@@ -366,21 +397,18 @@ void onVolUp() {
 }
 
 void onPrev() {
-  Serial.println("Previous button pressed");
   displayStatus(lcd, "Previous Station", 160);
   // Add your station switching logic here
   // For example: switchToStation(currentStation - 1);
 }
 
 void onNext() {
-  Serial.println("Next button pressed");
   displayStatus(lcd, "Next Station", 160);
   // Add your station switching logic here
   // For example: switchToStation(currentStation + 1);
 }
 
 void onVolDown() {
-  Serial.println("Volume Down pressed");
   displayStatus(lcd, "Vol Down pressed", 160);
   // audio.setVolume(max(0, audio.getVolume() - 1));
   // displayStatus(lcd, "Volume: " + String(audio.getVolume()), 160);
@@ -455,7 +483,7 @@ void onAddStationWindowMinimize() {
     MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
     keyboard->visible = false;
   }
-  
+
   // Close add station window and return to station list
   addStationWindow.visible = false;
   stationWindow.visible = true;
@@ -470,7 +498,7 @@ void onAddStationWindowClose() {
     MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
     keyboard->visible = false;
   }
-  
+
   // Close add station window and return to station list
   addStationWindow.visible = false;
   stationWindow.visible = true;
@@ -483,7 +511,7 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
   // Find input components
   MacComponent* nameInputComp = nullptr;
   MacComponent* urlInputComp = nullptr;
-  
+
   for (int i = 0; i < addStationWindow.childComponentCount; i++) {
     MacComponent* comp = addStationWindow.childComponents[i];
     if (comp->id == 401) {
@@ -492,62 +520,66 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
       urlInputComp = comp;
     }
   }
-  
+
   if (globalKeyboard && nameInputComp && urlInputComp) {
     MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
-    
+
     // Check if input fields were clicked to change focus
     if (relativeX >= nameInputComp->x && relativeX <= nameInputComp->x + nameInputComp->w &&
         relativeY >= nameInputComp->y && relativeY <= nameInputComp->y + nameInputComp->h) {
       // Switch to name input
       MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
       MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
-      
+
       nameInput->focused = true;
       urlInput->focused = false;
       keyboard->targetInputId = 401;
       keyboard->visible = true;
-      
+
       // Redraw both input fields and keyboard
       drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *globalKeyboard, 0, 0);
-      
+
       // Wait for touch release to prevent immediate hide
       int tx, ty;
       delay(150);
-      while(lcd.getTouch(&tx, &ty)) { delay(10); }
+      while (lcd.getTouch(&tx, &ty)) {
+        delay(10);
+      }
       return;
     }
-    
+
     if (relativeX >= urlInputComp->x && relativeX <= urlInputComp->x + urlInputComp->w &&
         relativeY >= urlInputComp->y && relativeY <= urlInputComp->y + urlInputComp->h) {
       // Switch to URL input
       MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
       MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
-      
+
       nameInput->focused = false;
       urlInput->focused = true;
       keyboard->targetInputId = 403;
       keyboard->visible = true;
-      
+
       // Redraw both input fields and keyboard
       drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *globalKeyboard, 0, 0);
-      
+
       // Wait for touch release to prevent immediate hide
       int tx, ty;
       delay(150);
-      while(lcd.getTouch(&tx, &ty)) { delay(10); }
+      while (lcd.getTouch(&tx, &ty)) {
+        delay(10);
+      }
       return;
     }
-    
+
     // If we reach here and keyboard is visible, user clicked something else (not input fields)
     // Hide the keyboard and unfocus all input fields
     if (keyboard->visible) {
       keyboard->visible = false;
-      
+
       if (nameInputComp && nameInputComp->customData) {
         MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
         nameInput->focused = false;
@@ -556,17 +588,17 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
         MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
         urlInput->focused = false;
       }
-      
+
       // Clear keyboard area
       int keyboardHeight = screenHeight / 2;
       int keyboardY = screenHeight - keyboardHeight;
       drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
-      
+
       // Redraw the window and its components
       drawWindow(lcd, addStationWindow);
     }
   }
-  
+
   // Handle other component clicks (buttons)
   handleWindowContentClick(lcd, addStationWindow, relativeX, relativeY);
 }
@@ -579,113 +611,138 @@ void onAddStationWindowMoved() {
 
 /**
  * Audio information callback
- * Displays audio stream information on screen
+ * Receives metadata from audio stream server
+ * Runs on Core 0 (audio task) - stores data in global variables for UI task to read
  */
 void my_audio_info(Audio::msg_t m) {
-  // Capture metadata from audio stream (runs on Core 0)
-  // The UI task (Core 1) will poll these variables and update components
+  // Handle different metadata event types
+  switch (m.e) {
+    case Audio::evt_name:
+      // Station name from ICY headers
+      serverStationName = String(m.msg);
+      metadataReceived = true;
+      break;
 
-  String event = String(m.s);
-  String message = String(m.msg);
+    case Audio::evt_streamtitle:
+      // Current track/song from StreamTitle metadata
+      currentTrackInfo = String(m.msg);
+      metadataReceived = true;
+      break;
 
-  // Station name from ICY headers - update the station name
-  if (event == "evt_name" || event == "icy-name") {
-    serverStationName = message;
-    metadataReceived = true;
-  }
+    case Audio::evt_icydescription:
+      // Station description
+      displayStatus(lcd, String("Description: ") + String(m.msg), 160);
+      break;
 
-  // Current track/song from StreamTitle - update the track info
-  else if (event == "evt_streamtitle" || event == "StreamTitle") {
-    currentTrackInfo = message;
-  }
+    case Audio::evt_bitrate:
+      // Stream bitrate information
+      displayStatus(lcd, String("Bitrate: ") + String(m.msg), 160);
+      break;
 
-  // Station description
-  else if (event == "evt_icydescription" || event == "icy-description") {
-    stationDescription = message;
-  }
+    case Audio::evt_id3data:
+      // ID3 tag data (artist, album, title)
+      // Store as track info if no StreamTitle is available
+      if (currentTrackInfo.length() == 0) {
+        currentTrackInfo = String(m.msg);
+        metadataReceived = true;
+      }
+      break;
 
-  // Bitrate information
-  else if (event == "evt_bitrate") {
-    streamBitrate = message + " kbps";
-  }
+    case Audio::evt_eof:
+      // End of stream
+      displayStatus(lcd, "Stream ended", 160);
+      isPlaying = false;
+      break;
 
-  // ID3 tags (for MP3 streams without ICY metadata)
-  else if (event == "evt_id3data") {
-    // Use ID3 data as fallback if no ICY metadata
-    if (serverStationName.length() == 0) {
-      serverStationName = message;
-    }
+    case Audio::evt_info:
+      // General information
+      displayStatus(lcd, String(m.msg), 160);
+      break;
+
+    default:
+      // Other events - ignore silently
+      break;
   }
 }
 
 // ===== MAIN FUNCTIONS =====
 
 void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("Starting radio application...");
+
   try {
     lcd.init();
     tft.initDMA();
     tft.startWrite();
+
+    Serial.println("LCD initialized");
+
     lcd.setRotation(lcd.getRotation() ^ 1);
-    initComponentBuffer(&lcd, 420, 50);
+    Serial.println("LCD rotation set");
+
+    // Initialize sprite buffer for flicker-free component updates
+    // Reduced size to save memory (was 420x50)
+    initComponentBuffer(&lcd, 200, 30);  // Smaller buffer to reduce memory usage
+    Serial.println("Sprite buffer initialized");
+
     lcd.fillScreen(MAC_WHITE);
+    Serial.println("Screen cleared");
+
     drawInterface(lcd);
+    Serial.println("Interface drawn");
   } catch (...) {
-    while (1) delay(1000);
+    while (1)
+      delay(1000);
   }
 
   connectToWiFi();
-
-  Serial.begin(115200);
-  Serial.println("Starting radio application...");
-
   initializeAudio();
 
   // Create UI task on Core 1 (default Arduino core)
-  xTaskCreatePinnedToCore(
-    uiTask,         // Task function
-    "UI_Task",      // Task name
-    10000,          // Stack size (bytes)
-    NULL,           // Parameter
-    1,              // Priority
-    &uiTaskHandle,  // Task handle
-    1               // Core (0 or 1)
+  // Reduced stack size to save memory (was 10000)
+  xTaskCreatePinnedToCore(uiTask,         // Task function
+                          "UI_Task",      // Task name
+                          10000,          // Stack size (bytes) - reduced for memory
+                          NULL,           // Parameter
+                          1,              // Priority
+                          &uiTaskHandle,  // Task handle
+                          1               // Core (0 or 1)
   );
 
   // Create Audio task on Core 0 (background core)
-  xTaskCreatePinnedToCore(
-    audioTask,         // Task function
-    "Audio_Task",      // Task name
-    8000,              // Stack size (bytes)
-    NULL,              // Parameter
-    1,                 // Same priority as UI to prevent starvation
-    &audioTaskHandle,  // Task handle
-    0                  // Core (0 or 1)
+  // Reduced stack size to save memory (was 8000)
+  xTaskCreatePinnedToCore(audioTask,         // Task function
+                          "Audio_Task",      // Task name
+                          8000,              // Stack size (bytes) - reduced for memory
+                          NULL,              // Parameter
+                          1,                 // Higher priority for audio
+                          &audioTaskHandle,  // Task handle
+                          0                  // Core (0 or 1)
   );
+
+  Serial.println("Multi-core tasks created");
+  Serial.println("Setup complete");
 }
 
+/**
+ * Arduino main loop
+ * Handles audio streaming
+ */
 void loop() {
   // Main loop is now empty - all work is done in tasks
-  vTaskDelay(100 / portTICK_PERIOD_MS);  // Just keep the main loop alive
+  vTaskDelay(1000 / portTICK_PERIOD_MS);  // Just keep the main loop alive
 }
 
 // ===== MULTI-CORE TASKS =====
 
 // UI Task - runs on Core 1 (default Arduino core)
 void uiTask(void* parameter) {
-  Serial.println("UI Task started on Core 1");
-  
-  int touchX, touchY; // Touch coordinates
-  bool keyboardWasVisible = false; // Track keyboard state
+  int touchX, touchY;               // Touch coordinates
+  bool keyboardWasVisible = false;  // Track keyboard state
 
   while (true) {
-    // Debug output disabled to prevent blocking UI task
-    // static unsigned long lastDebugPrint = 0;
-    // if (millis() - lastDebugPrint > 30000) {
-    //   Serial.printf("UI Task running on Core %d, Free heap: %d bytes\n",
-    //                 xPortGetCoreID(), ESP.getFreeHeap());
-    //   lastDebugPrint = millis();
-    // }
-
     updateClock();
 
     // Handle global keyboard input first if visible
@@ -695,7 +752,7 @@ void uiTask(void* parameter) {
         // Check if touch is within keyboard area
         int keyboardHeight = screenHeight / 2;
         int keyboardY = screenHeight - keyboardHeight;
-        
+
         if (touchY >= keyboardY) {
           // Touch is within keyboard area - handle keyboard input
           MacComponent* activeInputComp = nullptr;
@@ -708,18 +765,21 @@ void uiTask(void* parameter) {
               }
             }
           }
-          
-          if (activeInputComp && handleKeyboardTouch(lcd, globalKeyboard, activeInputComp, touchX, touchY)) {
+
+          if (activeInputComp &&
+              handleKeyboardTouch(lcd, globalKeyboard, activeInputComp, touchX, touchY)) {
             // Redraw the active input field after keyboard input
             drawComponent(lcd, *activeInputComp, addStationWindow.x, addStationWindow.y);
-            delay(100); // Debounce
-            while(lcd.getTouch(&touchX, &touchY)) { delay(10); } // Wait for release
+            delay(100);
+            while (lcd.getTouch(&touchX, &touchY)) {
+              delay(10);
+            }
             continue;
           }
         } else {
           // Touch is outside keyboard area - hide keyboard and unfocus inputs
           keyboard->visible = false;
-          
+
           // Unfocus all input fields
           if (addStationWindow.visible) {
             for (int i = 0; i < addStationWindow.childComponentCount; i++) {
@@ -731,42 +791,51 @@ void uiTask(void* parameter) {
               }
             }
           }
-          
+
           // Redraw desktop area where keyboard was
           drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
-          
+
           // Redraw any visible windows
-          if (addStationWindow.visible) drawWindow(lcd, addStationWindow);
-          if (stationWindow.visible) drawWindow(lcd, stationWindow);
-          if (radioWindow.visible) drawWindow(lcd, radioWindow);
-          
-          delay(100); // Debounce
-          while(lcd.getTouch(&touchX, &touchY)) { delay(10); } // Wait for release
+          if (addStationWindow.visible)
+            drawWindow(lcd, addStationWindow);
+          if (stationWindow.visible)
+            drawWindow(lcd, stationWindow);
+          if (radioWindow.visible)
+            drawWindow(lcd, radioWindow);
+
+          delay(100);  // Debounce
+          while (lcd.getTouch(&touchX, &touchY)) {
+            delay(10);
+          }
         }
       }
     }
-    
-    // Handle window interaction (minimize/close buttons)
-    // Only handle one window at a time - add station window takes priority, then station window, then radio window
-    if (addStationWindow.visible) {
-      interactiveWindow(lcd, addStationWindow);
-    } else if (stationWindow.visible) {
-      interactiveWindow(lcd, stationWindow);
-    } else if (radioWindow.visible) {
-      interactiveWindow(lcd, radioWindow);
+
+    // Disable all background UI updates while keyboard is visible
+    bool keyboardActive = false;
+    if (globalKeyboard) {
+      MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+      keyboardActive = keyboard->visible;
     }
 
-    // Handle desktop icon interaction
-    if (radioIcon.visible) {
-      interactiveDesktopIcon(lcd, radioIcon);
-    }
+    if (!keyboardActive) {
+      // Handle window interaction (minimize/close buttons)
+      // Only handle one window at a time - add station window takes priority, then station window,
+      // then radio window
+      if (addStationWindow.visible) {
+        interactiveWindow(lcd, addStationWindow);
+      } else if (stationWindow.visible) {
+        interactiveWindow(lcd, stationWindow);
+      } else if (radioWindow.visible) {
+        interactiveWindow(lcd, radioWindow);
+      }
 
-    // Update running text components for animation (throttled to reduce overhead)
-    static unsigned long lastTextUpdate = 0;
-    unsigned long now = millis();
-    if (now - lastTextUpdate > 50) {  // Update every 50ms for smooth scrolling
-      lastTextUpdate = now;
+      // Handle desktop icon interaction
+      if (radioIcon.visible) {
+        interactiveDesktopIcon(lcd, radioIcon);
+      }
 
+      // Update running text components for animation
       if (radioWindow.visible && !stationWindow.visible && !addStationWindow.visible) {
         updateRunningTextComponents(lcd, radioWindow);
       }
@@ -779,50 +848,28 @@ void uiTask(void* parameter) {
         updateRunningTextComponents(lcd, addStationWindow);
         updateInputFieldComponents(lcd, addStationWindow);
       }
-    }
 
-    // Check for metadata updates from audio stream (only for radio window)
-    if (radioWindow.visible) {
-      bool needsUpdate = false;
+      // Check for metadata updates from audio stream (Core 0 → Core 1 communication)
+      // Only update if radio window is visible
+      if (radioWindow.visible && !stationWindow.visible && !addStationWindow.visible) {
+        // Update station name if server provided one
+        if (serverStationName.length() > 0 && serverStationName != currentStationName) {
+          currentStationName = serverStationName;
+          updateStationMetadata(currentStationName, currentTrackInfo);
+        }
 
-      // Prioritize server station name over user-selected name
-      // Once server sends metadata, always use it
-      if (serverStationName.length() > 0 && serverStationName != currentStationName) {
-        currentStationName = serverStationName;
-        metadataReceived = true;
-        needsUpdate = true;
-        Serial.printf("Station name from server: %s\n", serverStationName.c_str());
-      }
-
-      // Update track info when it changes
-      if (currentTrackInfo != lastTrackInfo) {
-        lastTrackInfo = currentTrackInfo;
-        needsUpdate = true;
-        Serial.printf("Track info updated: %s\n", currentTrackInfo.c_str());
-      }
-
-      // Update when description changes
-      if (stationDescription != lastDescription) {
-        lastDescription = stationDescription;
-        needsUpdate = true;
-      }
-
-      // Update when bitrate changes
-      if (streamBitrate != lastBitrate) {
-        lastBitrate = streamBitrate;
-        needsUpdate = true;
-      }
-
-      // Update UI if any metadata changed
-      if (needsUpdate) {
-        updateStationMetadata(currentStationName, currentTrackInfo);
+        // Update track info if it changed
+        if (currentTrackInfo.length() > 0 && currentTrackInfo != lastTrackInfo) {
+          lastTrackInfo = currentTrackInfo;
+          updateStationMetadata(currentStationName, currentTrackInfo);
+        }
       }
     }
 
-    // Handle global keyboard visibility changes
+    // Handle global keyboard visibility changes and overlay input field
     if (globalKeyboard) {
       MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
-      
+
       if (keyboard->visible && !keyboardWasVisible) {
         // Keyboard just became visible - draw it
         drawComponent(lcd, *globalKeyboard, 0, 0);
@@ -832,24 +879,53 @@ void uiTask(void* parameter) {
         int keyboardHeight = screenHeight / 2;
         int keyboardY = screenHeight - keyboardHeight;
         drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
-        
+
         // Redraw any windows that overlap with keyboard area
-        if (addStationWindow.visible && 
-            (addStationWindow.y + addStationWindow.h > keyboardY)) {
+        if (addStationWindow.visible && (addStationWindow.y + addStationWindow.h > keyboardY)) {
           drawWindow(lcd, addStationWindow);
         }
-        if (stationWindow.visible && 
-            (stationWindow.y + stationWindow.h > keyboardY)) {
+        if (stationWindow.visible && (stationWindow.y + stationWindow.h > keyboardY)) {
           drawWindow(lcd, stationWindow);
         }
-        if (radioWindow.visible && 
-            (radioWindow.y + radioWindow.h > keyboardY)) {
+        if (radioWindow.visible && (radioWindow.y + radioWindow.h > keyboardY)) {
           drawWindow(lcd, radioWindow);
         }
-        
+
         keyboardWasVisible = false;
       }
+
+      // --- Overlay input field above keyboard ---
+      if (keyboard->visible) {
+        // Find the focused input field in the active window
+        MacInputField* focusedInput = nullptr;
+        int overlayWidth = screenWidth;
+        int overlayHeight = 48;  // Taller for full-width overlay
+        int overlayX = 0;
+        int keyboardHeight = screenHeight / 2;
+        int overlayY = screenHeight - keyboardHeight - overlayHeight;  // Directly above keyboard
+
+        if (addStationWindow.visible) {
+          for (int i = 0; i < addStationWindow.childComponentCount; i++) {
+            MacComponent* comp = addStationWindow.childComponents[i];
+            if (comp->type == COMPONENT_INPUT_FIELD && comp->customData) {
+              MacInputField* inputField = (MacInputField*)comp->customData;
+              if (inputField->focused) {
+                focusedInput = inputField;
+                break;
+              }
+            }
+          }
+        }
+
+        if (focusedInput) {
+          // Draw full-width overlay input field above keyboard
+          drawInputField(lcd, overlayX, overlayY, overlayWidth, overlayHeight, *focusedInput);
+        }
+      }
     }
+
+    // Note: Button interactions are now handled inside the window container
+    // via onWindowContentClick callback - no need for individual button checks here
 
     vTaskDelay(10 / portTICK_PERIOD_MS);  // 10ms delay for UI responsiveness
   }
@@ -857,12 +933,19 @@ void uiTask(void* parameter) {
 
 // Audio Task - runs on Core 0 (background core)
 void audioTask(void* parameter) {
-  Serial.println("Audio Task started on Core 0");
-
   while (true) {
+    // Handle audio processing
     if (isPlaying) {
-       audio.loop();  // Audio processing
+      audio.loop();  // Audio processing
     }
+
+    // Handle audio processing
+    if (isPlaying) {
+      audio.loop();  // Audio processing
+    }
+
+    // Update clock (time-based, not UI critical)
+    updateClock();
 
     vTaskDelay(1 / portTICK_PERIOD_MS);  // 1ms delay for audio precision
   }
@@ -875,20 +958,44 @@ void cleanup() {
 
 // ===== HELPER FUNCTIONS =====
 
+/**
+ * Update station name and track info in the UI components
+ * Thread-safe: Called from UI task (Core 1)
+ */
+void updateStationMetadata(const String& stationName, const String& trackInfo) {
+  // Update component 200 (station name)
+  MacComponent* txtRadioName = findComponentById(radioWindow, 200);
+  if (txtRadioName && txtRadioName->customData) {
+    MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
+    runningText->text = stationName;
+    runningText->scrollOffset = 0;  // Reset scroll position
+  }
+
+  // Update component 201 (track info)
+  MacComponent* txtRadioDetails = findComponentById(radioWindow, 201);
+  if (txtRadioDetails && txtRadioDetails->customData) {
+    MacRunningText* runningText = (MacRunningText*)txtRadioDetails->customData;
+    runningText->text = trackInfo;
+    runningText->scrollOffset = 0;  // Reset scroll position
+  }
+}
+
 void updateClock() {
   unsigned long now = millis();
-  if (now - lastClockUpdate < 1000) return;  // update once per second
+  if (now - lastClockUpdate < 1000)
+    return;  // update once per second
   lastClockUpdate = now;
 
   struct tm timeinfo;
-  // Use timeout parameter (10ms) to prevent blocking the UI task
-  if (!getLocalTime(&timeinfo, 10)) {
-    return;  // keep previous, NTP not synced yet
+  if (!getLocalTime(&timeinfo)) {
+    return;     // keep previous
   }
+
   char buf[9];  // HH:MM:SS
   strftime(buf, sizeof(buf), "%H:%M:%S", &timeinfo);
   String current = String(buf);
-  if (current == lastClockText) return;  // no change
+  if (current == lastClockText)
+    return;  // no change
   lastClockText = current;
 
   // Redraw clock area (menu bar right side)
@@ -921,8 +1028,10 @@ void connectToWiFi() {
     lcd.println(WiFi.localIP().toString());
 
     // Initialize NTP time synchronization
-    displayStatus(lcd, "Syncing time...", 180);
     configTime(GMT_OFFSET_SEC, DST_OFFSET_SEC, NTP_SERVER);
+    Serial.println("NTP time configured");
+
+    updateClock();
   } else {
     displayStatus(lcd, "WiFi Failed!", 160);
   }
@@ -934,82 +1043,27 @@ void connectToWiFi() {
 void initializeAudio() {
   displayStatus(lcd, "Setting up audio...", 180);
 
+  // Check PSRAM availability
+  if (psramFound()) {
+    Serial.printf("PSRAM found: %d bytes\n", ESP.getPsramSize());
+  } else {
+    Serial.println("WARNING: PSRAM not found!");
+  }
+
+  // Print free heap before audio init
+  Serial.printf("Free heap before audio init: %d bytes\n", ESP.getFreeHeap());
+
+  // CRITICAL: Set buffer size BEFORE setPinout to avoid default allocation
+  // Default is 679KB, we reduce to 16KB for memory constrained devices
+  if (!audio.setInBufferSize(16384)) {
+    Serial.println("Failed to set input buffer size");
+    displayStatus(lcd, "Buffer config failed", 180);
+  }
+
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolume(DEFAULT_VOLUME);
 
-  // Register callback to receive metadata from audio stream
   Audio::audio_info_callback = my_audio_info;
-
-  displayStatus(lcd, "Connecting to stream...", 180);
-
-  if (audio.connecttohost(RADIO_URL)) {
-    displayStatus(lcd, "Stream connected!", 180);
-
-    lcd.fillRect(45, 180, 175, 15, MAC_WHITE);
-    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-    lcd.setTextSize(1);
-    lcd.setCursor(45, 180);
-    lcd.println("\u266A Playing: Internet Radio");
-    lcd.setCursor(45, 195);
-    lcd.println("Status: Connected");
-    lcd.setCursor(45, 210);
-    lcd.println("Volume: " + String(DEFAULT_VOLUME));
-  } else {
-    displayStatus(lcd, "Stream failed!", 180);
-
-    lcd.fillRect(45, 180, 175, 15, MAC_WHITE);
-    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-    lcd.setTextSize(1);
-    lcd.setCursor(45, 180);
-    lcd.println("\u2717 Connection failed");
-  }
-}
-
-/**
- * Update station metadata in running text components
- * Thread-safe: called from UI task (Core 1)
- */
-void updateStationMetadata(const String& stationName, const String& trackInfo) {
-  // Update component 200 (station name) in radio window
-  MacComponent* txtRadioName = findComponentById(radioWindow, 200);
-  if (txtRadioName && txtRadioName->customData) {
-    MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
-    runningText->text = stationName;
-    runningText->scrollOffset = 0;  // Reset scroll position
-  }
-
-  // Build detailed info string with available metadata
-  String detailsText = "";
-
-  // Add current track/song if available
-  if (trackInfo.length() > 0) {
-    detailsText = "Now Playing: " + trackInfo;
-  }
-
-  // Add station description if available and no track info
-  else if (stationDescription.length() > 0) {
-    detailsText = stationDescription;
-  }
-
-  // Add bitrate if available
-  if (streamBitrate.length() > 0 && detailsText.length() > 0) {
-    detailsText += " • " + streamBitrate;
-  } else if (streamBitrate.length() > 0) {
-    detailsText = "Streaming at " + streamBitrate;
-  }
-
-  // Fallback message if no metadata available
-  if (detailsText.length() == 0) {
-    detailsText = "Internet Radio Stream - Connecting to station...";
-  }
-
-  // Update component 201 (track info) in radio window
-  MacComponent* txtRadioDetails = findComponentById(radioWindow, 201);
-  if (txtRadioDetails && txtRadioDetails->customData) {
-    MacRunningText* runningText = (MacRunningText*)txtRadioDetails->customData;
-    runningText->text = detailsText;
-    runningText->scrollOffset = 0;  // Reset scroll position
-  }
 }
 
 void drawInterface(lgfx::LGFX_Device& lcd) {
@@ -1021,7 +1075,7 @@ void drawInterface(lgfx::LGFX_Device& lcd) {
   initializeRadioWindow();
   initializeStationWindow();
   initializeAddStationWindow();
-  
+
   // Initialize global keyboard (bottom half of screen)
   if (globalKeyboard == nullptr) {
     int keyboardHeight = screenHeight / 2;
@@ -1035,7 +1089,7 @@ void drawInterface(lgfx::LGFX_Device& lcd) {
   // Draw the window using the new window system
   // This will automatically draw all child buttons
   drawWindow(lcd, radioWindow);
-  
+
   // Station and add station windows start hidden
   stationWindow.visible = false;
   addStationWindow.visible = false;
@@ -1048,7 +1102,8 @@ void drawInterface(lgfx::LGFX_Device& lcd) {
 
 // Helper function to redraw window content (needed for dragging)
 void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window) {
-  if (!window.visible || window.minimized) return;
+  if (!window.visible || window.minimized)
+    return;
 
   // Draw now playing info area at the top
   // draw3DFrame(lcd, window.x + 10, window.y + 35, 200, 25, true);
@@ -1086,7 +1141,6 @@ void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window) {
   // } else {
   //   lcd.println("Ready to play - Internet Radio v1.0");
   // }
-
 }
 
 // ===== DYNAMIC WINDOW SETUP =====
@@ -1096,7 +1150,8 @@ void initializeRadioWindow() {
   clearChildComponents(radioWindow);
 
   // Add a label for the now playing area
-  MacComponent* nowPlayingLabel = createLabelComponent(15, 40, 180, 20, 100, "Now Playing:", MAC_BLACK);
+  MacComponent* nowPlayingLabel =
+      createLabelComponent(15, 40, 180, 20, 100, "Now Playing:", MAC_BLACK);
   nowPlayingLabel->onClick = onComponentClick;
   addChildComponent(radioWindow, nowPlayingLabel);
 
@@ -1117,26 +1172,25 @@ void initializeRadioWindow() {
   btnNext->onClick = onComponentClick;
   addChildComponent(radioWindow, btnNext);
 
-  MacComponent* txtRadioName = createRunningTextComponent(
-    10, 40,           // x, y position
-    400, 25,          // width, height
-    200,              // component ID
-    currentStationName,  // Use dynamic station name (updated by metadata)
-    2,                // scroll speed (2 pixels per update)
-    MAC_BLACK,        // text color
-    3                 // text size
+  MacComponent* txtRadioName = createRunningTextComponent(10, 40,   // x, y position
+                                                          400, 25,  // width, height
+                                                          200,      // component ID
+                                                          currentStationName,
+                                                          2,  // scroll speed (2 pixels per update)
+                                                          MAC_BLACK,  // text color
+                                                          3           // text size
   );
   txtRadioName->onClick = onComponentClick;
   addChildComponent(radioWindow, txtRadioName);
 
   MacComponent* txtRadioDetails = createRunningTextComponent(
-    10, 70,           // x, y position
-    400, 15,          // width, height
-    201,              // component ID
-    "Internet Radio Stream - Waiting for metadata...",  // Will be updated by server metadata
-    2,                // scroll speed (2 pixels per update)
-    MAC_BLACK,        // text color
-    1                 // text size
+      10, 70,     // x, y position
+      400, 15,    // width, height
+      201,        // component ID
+      "Now Playing: Internet Radio Stream - Enjoy your favorite music and shows all day long!",
+      2,          // scroll speed (2 pixels per update)
+      MAC_BLACK,  // text color
+      1           // text size
   );
   txtRadioDetails->onClick = onComponentClick;
   addChildComponent(radioWindow, txtRadioDetails);
@@ -1157,59 +1211,34 @@ void initializeRadioWindow() {
 }
 
 // ===== STATION LIST DATA =====
-// Station URLs structure
-struct StationURL {
-  const char* url;
-};
-
-// Define your radio stations here with their streaming URLs
-StationURL stationURLs[] = {
-  {"http://202.65.114.229:9314/"},           // Swaragama FM - Jogja
-  {"https://ig.idstreamer.com:8090/live"},   // Prambors FM - Jakarta (placeholder, update with real URL)
-  {"https://ig.idstreamer.com:8090/live"},   // Gen FM - Semarang (placeholder, update with real URL)
-  {"https://ig.idstreamer.com:8090/live"},   // Trijaya FM - Jakarta (placeholder, update with real URL)
-  {"https://ig.idstreamer.com:8090/live"},   // Radio Elshinta - Jakarta (placeholder, update with real URL)
-  {"https://ig.idstreamer.com:8090/live"},   // Radio Sonora - Jakarta (placeholder, update with real URL)
-  {"https://ig.idstreamer.com:8090/live"},   // MNC Trijaya FM (placeholder, update with real URL)
-  {"https://ig.idstreamer.com:8090/live"},   // Hard Rock FM (placeholder, update with real URL)
-  {"https://ig.idstreamer.com:8090/live"},   // RRI Pro 1 (placeholder, update with real URL)
-  {"https://ig.idstreamer.com:8090/live"}    // Ardan FM (placeholder, update with real URL)
-};
-
-MacListViewItem stationItems[] = {
-  {"Swaragama FM - Jogja", &stationURLs[0]},
-  {"Prambors FM - Jakarta", &stationURLs[1]},
-  {"Gen FM - Semarang", &stationURLs[2]},
-  {"Trijaya FM - Jakarta", &stationURLs[3]},
-  {"Radio Elshinta - Jakarta", &stationURLs[4]},
-  {"Radio Sonora - Jakarta", &stationURLs[5]},
-  {"MNC Trijaya FM", &stationURLs[6]},
-  {"Hard Rock FM", &stationURLs[7]},
-  {"RRI Pro 1", &stationURLs[8]},
-  {"Ardan FM", &stationURLs[9]}
-};
+// Define your radio stations here
+MacListViewItem stationItems[] = {{"Swaragama FM - Jogja", nullptr},
+                                  {"Prambors FM - Jakarta", nullptr},
+                                  {"Gen FM - Semarang", nullptr},
+                                  {"Trijaya FM - Jakarta", nullptr},
+                                  {"Radio Elshinta - Jakarta", nullptr},
+                                  {"Radio Sonora - Jakarta", nullptr},
+                                  {"MNC Trijaya FM", nullptr},
+                                  {"Hard Rock FM", nullptr},
+                                  {"RRI Pro 1", nullptr},
+                                  {"Ardan FM", nullptr}};
 
 const int stationItemCount = sizeof(stationItems) / sizeof(stationItems[0]);
 
 void onStationItemClick(int index, void* itemData) {
-  Serial.printf("Station selected: %d - %s\n", index, stationItems[index].text.c_str());
-
-  // Update current station name (will be replaced by server metadata when available)
+  // Update the current station name
   currentStationName = stationItems[index].text;
 
-  // Clear previous metadata
-  serverStationName = "";
-  currentTrackInfo = "";
-  lastTrackInfo = "";
-  stationDescription = "";
-  metadataReceived = false;
+  // Update the running text component with the new station name
+  MacComponent* txtRadioName = findComponentById(radioWindow, 200);
+  if (txtRadioName && txtRadioName->customData) {
+    MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
+    runningText->text = currentStationName;
+    runningText->scrollOffset = 0;  // Reset scroll position
+  }
 
-  // Update the UI to show the selected station name immediately
-  updateStationMetadata(currentStationName, "Connecting to station...");
-
-  // TODO: Add station URLs to stationItems array and connect to the station
-  // audio.connecttohost(stationURL);
-  // isPlaying = true;
+  // Here you can add logic to switch to the selected station
+  // For example: switchToStation(index);
 
   // Close station window and show radio window
   stationWindow.visible = false;
@@ -1222,28 +1251,27 @@ void onStationItemClick(int index, void* itemData) {
 void initializeStationWindow() {
   // Clear any existing child components
   clearChildComponents(stationWindow);
-  
+
   // Add "Add Station" button at the bottom
   MacComponent* btnAddStation = createButtonComponent(310, 35, 90, 30, btnAddStationID, "Add +");
   btnAddStation->onClick = onComponentClick;
   addChildComponent(stationWindow, btnAddStation);
-  
+
   // Create the list view component (reduced width to accommodate button)
-  MacComponent* stationList = createListViewComponent(
-    10, 35,           // x, y position (below title bar)
-    290, 195,         // width, height (reduced from 400)
-    300,              // component ID
-    stationItems,     // array of items
-    stationItemCount, // number of items
-    30                // item height
+  MacComponent* stationList = createListViewComponent(10, 35,    // x, y position (below title bar)
+                                                      290, 195,  // width, height (reduced from 400)
+                                                      300,       // component ID
+                                                      stationItems,      // array of items
+                                                      stationItemCount,  // number of items
+                                                      30                 // item height
   );
-  
+
   // Set the item click callback
   if (stationList && stationList->customData) {
     MacListView* listViewData = (MacListView*)stationList->customData;
     listViewData->onItemClick = onStationItemClick;
   }
-  
+
   stationList->onClick = onComponentClick;
   addChildComponent(stationWindow, stationList);
 }
@@ -1251,30 +1279,33 @@ void initializeStationWindow() {
 void initializeAddStationWindow() {
   // Clear any existing child components
   clearChildComponents(addStationWindow);
-  
+
   // Add labels for field names
   MacComponent* lblStationName = createLabelComponent(20, 40, 120, 20, 400, "Station Name:");
   addChildComponent(addStationWindow, lblStationName);
-  
+
   // Add input field for station name
-  MacComponent* txtStationName = createInputFieldComponent(150, 40, 190, 25, 401, "Enter station name", 50);
+  MacComponent* txtStationName =
+      createInputFieldComponent(150, 40, 190, 25, 401, "Enter station name", 50);
   txtStationName->onClick = onComponentClick;
   addChildComponent(addStationWindow, txtStationName);
-  
+
   MacComponent* lblStationURL = createLabelComponent(20, 75, 120, 20, 402, "Station URL:");
   addChildComponent(addStationWindow, lblStationURL);
-  
+
   // Add input field for station URL
-  MacComponent* txtStationURL = createInputFieldComponent(150, 75, 190, 25, 403, "https://...", 200);
+  MacComponent* txtStationURL =
+      createInputFieldComponent(150, 75, 190, 25, 403, "https://...", 200);
   txtStationURL->onClick = onComponentClick;
   addChildComponent(addStationWindow, txtStationURL);
-  
+
   // Add Save and Cancel buttons
   MacComponent* btnSave = createButtonComponent(80, 115, 80, 30, btnSaveStationID, "Save");
   btnSave->onClick = onComponentClick;
   addChildComponent(addStationWindow, btnSave);
-  
-  MacComponent* btnCancel = createButtonComponent(180, 115, 80, 30, btnCancelAddStationID, "Cancel");
+
+  MacComponent* btnCancel =
+      createButtonComponent(180, 115, 80, 30, btnCancelAddStationID, "Cancel");
   btnCancel->onClick = onComponentClick;
   addChildComponent(addStationWindow, btnCancel);
 }
