@@ -155,27 +155,21 @@ void onNext();
 // ===== COMPONENT INTERACTION HANDLERS =====
 
 void onComponentClick(int componentId) {
-  Serial.printf("Component %d clicked\n", componentId);
-
   switch (componentId) {
     case 100:  // Now Playing Label
-      Serial.println("Now Playing label clicked");
       displayStatus(lcd, "Label clicked", 160);
       break;
 
     case 101:  // Volume Slider
-      Serial.println("Volume slider clicked");
       displayStatus(lcd, "Volume slider clicked", 160);
       // Here you could implement slider dragging logic
       break;
 
     case 102:  // Buffer Progress Bar
-      Serial.println("Buffer progress clicked");
       displayStatus(lcd, "Progress bar clicked", 160);
       break;
 
     case 103:  // Auto Play Checkbox
-      Serial.println("Auto Play checkbox clicked");
       // Toggle checkbox state
       {
         MacComponent* component = findComponentById(radioWindow, componentId);
@@ -190,7 +184,6 @@ void onComponentClick(int componentId) {
       break;
 
     case 104:  // Show Visuals Checkbox
-      Serial.println("Show Visuals checkbox clicked");
       // Toggle checkbox state
       {
         MacComponent* component = findComponentById(radioWindow, componentId);
@@ -247,7 +240,6 @@ void onComponentClick(int componentId) {
       break;
 
     case btnAddStationID:  // Add Station Button
-      Serial.println("Add Station button pressed");
       displayStatus(lcd, "Opening Add Station", 160);
 
       // Hide station window immediately to stop event processing
@@ -272,8 +264,6 @@ void onComponentClick(int componentId) {
       break;
 
     case btnSaveStationID:  // Save Station Button
-      Serial.println("Save Station button pressed");
-
       // Get the input values from the input fields
       {
         MacComponent* nameInputComp = findComponentById(addStationWindow, 401);
@@ -288,7 +278,6 @@ void onComponentClick(int componentId) {
 
           // Validate inputs
           if (stationName.length() > 0 && stationURL.length() > 0) {
-            Serial.printf("Saving station: %s - %s\n", stationName.c_str(), stationURL.c_str());
             displayStatus(lcd, "Station Saved: " + stationName, 160);
 
             // TODO: Add station to list (expand stationItems array)
@@ -320,8 +309,6 @@ void onComponentClick(int componentId) {
       break;
 
     case btnCancelAddStationID:  // Cancel Add Station Button
-      Serial.println("Cancel Add Station button pressed");
-
       // Hide keyboard and close add station window
       if (globalKeyboard) {
         MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
@@ -336,7 +323,6 @@ void onComponentClick(int componentId) {
       break;
 
     default:
-      Serial.printf("Unknown component ID: %d\n", componentId);
       break;
   }
 }
@@ -397,7 +383,6 @@ void onStop() {
 }
 
 void onVolUp() {
-  Serial.println("Volume Up pressed");
   displayStatus(lcd, "Vol Up pressed", 160);
   // audio.setVolume(min(21, audio.getVolume() + 1));
   // displayStatus(lcd, "Volume: " + String(audio.getVolume()), 160);
@@ -412,21 +397,18 @@ void onVolUp() {
 }
 
 void onPrev() {
-  Serial.println("Previous button pressed");
   displayStatus(lcd, "Previous Station", 160);
   // Add your station switching logic here
   // For example: switchToStation(currentStation - 1);
 }
 
 void onNext() {
-  Serial.println("Next button pressed");
   displayStatus(lcd, "Next Station", 160);
   // Add your station switching logic here
   // For example: switchToStation(currentStation + 1);
 }
 
 void onVolDown() {
-  Serial.println("Volume Down pressed");
   displayStatus(lcd, "Vol Down pressed", 160);
   // audio.setVolume(max(0, audio.getVolume() - 1));
   // displayStatus(lcd, "Volume: " + String(audio.getVolume()), 160);
@@ -711,7 +693,6 @@ void setup() {
     drawInterface(lcd);
     Serial.println("Interface drawn");
   } catch (...) {
-    Serial.println("Error in setup!");
     while (1)
       delay(1000);
   }
@@ -723,7 +704,7 @@ void setup() {
   // Reduced stack size to save memory (was 10000)
   xTaskCreatePinnedToCore(uiTask,         // Task function
                           "UI_Task",      // Task name
-                          6144,           // Stack size (bytes) - reduced for memory
+                          10000,          // Stack size (bytes) - reduced for memory
                           NULL,           // Parameter
                           1,              // Priority
                           &uiTaskHandle,  // Task handle
@@ -734,9 +715,9 @@ void setup() {
   // Reduced stack size to save memory (was 8000)
   xTaskCreatePinnedToCore(audioTask,         // Task function
                           "Audio_Task",      // Task name
-                          4096,              // Stack size (bytes) - reduced for memory
+                          8000,              // Stack size (bytes) - reduced for memory
                           NULL,              // Parameter
-                          2,                 // Higher priority for audio
+                          1,                 // Higher priority for audio
                           &audioTaskHandle,  // Task handle
                           0                  // Core (0 or 1)
   );
@@ -758,20 +739,11 @@ void loop() {
 
 // UI Task - runs on Core 1 (default Arduino core)
 void uiTask(void* parameter) {
-  Serial.println("UI Task started on Core 1");
-
   int touchX, touchY;               // Touch coordinates
   bool keyboardWasVisible = false;  // Track keyboard state
 
   while (true) {
-    static unsigned long lastDebugPrint = 0;
-
-    // Debug output every 10 seconds
-    if (millis() - lastDebugPrint > 10000) {
-      Serial.printf("UI Task running on Core %d, Free heap: %d bytes\n", xPortGetCoreID(),
-                    ESP.getFreeHeap());
-      lastDebugPrint = millis();
-    }
+    updateClock();
 
     // Handle global keyboard input first if visible
     if (globalKeyboard) {
@@ -961,18 +933,10 @@ void uiTask(void* parameter) {
 
 // Audio Task - runs on Core 0 (background core)
 void audioTask(void* parameter) {
-  Serial.println("Audio Task started on Core 0");
-
-  // Audio already initialized in setup() - don't re-initialize here
-  // That would cause double memory allocation
-
   while (true) {
-    static unsigned long lastDebugPrint = 0;
-
-    // Debug output every 15 seconds
-    if (millis() - lastDebugPrint > 15000) {
-      Serial.printf("Audio Task running on Core %d\n", xPortGetCoreID());
-      lastDebugPrint = millis();
+    // Handle audio processing
+    if (isPlaying) {
+      audio.loop();  // Audio processing
     }
 
     // Handle audio processing
@@ -1024,7 +988,7 @@ void updateClock() {
 
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    return;  // keep previous
+    return;     // keep previous
   }
 
   char buf[9];  // HH:MM:SS
@@ -1099,14 +1063,7 @@ void initializeAudio() {
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolume(DEFAULT_VOLUME);
 
-  // Register callback to receive metadata from audio stream
   Audio::audio_info_callback = my_audio_info;
-
-  Serial.printf("Free heap after audio init: %d bytes\n", ESP.getFreeHeap());
-  displayStatus(lcd, "Audio ready", 180);
-
-  // Don't auto-connect here - let user press play button
-  // This saves memory during startup
 }
 
 void drawInterface(lgfx::LGFX_Device& lcd) {
@@ -1269,8 +1226,6 @@ MacListViewItem stationItems[] = {{"Swaragama FM - Jogja", nullptr},
 const int stationItemCount = sizeof(stationItems) / sizeof(stationItems[0]);
 
 void onStationItemClick(int index, void* itemData) {
-  Serial.printf("Station selected: %d - %s\n", index, stationItems[index].text.c_str());
-
   // Update the current station name
   currentStationName = stationItems[index].text;
 

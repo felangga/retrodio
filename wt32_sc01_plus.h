@@ -192,7 +192,6 @@ inline bool init_Display() {
 
   lv_init();
   if (!disp_draw_buf) {
-    Serial.println("LVGL disp_draw_buf allocate failed!");
     return false;
   } else {
 
