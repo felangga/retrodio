@@ -11,6 +11,7 @@
 #include <WiFi.h>
 #include <time.h>
 #include "Audio.h"
+#include "ConfigManager.h"
 #include "MacUI.h"
 #include "config.h"
 #include "esp32-hal-psram.h"
@@ -40,10 +41,10 @@ bool isPlaying = false;
 String currentStationName = "Retrodio";  // Default station name
 
 // Metadata from audio stream server
-String serverStationName = "";    // Station name from server (evt_name)
-String currentTrackInfo = "";     // Current track from StreamTitle (evt_streamtitle)
-String lastTrackInfo = "";        // Track previous value to detect changes
-bool metadataReceived = false;    // Flag to know when server sent metadata
+String serverStationName = "";  // Station name from server (evt_name)
+String currentTrackInfo = "";   // Current track from StreamTitle (evt_streamtitle)
+String lastTrackInfo = "";      // Track previous value to detect changes
+bool metadataReceived = false;  // Flag to know when server sent metadata
 
 // Forward declarations for callbacks
 void onWindowMinimize();
@@ -278,16 +279,25 @@ void onComponentClick(int componentId) {
 
           // Validate inputs
           if (stationName.length() > 0 && stationURL.length() > 0) {
-            displayStatus(lcd, "Station Saved: " + stationName, 160);
+            // Add station to ConfigManager
+            if (ConfigManager::addStation(stationName, stationURL)) {
+              displayStatus(lcd, "Station Saved: " + stationName, 160);
 
-            // TODO: Add station to list (expand stationItems array)
-            // For now, just show success message
+              // Reload station list to reflect new station
+              reloadStationList();
 
-            // Clear input fields
-            nameInput->text = "";
-            nameInput->cursorPos = 0;
-            urlInput->text = "";
-            urlInput->cursorPos = 0;
+              // Refresh station window to show new station
+              initializeStationWindow();
+
+              // Clear input fields
+              nameInput->text = "";
+              nameInput->cursorPos = 0;
+              urlInput->text = "";
+              urlInput->cursorPos = 0;
+            } else {
+              displayStatus(lcd, "Failed to save station", 160);
+              return;  // Don't close window if save failed
+            }
           } else {
             displayStatus(lcd, "Please fill all fields", 160);
             return;  // Don't close window if validation fails
@@ -383,16 +393,18 @@ void onStop() {
 }
 
 void onVolUp() {
-  displayStatus(lcd, "Vol Up pressed", 160);
-  // audio.setVolume(min(21, audio.getVolume() + 1));
-  // displayStatus(lcd, "Volume: " + String(audio.getVolume()), 160);
+  int newVol = min(21, audio.getVolume() + 1);
+  audio.setVolume(newVol);
+  ConfigManager::setVolume(newVol);  // Save to config
+  displayStatus(lcd, "Volume: " + String(newVol), 160);
+
   // Update volume display in window
   if (!radioWindow.minimized && radioWindow.visible) {
     draw3DFrame(lcd, radioWindow.x + 310, radioWindow.y + 35, 90, 25, true);
     lcd.setTextColor(MAC_BLACK, MAC_WHITE);
     lcd.setTextSize(1);
     lcd.setCursor(radioWindow.x + 315, radioWindow.y + 43);
-    lcd.printf("Volume: %d", 10);  // audio.getVolume()
+    lcd.printf("Volume: %d", newVol);
   }
 }
 
@@ -409,16 +421,18 @@ void onNext() {
 }
 
 void onVolDown() {
-  displayStatus(lcd, "Vol Down pressed", 160);
-  // audio.setVolume(max(0, audio.getVolume() - 1));
-  // displayStatus(lcd, "Volume: " + String(audio.getVolume()), 160);
+  int newVol = max(0, audio.getVolume() - 1);
+  audio.setVolume(newVol);
+  ConfigManager::setVolume(newVol);  // Save to config
+  displayStatus(lcd, "Volume: " + String(newVol), 160);
+
   // Update volume display in window
   if (!radioWindow.minimized && radioWindow.visible) {
     draw3DFrame(lcd, radioWindow.x + 310, radioWindow.y + 35, 90, 25, true);
     lcd.setTextColor(MAC_BLACK, MAC_WHITE);
     lcd.setTextSize(1);
     lcd.setCursor(radioWindow.x + 315, radioWindow.y + 43);
-    lcd.printf("Volume: %d", 10);  // audio.getVolume()
+    lcd.printf("Volume: %d", newVol);
   }
 }
 
@@ -668,33 +682,28 @@ void my_audio_info(Audio::msg_t m) {
 // ===== MAIN FUNCTIONS =====
 
 void setup() {
-  Serial.begin(115200);
-  delay(1000);
-  Serial.println("Starting radio application...");
-
   try {
     lcd.init();
     tft.initDMA();
     tft.startWrite();
-
-    Serial.println("LCD initialized");
-
     lcd.setRotation(lcd.getRotation() ^ 1);
-    Serial.println("LCD rotation set");
-
-    // Initialize sprite buffer for flicker-free component updates
-    // Reduced size to save memory (was 420x50)
-    initComponentBuffer(&lcd, 200, 30);  // Smaller buffer to reduce memory usage
-    Serial.println("Sprite buffer initialized");
-
+    initComponentBuffer(&lcd, 420, 50);
     lcd.fillScreen(MAC_WHITE);
-    Serial.println("Screen cleared");
-
     drawInterface(lcd);
-    Serial.println("Interface drawn");
   } catch (...) {
     while (1)
       delay(1000);
+  }
+
+  // Initialize ConfigManager (file system)
+  if (!ConfigManager::begin()) {
+    displayStatus(lcd, "Config init failed!", 160);
+  } else {
+    displayStatus(lcd, "Config loaded", 160);
+    // Load station list from config
+    reloadStationList();
+    // Restore volume from config
+    audio.setVolume(ConfigManager::getVolume());
   }
 
   connectToWiFi();
@@ -706,7 +715,7 @@ void setup() {
                           "UI_Task",      // Task name
                           10000,          // Stack size (bytes) - reduced for memory
                           NULL,           // Parameter
-                          1,              // Priority
+                          2,              // Priority
                           &uiTaskHandle,  // Task handle
                           1               // Core (0 or 1)
   );
@@ -721,18 +730,10 @@ void setup() {
                           &audioTaskHandle,  // Task handle
                           0                  // Core (0 or 1)
   );
-
-  Serial.println("Multi-core tasks created");
-  Serial.println("Setup complete");
 }
 
-/**
- * Arduino main loop
- * Handles audio streaming
- */
 void loop() {
-  // Main loop is now empty - all work is done in tasks
-  vTaskDelay(1000 / portTICK_PERIOD_MS);  // Just keep the main loop alive
+  vTaskDelay(100 / portTICK_PERIOD_MS);
 }
 
 // ===== MULTI-CORE TASKS =====
@@ -988,7 +989,7 @@ void updateClock() {
 
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    return;     // keep previous
+    return;  // keep previous
   }
 
   char buf[9];  // HH:MM:SS
@@ -1018,20 +1019,8 @@ void connectToWiFi() {
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    displayStatus(lcd, "WiFi Connected!", 160);
-
-    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-    lcd.setTextSize(1);
-    lcd.setCursor(275, 160);
-    lcd.println("Connected:");
-    lcd.setCursor(275, 175);
-    lcd.println(WiFi.localIP().toString());
-
     // Initialize NTP time synchronization
     configTime(GMT_OFFSET_SEC, DST_OFFSET_SEC, NTP_SERVER);
-    Serial.println("NTP time configured");
-
-    updateClock();
   } else {
     displayStatus(lcd, "WiFi Failed!", 160);
   }
@@ -1041,25 +1030,6 @@ void connectToWiFi() {
  * Initialize audio system and connect to radio stream
  */
 void initializeAudio() {
-  displayStatus(lcd, "Setting up audio...", 180);
-
-  // Check PSRAM availability
-  if (psramFound()) {
-    Serial.printf("PSRAM found: %d bytes\n", ESP.getPsramSize());
-  } else {
-    Serial.println("WARNING: PSRAM not found!");
-  }
-
-  // Print free heap before audio init
-  Serial.printf("Free heap before audio init: %d bytes\n", ESP.getFreeHeap());
-
-  // CRITICAL: Set buffer size BEFORE setPinout to avoid default allocation
-  // Default is 679KB, we reduce to 16KB for memory constrained devices
-  if (!audio.setInBufferSize(16384)) {
-    Serial.println("Failed to set input buffer size");
-    displayStatus(lcd, "Buffer config failed", 180);
-  }
-
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolume(DEFAULT_VOLUME);
 
@@ -1183,15 +1153,15 @@ void initializeRadioWindow() {
   txtRadioName->onClick = onComponentClick;
   addChildComponent(radioWindow, txtRadioName);
 
-  MacComponent* txtRadioDetails = createRunningTextComponent(
-      10, 70,     // x, y position
-      400, 15,    // width, height
-      201,        // component ID
-      "Now Playing: Internet Radio Stream - Enjoy your favorite music and shows all day long!",
-      2,          // scroll speed (2 pixels per update)
-      MAC_BLACK,  // text color
-      1           // text size
-  );
+  MacComponent* txtRadioDetails =
+      createRunningTextComponent(10, 70,     // x, y position
+                                 400, 15,    // width, height
+                                 201,        // component ID
+                                 "Standby waiting for metadata ...",
+                                 2,          // scroll speed (2 pixels per update)
+                                 MAC_BLACK,  // text color
+                                 1           // text size
+      );
   txtRadioDetails->onClick = onComponentClick;
   addChildComponent(radioWindow, txtRadioDetails);
 
@@ -1203,31 +1173,57 @@ void initializeRadioWindow() {
   // MacComponent* btnVolDn = createButtonComponent(300, 110, 45, 35, 6, "", SYMBOL_VOL_DOWN);
   // btnVolDn->onClick = onComponentClick;
   // addChildComponent(radioWindow, btnVolDn);
-
-  // // Stop button - separate and smaller
-  // MacComponent* btnStop = createButtonComponent(90, 140, 40, 40, 2, "", SYMBOL_STOP);
-  // btnStop->onClick = onComponentClick;
-  // addChildComponent(radioWindow, btnStop);
 }
 
 // ===== STATION LIST DATA =====
-// Define your radio stations here
-MacListViewItem stationItems[] = {{"Swaragama FM - Jogja", nullptr},
-                                  {"Prambors FM - Jakarta", nullptr},
-                                  {"Gen FM - Semarang", nullptr},
-                                  {"Trijaya FM - Jakarta", nullptr},
-                                  {"Radio Elshinta - Jakarta", nullptr},
-                                  {"Radio Sonora - Jakarta", nullptr},
-                                  {"MNC Trijaya FM", nullptr},
-                                  {"Hard Rock FM", nullptr},
-                                  {"RRI Pro 1", nullptr},
-                                  {"Ardan FM", nullptr}};
+// Station list is now managed by ConfigManager
+// Dynamic array for UI display
+MacListViewItem* stationItems = nullptr;
+int stationItemCount = 0;
 
-const int stationItemCount = sizeof(stationItems) / sizeof(stationItems[0]);
+// Helper function to reload station list from ConfigManager
+void reloadStationList() {
+  // Free old array if it exists
+  if (stationItems != nullptr) {
+    delete[] stationItems;
+    stationItems = nullptr;
+  }
+
+  // Get station count from ConfigManager
+  stationItemCount = ConfigManager::getStationCount();
+
+  if (stationItemCount == 0) {
+    return;
+  }
+
+  // Allocate new array
+  stationItems = new MacListViewItem[stationItemCount];
+
+  // Load stations from ConfigManager
+  for (int i = 0; i < stationItemCount; i++) {
+    Station station = ConfigManager::getStation(i);
+    stationItems[i].text = station.name;
+    stationItems[i].data = nullptr;  // URL stored in ConfigManager
+  }
+}
 
 void onStationItemClick(int index, void* itemData) {
-  // Update the current station name
-  currentStationName = stationItems[index].text;
+  // Get station from ConfigManager
+  Station station = ConfigManager::getStation(index);
+
+  if (station.url.length() == 0) {
+    displayStatus(lcd, "Invalid station", 160);
+    return;
+  }
+
+  // Update current station name
+  currentStationName = station.name;
+
+  // Clear previous metadata
+  serverStationName = "";
+  currentTrackInfo = "";
+  lastTrackInfo = "";
+  metadataReceived = false;
 
   // Update the running text component with the new station name
   MacComponent* txtRadioName = findComponentById(radioWindow, 200);
@@ -1237,8 +1233,25 @@ void onStationItemClick(int index, void* itemData) {
     runningText->scrollOffset = 0;  // Reset scroll position
   }
 
-  // Here you can add logic to switch to the selected station
-  // For example: switchToStation(index);
+  // Update details to show connecting
+  updateStationMetadata(currentStationName, "Connecting...");
+
+  // Stop current playback if playing
+  if (isPlaying) {
+    audio.stopSong();
+    delay(100);
+  }
+
+  // Connect to the selected station
+  if (audio.connecttohost(station.url.c_str())) {
+    isPlaying = true;
+    updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);
+    ConfigManager::setLastStation(station.name);  // Save last played station
+  } else {
+    isPlaying = false;
+    updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
+    displayStatus(lcd, "Connection failed", 160);
+  }
 
   // Close station window and show radio window
   stationWindow.visible = false;
