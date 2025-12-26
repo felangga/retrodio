@@ -38,6 +38,17 @@ String lastClockText;
 // Music player state
 bool isPlaying = false;
 
+// Station metadata from audio stream
+String currentStationName = "Retrodio";    // Currently displayed station name
+String serverStationName = "";              // Station name from server (evt_name)
+String currentTrackInfo = "";               // Current track from StreamTitle (evt_streamtitle)
+String lastTrackInfo = "";                  // Track previous value to detect changes
+String stationDescription = "";             // Station description from server
+String lastDescription = "";                // Track description changes
+String streamBitrate = "";                  // Stream bitrate information
+String lastBitrate = "";                    // Track bitrate changes
+bool metadataReceived = false;              // Flag to know when server sent metadata
+
 // Forward declarations for callbacks
 void onWindowMinimize();
 void onWindowClose();
@@ -71,7 +82,7 @@ MacComponent* globalKeyboard = nullptr;
 // ===== FUNCTION PROTOTYPES =====
 
 void connectToWiFi();
-// void initializeAudio();
+void initializeAudio();
 void updateClock();
 
 // Multi-core task functions
@@ -311,19 +322,19 @@ void updateComponentSymbol(const MacWindow& window, int componentId, SymbolType 
 void onPlay() {
   Serial.println("Play button pressed");
   displayStatus(lcd, "Play pressed", 160);
-  // if (isPlaying) {
-  //   // Currently playing - pause/stop
-  //   audio.stopSong();
-  //   isPlaying = false;
-  //   updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
-  //   displayStatus(lcd, "Paused", 160);
-  // } else {
-  //   // Currently stopped - start playing
-  //   audio.connecttohost(RADIO_URL.c_str());
-  //   isPlaying = true;
-  //   updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);  // ID 1 is play button
-  //   displayStatus(lcd, "Playing", 160);
-  // }
+  if (isPlaying) {
+    // Currently playing - pause/stop
+    audio.stopSong();
+    isPlaying = false;
+    updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
+    displayStatus(lcd, "Paused", 160);
+  } else {
+    // Currently stopped - start playing
+    audio.connecttohost(RADIO_URL);
+    isPlaying = true;
+    updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);  // ID 1 is play button
+    displayStatus(lcd, "Playing", 160);
+  }
   // Force button redraw to show new symbol
   updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // Just show play for now
 }
@@ -331,10 +342,10 @@ void onPlay() {
 void onStop() {
   Serial.println("Stop button pressed");
   displayStatus(lcd, "Stop pressed", 160);
-  // audio.stopSong();
-  // isPlaying = false;
-  // updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
-  // displayStatus(lcd, "Stopped", 160);
+  audio.stopSong();
+  isPlaying = false;
+  updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
+  displayStatus(lcd, "Stopped", 160);
   // Force button redraw to show play symbol
   updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
 }
@@ -571,22 +582,40 @@ void onAddStationWindowMoved() {
  * Displays audio stream information on screen
  */
 void my_audio_info(Audio::msg_t m) {
-  // Display audio info in a designated area
-  // lcd.fillRect(250, 40, 220, 60, MAC_WHITE);
-  // lcd.drawRect(250, 40, 220, 60, MAC_BLACK);
-  // lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  // lcd.setTextSize(1);
-  // lcd.setCursor(255, 45);
-  // lcd.println("Audio Info:");
-  // lcd.setCursor(255, 60);
-  // lcd.printf("Event: %s", m.s);
-  // lcd.setCursor(255, 75);
-  // // Truncate long messages to fit
-  // String msg = String(m.msg);
-  // if (msg.length() > 30) {
-  //   msg = msg.substring(0, 27) + "...";
-  // }
-  // lcd.printf("Msg: %s", msg.c_str());
+  // Capture metadata from audio stream (runs on Core 0)
+  // The UI task (Core 1) will poll these variables and update components
+
+  String event = String(m.s);
+  String message = String(m.msg);
+
+  // Station name from ICY headers - update the station name
+  if (event == "evt_name" || event == "icy-name") {
+    serverStationName = message;
+    metadataReceived = true;
+  }
+
+  // Current track/song from StreamTitle - update the track info
+  else if (event == "evt_streamtitle" || event == "StreamTitle") {
+    currentTrackInfo = message;
+  }
+
+  // Station description
+  else if (event == "evt_icydescription" || event == "icy-description") {
+    stationDescription = message;
+  }
+
+  // Bitrate information
+  else if (event == "evt_bitrate") {
+    streamBitrate = message + " kbps";
+  }
+
+  // ID3 tags (for MP3 streams without ICY metadata)
+  else if (event == "evt_id3data") {
+    // Use ID3 data as fallback if no ICY metadata
+    if (serverStationName.length() == 0) {
+      serverStationName = message;
+    }
+  }
 }
 
 // ===== MAIN FUNCTIONS =====
@@ -620,6 +649,9 @@ void setup() {
     while (1) delay(1000);
   }
 
+  connectToWiFi();
+  initializeAudio();
+
   // Create UI task on Core 1 (default Arduino core)
   xTaskCreatePinnedToCore(
     uiTask,         // Task function
@@ -637,13 +669,10 @@ void setup() {
     "Audio_Task",      // Task name
     8000,              // Stack size (bytes)
     NULL,              // Parameter
-    2,                 // Higher priority for audio
+    1,                 // Same priority as UI to prevent starvation
     &audioTaskHandle,  // Task handle
     0                  // Core (0 or 1)
   );
-
-  Serial.println("Multi-core tasks created");
-  Serial.println("Setup complete");
 }
 
 /**
@@ -665,14 +694,13 @@ void uiTask(void* parameter) {
   bool keyboardWasVisible = false; // Track keyboard state
 
   while (true) {
-    static unsigned long lastDebugPrint = 0;
-
-    // Debug output every 10 seconds
-    if (millis() - lastDebugPrint > 10000) {
-      Serial.printf("UI Task running on Core %d, Free heap: %d bytes\n",
-                    xPortGetCoreID(), ESP.getFreeHeap());
-      lastDebugPrint = millis();
-    }
+    // Debug output disabled to prevent blocking UI task
+    // static unsigned long lastDebugPrint = 0;
+    // if (millis() - lastDebugPrint > 30000) {
+    //   Serial.printf("UI Task running on Core %d, Free heap: %d bytes\n",
+    //                 xPortGetCoreID(), ESP.getFreeHeap());
+    //   lastDebugPrint = millis();
+    // }
 
     // Handle global keyboard input first if visible
     if (globalKeyboard) {
@@ -747,20 +775,63 @@ void uiTask(void* parameter) {
       interactiveDesktopIcon(lcd, radioIcon);
     }
 
-    // Update running text components for animation
-    if (radioWindow.visible && !stationWindow.visible && !addStationWindow.visible) {
-      updateRunningTextComponents(lcd, radioWindow);
+    // Update running text components for animation (throttled to reduce overhead)
+    static unsigned long lastTextUpdate = 0;
+    unsigned long now = millis();
+    if (now - lastTextUpdate > 50) {  // Update every 50ms for smooth scrolling
+      lastTextUpdate = now;
+
+      if (radioWindow.visible && !stationWindow.visible && !addStationWindow.visible) {
+        updateRunningTextComponents(lcd, radioWindow);
+      }
+
+      if (stationWindow.visible && !addStationWindow.visible) {
+        updateRunningTextComponents(lcd, stationWindow);
+      }
+
+      if (addStationWindow.visible) {
+        updateRunningTextComponents(lcd, addStationWindow);
+        updateInputFieldComponents(lcd, addStationWindow);
+      }
     }
-    
-    if (stationWindow.visible && !addStationWindow.visible) {
-      updateRunningTextComponents(lcd, stationWindow);
+
+    // Update clock from UI task (moved from audio task)
+    updateClock();
+
+    // Check for metadata updates from audio stream (only for radio window)
+    if (radioWindow.visible) {
+      bool needsUpdate = false;
+
+      // Update station name when server metadata arrives
+      if (serverStationName.length() > 0 && serverStationName != currentStationName) {
+        currentStationName = serverStationName;
+        needsUpdate = true;
+      }
+
+      // Update track info when it changes
+      if (currentTrackInfo != lastTrackInfo) {
+        lastTrackInfo = currentTrackInfo;
+        needsUpdate = true;
+      }
+
+      // Update when description changes
+      if (stationDescription != lastDescription) {
+        lastDescription = stationDescription;
+        needsUpdate = true;
+      }
+
+      // Update when bitrate changes
+      if (streamBitrate != lastBitrate) {
+        lastBitrate = streamBitrate;
+        needsUpdate = true;
+      }
+
+      // Update UI if any metadata changed
+      if (needsUpdate) {
+        updateStationMetadata(currentStationName, currentTrackInfo);
+      }
     }
-    
-    if (addStationWindow.visible) {
-      updateRunningTextComponents(lcd, addStationWindow);
-      updateInputFieldComponents(lcd, addStationWindow);
-    }
-    
+
     // Handle global keyboard visibility changes
     if (globalKeyboard) {
       MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
@@ -805,29 +876,19 @@ void uiTask(void* parameter) {
 void audioTask(void* parameter) {
   Serial.println("Audio Task started on Core 0");
 
-  // Initialize audio on this core
-  // audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
-  // audio.setVolume(DEFAULT_VOLUME);
-
   while (true) {
     static unsigned long lastDebugPrint = 0;
 
-    // Debug output every 15 seconds
-    if (millis() - lastDebugPrint > 15000) {
-      Serial.printf("Audio Task running on Core %d\n", xPortGetCoreID());
-      lastDebugPrint = millis();
-    }
-
-    // Handle audio processing
-    // if (isPlaying) {
-    //   audio.loop();  // Audio processing
+    // Debug output disabled during playback to avoid stuttering
+    // if (millis() - lastDebugPrint > 30000 && !isPlaying) {
+    //   Serial.printf("Audio Task running on Core %d\n", xPortGetCoreID());
+    //   lastDebugPrint = millis();
     // }
 
-    // Handle WiFi and network tasks
-    // WiFi.maintain();
-
-    // Update clock (time-based, not UI critical)
-    // updateClock();
+    // Handle audio processing (CRITICAL - highest priority)
+    if (isPlaying) {
+      audio.loop();  // Audio processing
+    }
 
     vTaskDelay(1 / portTICK_PERIOD_MS);  // 1ms delay for audio precision
   }
@@ -897,6 +958,9 @@ void initializeAudio() {
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolume(DEFAULT_VOLUME);
 
+  // Register callback to receive metadata from audio stream
+  Audio::audio_info_callback = my_audio_info;
+
   displayStatus(lcd, "Connecting to stream...", 180);
 
   if (audio.connecttohost(RADIO_URL)) {
@@ -919,6 +983,53 @@ void initializeAudio() {
     lcd.setTextSize(1);
     lcd.setCursor(45, 180);
     lcd.println("\u2717 Connection failed");
+  }
+}
+
+/**
+ * Update station metadata in running text components
+ * Thread-safe: called from UI task (Core 1)
+ */
+void updateStationMetadata(const String& stationName, const String& trackInfo) {
+  // Update component 200 (station name) in radio window
+  MacComponent* txtRadioName = findComponentById(radioWindow, 200);
+  if (txtRadioName && txtRadioName->customData) {
+    MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
+    runningText->text = stationName;
+    runningText->scrollOffset = 0;  // Reset scroll position
+  }
+
+  // Build detailed info string with available metadata
+  String detailsText = "";
+
+  // Add current track/song if available
+  if (trackInfo.length() > 0) {
+    detailsText = "Now Playing: " + trackInfo;
+  }
+
+  // Add station description if available and no track info
+  else if (stationDescription.length() > 0) {
+    detailsText = stationDescription;
+  }
+
+  // Add bitrate if available
+  if (streamBitrate.length() > 0 && detailsText.length() > 0) {
+    detailsText += " • " + streamBitrate;
+  } else if (streamBitrate.length() > 0) {
+    detailsText = "Streaming at " + streamBitrate;
+  }
+
+  // Fallback message if no metadata available
+  if (detailsText.length() == 0) {
+    detailsText = "Internet Radio Stream - Connecting to station...";
+  }
+
+  // Update component 201 (track info) in radio window
+  MacComponent* txtRadioDetails = findComponentById(radioWindow, 201);
+  if (txtRadioDetails && txtRadioDetails->customData) {
+    MacRunningText* runningText = (MacRunningText*)txtRadioDetails->customData;
+    runningText->text = detailsText;
+    runningText->scrollOffset = 0;  // Reset scroll position
   }
 }
 
@@ -1031,7 +1142,7 @@ void initializeRadioWindow() {
     10, 40,           // x, y position
     400, 25,          // width, height
     200,              // component ID
-    "Swaragama FM",
+    currentStationName,  // Use dynamic station name (updated by metadata)
     2,                // scroll speed (2 pixels per update)
     MAC_BLACK,        // text color
     3                 // text size
@@ -1043,7 +1154,7 @@ void initializeRadioWindow() {
     10, 70,           // x, y position
     400, 15,          // width, height
     201,              // component ID
-    "Now Playing: Internet Radio Stream - Enjoy your favorite music and shows all day long!",
+    "Internet Radio Stream - Waiting for metadata...",  // Will be updated by server metadata
     2,                // scroll speed (2 pixels per update)
     MAC_BLACK,        // text color
     1                 // text size
