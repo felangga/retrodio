@@ -71,8 +71,8 @@ void drawMenuBar(lgfx::LGFX_Device& lcd, const String& appName) {
 
 void drawClock(lgfx::LGFX_Device& lcd, const String& time) {
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  lcd.fillRect(screenWidth - 80, 0, 80, 20, MAC_WHITE);
-  lcd.setCursor(screenWidth - 80, 6);
+  lcd.fillRect(screenWidth - 60, 0, 80, 20, MAC_WHITE);
+  lcd.setCursor(screenWidth - 60, 6);
   lcd.print(time);
 }
 
@@ -791,7 +791,9 @@ void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int rel
       MacListView* listViewData = (MacListView*)clickedComponent->customData;
 
       // Check if this was a tap (not a swipe)
-      int swipeDistance = abs(relativeY - listViewData->touchStartY);
+      // Convert touchStartY from absolute to relative coordinates for proper comparison
+      int relativeTouchStartY = listViewData->touchStartY - window.y;
+      int swipeDistance = abs(relativeY - relativeTouchStartY);
       unsigned long swipeDuration = millis() - listViewData->touchStartTime;
 
       // If movement was small and quick, it's a tap
