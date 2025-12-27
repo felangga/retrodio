@@ -265,7 +265,7 @@ bool ConfigManager::createDefaultStations() {
 
   addStation("Swaragama FM - Jogja", "http://202.65.114.229:9314/");
   addStation("Geronimo FM - Jogja", "https://ig.idstreamer.com:8090/live");
-  addStation("Prambors FM - Jakarta", "http://pramborsjakarta.rastream.com/pramborsjakarta");
+  addStation("Prambors FM - Jakarta", "https://s2.cloudmu.id/listen/prambors/radio.aac");
   addStation("Trax FM - Jakarta",
              "https://n09.radiojar.com/rrqf78p3bnzuv?rj-ttl=5&rj-tok=AAABm15hIEIAih4Fwo4sru3EjQ");
 
