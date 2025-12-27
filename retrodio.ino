@@ -42,12 +42,16 @@ String lastClockText;
 // Music player state
 volatile bool isPlaying = false;         // volatile because accessed from both cores
 String currentStationName = "Retrodio";  // Default station name
-int currentStationIndex = -1;            // Current station index in the list (-1 = no station selected)
+String RadioURL = "";
+int currentStationIndex = -1;  // Current station index in the list (-1 = no station selected)
 
 // Metadata from audio stream server (protected by metadataMutex)
-String serverStationName = "";           // Station name from server (evt_name)
-String currentTrackInfo = "";            // Current track from StreamTitle (evt_streamtitle)
-String lastTrackInfo = "";               // Track previous value to detect changes
+// Use char buffers instead of String to avoid heap allocation in ISR
+#define METADATA_BUFFER_SIZE 256
+char serverStationNameBuffer[METADATA_BUFFER_SIZE] = "";  // Station name from server (evt_name)
+char currentTrackInfoBuffer[METADATA_BUFFER_SIZE] =
+    "";                                  // Current track from StreamTitle (evt_streamtitle)
+String lastTrackInfo = "";               // Track previous value to detect changes (UI task only)
 volatile bool metadataReceived = false;  // Flag to know when server sent metadata
 
 // Forward declarations for callbacks
@@ -222,6 +226,9 @@ void onComponentClick(int componentId) {
       onVolDown();
       break;
     case btnStationID:  // Station List Button
+      // Clear the old window area first to prevent visual artifacts
+      drawCheckeredPatternArea(lcd, radioWindow.x, radioWindow.y, radioWindow.w, radioWindow.h);
+
       // Hide radio window immediately to stop event processing
       radioWindow.visible = false;
 
@@ -235,9 +242,10 @@ void onComponentClick(int componentId) {
         delay(50);  // Extra delay to ensure touch system is clear
       }
 
-      // Redraw background
+      // Redraw background and menu bar for clean slate
       drawCheckeredPattern(lcd);
       drawMenuBar(lcd, "Retrodio");
+
       // Show station window
       stationWindow.visible = true;
       stationWindow.minimized = false;
@@ -246,6 +254,10 @@ void onComponentClick(int componentId) {
 
     case btnAddStationID:  // Add Station Button
       displayStatus(lcd, "Opening Add Station", 160);
+
+      // Clear the old window area first to prevent visual artifacts
+      drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w,
+                               stationWindow.h);
 
       // Hide station window immediately to stop event processing
       stationWindow.visible = false;
@@ -374,14 +386,14 @@ void onPlay() {
     // Currently playing - pause/stop
     audio.stopSong();
     isPlaying = false;
-    updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
+    updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
     displayStatus(lcd, "Paused", 160);
   } else {
     // Currently stopped - start playing
     displayStatus(lcd, "Connecting...", 160);
-    if (audio.connecttohost(RADIO_URL)) {
+    if (audio.connecttohost(RadioURL.c_str())) {
       isPlaying = true;
-      updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);  // ID 1 is play button
+      updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);
       displayStatus(lcd, "Playing", 160);
     } else {
       displayStatus(lcd, "Connection failed", 160);
@@ -392,7 +404,7 @@ void onPlay() {
 void onStop() {
   audio.stopSong();
   isPlaying = false;
-  updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);  // ID 1 is play button
+  updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
   displayStatus(lcd, "Stopped", 160);
 }
 
@@ -429,8 +441,8 @@ void onPrev() {
     prevIndex = currentStationIndex - 1;
   }
 
-  // Switch to previous station
-  onStationItemClick(prevIndex, nullptr);
+  // Switch to previous station (without refreshing whole window)
+  switchToStation(prevIndex);
 }
 
 void onNext() {
@@ -450,8 +462,8 @@ void onNext() {
     nextIndex = currentStationIndex + 1;
   }
 
-  // Switch to next station
-  onStationItemClick(nextIndex, nullptr);
+  // Switch to next station (without refreshing whole window)
+  switchToStation(nextIndex);
 }
 
 void onVolDown() {
@@ -499,6 +511,9 @@ void onWindowMoved() {
 
 // Station window callbacks
 void onStationWindowMinimize() {
+  // Clear the old window area first to prevent visual artifacts
+  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w, stationWindow.h);
+
   // Close station window and return to radio window
   stationWindow.visible = false;
   radioWindow.visible = true;
@@ -508,6 +523,9 @@ void onStationWindowMinimize() {
 }
 
 void onStationWindowClose() {
+  // Clear the old window area first to prevent visual artifacts
+  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w, stationWindow.h);
+
   // Close station window and return to radio window
   stationWindow.visible = false;
   radioWindow.visible = true;
@@ -532,6 +550,10 @@ void onAddStationWindowMinimize() {
     keyboard->visible = false;
   }
 
+  // Clear the old window area first to prevent visual artifacts
+  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w,
+                           addStationWindow.h);
+
   // Close add station window and return to station list
   addStationWindow.visible = false;
   stationWindow.visible = true;
@@ -546,6 +568,10 @@ void onAddStationWindowClose() {
     MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
     keyboard->visible = false;
   }
+
+  // Clear the old window area first to prevent visual artifacts
+  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w,
+                           addStationWindow.h);
 
   // Close add station window and return to station list
   addStationWindow.visible = false;
@@ -670,11 +696,11 @@ void my_audio_info(Audio::msg_t m) {
   switch (m.e) {
     case Audio::evt_name:
       // Station name from ICY headers
-      // Only update if message is not null
-      // Use non-blocking mutex to avoid audio delays
+      // Use strncpy to avoid heap allocation in callback
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {  // Non-blocking (0 timeout)
-          serverStationName = String(m.msg);
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {            // Non-blocking (0 timeout)
+          strncpy(serverStationNameBuffer, m.msg, METADATA_BUFFER_SIZE - 1);
+          serverStationNameBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
           metadataReceived = true;
           xSemaphoreGive(metadataMutex);
         }
@@ -685,8 +711,9 @@ void my_audio_info(Audio::msg_t m) {
     case Audio::evt_streamtitle:
       // Current track/song from StreamTitle metadata
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {  // Non-blocking
-          currentTrackInfo = String(m.msg);
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {           // Non-blocking
+          strncpy(currentTrackInfoBuffer, m.msg, METADATA_BUFFER_SIZE - 1);
+          currentTrackInfoBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
           metadataReceived = true;
           xSemaphoreGive(metadataMutex);
         }
@@ -708,8 +735,9 @@ void my_audio_info(Audio::msg_t m) {
       // Store as track info if no StreamTitle is available
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
         if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {  // Non-blocking
-          if (currentTrackInfo.length() == 0) {
-            currentTrackInfo = String(m.msg);
+          if (strlen(currentTrackInfoBuffer) == 0) {
+            strncpy(currentTrackInfoBuffer, m.msg, METADATA_BUFFER_SIZE - 1);
+            currentTrackInfoBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
             metadataReceived = true;
           }
           xSemaphoreGive(metadataMutex);
@@ -755,11 +783,14 @@ void setup() {
   if (!ConfigManager::begin()) {
     displayStatus(lcd, "Config init failed!", 160);
   } else {
-    displayStatus(lcd, "Config loaded", 160);
+    // TEMPORARY: Uncomment the line below to reset to default stations
+    // ConfigManager::factoryReset();
+
     // Load station list from config
     reloadStationList();
     // Reinitialize station window with loaded stations
     initializeStationWindow();
+
     // Restore volume from config
     audio.setVolume(ConfigManager::getVolume());
   }
@@ -770,9 +801,9 @@ void setup() {
   // Create UI task on Core 1 (default Arduino core)
   xTaskCreatePinnedToCore(uiTask,         // Task function
                           "UI_Task",      // Task name
-                          12000,          // Stack size (bytes) - increased slightly
+                          8192,           // Stack size (bytes) - reduced to save flash
                           NULL,           // Parameter
-                          1,              // Priority
+                          1,              // Priority (lower than audio)
                           &uiTaskHandle,  // Task handle
                           1               // Core (0 or 1)
   );
@@ -780,9 +811,9 @@ void setup() {
   // Create Audio task on Core 0 (background core)
   xTaskCreatePinnedToCore(audioTask,         // Task function
                           "Audio_Task",      // Task name
-                          8000,              // Stack size (bytes)
+                          12288,             // Stack size (bytes) - reduced to save flash
                           NULL,              // Parameter
-                          1,                 // Priority (same as UI)
+                          1,                 // Priority (same as UI - balanced approach)
                           &audioTaskHandle,  // Task handle
                           0                  // Core (0 or 1)
   );
@@ -910,9 +941,13 @@ void uiTask(void* parameter) {
       // Only update if radio window is visible
       if (radioWindow.visible && !stationWindow.visible && !addStationWindow.visible &&
           metadataMutex) {
-        // Use mutex to safely read metadata strings from Core 0
+        // Use mutex to safely read metadata char buffers from Core 0
         // Short timeout to avoid blocking UI for too long
         if (xSemaphoreTake(metadataMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
+          // Convert char buffers to String objects (safe to do in UI task)
+          String serverStationName = String(serverStationNameBuffer);
+          String currentTrackInfo = String(currentTrackInfoBuffer);
+
           // Update station name if server provided one
           if (serverStationName.length() > 0 && serverStationName != currentStationName) {
             currentStationName = serverStationName;
@@ -999,11 +1034,14 @@ void audioTask(void* parameter) {
   while (true) {
     // Handle audio processing
     if (isPlaying) {
-      audio.loop();  // Audio processing
+      audio.loop();  // Audio processing - runs continuously for high bitrate streams
+
+      // Yield to allow watchdog reset by idle task, but don't block
+      taskYIELD();  // Cooperative yield - lets idle task run briefly without delay
+    } else {
+      // Only delay when not playing to reduce CPU usage
+      vTaskDelay(10 / portTICK_PERIOD_MS);  // 10ms delay when idle
     }
-    // Very short delay that allows scheduler to switch tasks if needed
-    // but keeps audio processing responsive
-    vTaskDelay(1 / portTICK_PERIOD_MS);  // 1ms delay
   }
 }
 
@@ -1084,7 +1122,11 @@ void initializeAudio() {
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolume(DEFAULT_VOLUME);
 
-  Audio::audio_info_callback = my_audio_info;
+  // Configure audio buffer sizes for stability with high bitrate streams
+  // Larger buffers = more stable playback but higher latency
+  audio.setConnectionTimeout(500, 2700);  // Increase connection timeouts (ms, ms)
+
+  // Audio::audio_info_callback = my_audio_info;
 }
 
 void drawInterface(lgfx::LGFX_Device& lcd) {
@@ -1258,12 +1300,23 @@ void reloadStationList() {
   }
 }
 
-void onStationItemClick(int index, void* itemData) {
+// Helper function to switch stations without window management
+void switchToStation(int index) {
+  // Safety check: ensure we have a valid index
+  if (index < 0 || index >= ConfigManager::getStationCount()) {
+    return;
+  }
+
+  // Check WiFi connection before attempting to connect
+  if (WiFi.status() != WL_CONNECTED) {
+    updateStationMetadata("Error", "WiFi not connected");
+    return;
+  }
+
   // Get station from ConfigManager
   Station station = ConfigManager::getStation(index);
 
   if (station.url.length() == 0) {
-    displayStatus(lcd, "Invalid station", 160);
     return;
   }
 
@@ -1271,18 +1324,25 @@ void onStationItemClick(int index, void* itemData) {
   currentStationName = station.name;
   currentStationIndex = index;  // Save the current station index for prev/next navigation
 
-  // Clear previous metadata
-  serverStationName = "";
-  currentTrackInfo = "";
-  lastTrackInfo = "";
-  metadataReceived = false;
+  // Clear previous metadata buffers (thread-safe with mutex)
+  if (metadataMutex) {
+    if (xSemaphoreTake(metadataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+      serverStationNameBuffer[0] = '\0';  // Clear buffer
+      currentTrackInfoBuffer[0] = '\0';   // Clear buffer
+      metadataReceived = false;
+      xSemaphoreGive(metadataMutex);
+    }
+  }
+  lastTrackInfo = "";  // Clear UI-only string
 
-  // Update the running text component with the new station name
+  // Update the running text component with the new station name (if component exists)
   MacComponent* txtRadioName = findComponentById(radioWindow, 200);
   if (txtRadioName && txtRadioName->customData) {
     MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
-    runningText->text = currentStationName;
-    runningText->scrollOffset = 0;  // Reset scroll position
+    if (runningText) {
+      runningText->text = currentStationName;
+      runningText->scrollOffset = 0;  // Reset scroll position
+    }
   }
 
   // Update details to show connecting
@@ -1291,19 +1351,34 @@ void onStationItemClick(int index, void* itemData) {
   // Stop current playback if playing
   if (isPlaying) {
     audio.stopSong();
-    delay(100);
+    isPlaying = false;  // Set to false immediately
+    delay(200);         // Give audio time to fully stop and release resources
   }
 
-  // Connect to the selected station
-  if (audio.connecttohost(station.url.c_str())) {
-    isPlaying = true;
-    updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);
-    ConfigManager::setLastStation(station.name);  // Save last played station
-  } else {
-    isPlaying = false;
-    updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
-    displayStatus(lcd, "Connection failed", 160);
+  // Update play button symbol data (without drawing immediately)
+  MacComponent* playButton = findComponentById(radioWindow, 1);
+  if (playButton && playButton->customData) {
+    MacButton* btnData = (MacButton*)playButton->customData;
+    if (btnData) {
+      // Connect to the selected station
+      bool connected = audio.connecttohost(station.url.c_str());
+
+      if (connected) {
+        isPlaying = true;
+        btnData->symbol = SYMBOL_PAUSE;
+        ConfigManager::setLastStation(station.name);  // Save last played station
+      } else {
+        isPlaying = false;
+        btnData->symbol = SYMBOL_PLAY;
+        updateStationMetadata(currentStationName, "Connection failed");
+      }
+    }
   }
+}
+
+void onStationItemClick(int index, void* itemData) {
+  // Switch to the selected station
+  switchToStation(index);
 
   // Close station window and show radio window
   stationWindow.visible = false;
