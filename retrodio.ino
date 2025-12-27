@@ -42,6 +42,7 @@ String lastClockText;
 // Music player state
 volatile bool isPlaying = false;         // volatile because accessed from both cores
 String currentStationName = "Retrodio";  // Default station name
+int currentStationIndex = -1;            // Current station index in the list (-1 = no station selected)
 
 // Metadata from audio stream server (protected by metadataMutex)
 String serverStationName = "";           // Station name from server (evt_name)
@@ -412,15 +413,45 @@ void onVolUp() {
 }
 
 void onPrev() {
-  displayStatus(lcd, "Previous Station", 160);
-  // Add your station switching logic here
-  // For example: switchToStation(currentStation - 1);
+  int stationCount = ConfigManager::getStationCount();
+
+  // Check if there are any stations
+  if (stationCount == 0) {
+    displayStatus(lcd, "No stations available", 160);
+    return;
+  }
+
+  // Calculate previous station index (wrap around to last if at first)
+  int prevIndex;
+  if (currentStationIndex <= 0) {
+    prevIndex = stationCount - 1;  // Wrap to last station
+  } else {
+    prevIndex = currentStationIndex - 1;
+  }
+
+  // Switch to previous station
+  onStationItemClick(prevIndex, nullptr);
 }
 
 void onNext() {
-  displayStatus(lcd, "Next Station", 160);
-  // Add your station switching logic here
-  // For example: switchToStation(currentStation + 1);
+  int stationCount = ConfigManager::getStationCount();
+
+  // Check if there are any stations
+  if (stationCount == 0) {
+    displayStatus(lcd, "No stations available", 160);
+    return;
+  }
+
+  // Calculate next station index (wrap around to first if at last)
+  int nextIndex;
+  if (currentStationIndex < 0 || currentStationIndex >= stationCount - 1) {
+    nextIndex = 0;  // Wrap to first station
+  } else {
+    nextIndex = currentStationIndex + 1;
+  }
+
+  // Switch to next station
+  onStationItemClick(nextIndex, nullptr);
 }
 
 void onVolDown() {
@@ -1236,8 +1267,9 @@ void onStationItemClick(int index, void* itemData) {
     return;
   }
 
-  // Update current station name
+  // Update current station name and index
   currentStationName = station.name;
+  currentStationIndex = index;  // Save the current station index for prev/next navigation
 
   // Clear previous metadata
   serverStationName = "";
