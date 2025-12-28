@@ -158,6 +158,8 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
 
   static bool wasPressed = false;
   static unsigned long pressTime = 0;
+  static int lastTouchX = 0;  // Track last touch coordinates for release callbacks
+  static int lastTouchY = 0;
 
   uint16_t tx, ty;
   bool touching = lcd.getTouch(&tx, &ty);
@@ -168,6 +170,10 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
         tx >= window.x && tx < window.x + window.w && ty >= window.y && ty < window.y + window.h;
 
     if (insideWindow) {
+      // Always update last touch coordinates while touching
+      lastTouchX = tx;
+      lastTouchY = ty;
+
       if (!wasPressed) {
         wasPressed = true;
         pressTime = millis();
@@ -217,12 +223,6 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
           listViewData->touchStartY = ty;
           listViewData->lastTouchY = ty;
           listViewData->touchStartTime = millis();
-        }
-
-        // Handle window content interactions (buttons, etc.)
-        // This allows the window to manage all its child components
-        if (window.onContentClick) {
-          window.onContentClick(tx - window.x, ty - window.y);  // Pass relative coordinates
         }
       } else if (window.visible) {
         // Handle ongoing swipe for ListView (only if window is visible)
@@ -319,6 +319,13 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
     }
   } else {
     // Touch released - stop dragging and ListView swiping
+
+    // Handle content click on release (after scrolling has completed)
+    // Only if we had a previous press and the callback exists
+    if (wasPressed && window.onContentClick && !window.isDragging) {
+      window.onContentClick(lastTouchX - window.x, lastTouchY - window.y);
+    }
+
     if (window.isDragging) {
       window.isDragging = false;
       // Redraw window with all components now that dragging has ended
