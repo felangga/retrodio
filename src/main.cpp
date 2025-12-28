@@ -98,7 +98,7 @@ void onWindowClose();
 void onRadioIconClick();
 void onWindowContentClick(int relativeX, int relativeY);
 void onWindowMoved();
-void my_audio_info(Audio::msg_t m);
+void audio_callback(Audio::msg_t m);
 
 // Station window callbacks
 void onStationWindowMinimize();
@@ -832,7 +832,7 @@ void setup() {
   } else {
     DEBUG_PRINTLN("ConfigManager initialized successfully");
     // TEMPORARY: Uncomment the line below to reset to default stations
-    ConfigManager::factoryReset();
+    // ConfigManager::factoryReset();
 
     // Load station list from config
     reloadStationList();
@@ -1303,7 +1303,7 @@ void connectToWiFi() {
  * IMPORTANT: Never draw to LCD from this callback! It runs on Core 0 while
  * the UI task draws on Core 1, causing display corruption.
  */
-void my_audio_info(Audio::msg_t m) {
+void audio_callback(Audio::msg_t m) {
   // Handle different metadata event types
   switch (m.e) {
     case Audio::evt_name:
@@ -1432,7 +1432,7 @@ void initializeAudio() {
   // Larger buffers = more stable playback but higher latency
   audio.setConnectionTimeout(500, 2700);  // Increase connection timeouts (ms, ms)
 
-  Audio::audio_info_callback = my_audio_info;
+  Audio::audio_info_callback = audio_callback;
 }
 
 void drawInterface(lgfx::LGFX_Device& lcd) {
