@@ -68,11 +68,29 @@ int currentStationIndex = -1;  // Current station index in the list (-1 = no sta
 // Metadata from audio stream server (protected by metadataMutex)
 // Use char buffers instead of String to avoid heap allocation in ISR
 #define METADATA_BUFFER_SIZE 256
-char serverStationNameBuffer[METADATA_BUFFER_SIZE] = "";  // Station name from server (evt_name)
-char currentTrackInfoBuffer[METADATA_BUFFER_SIZE] =
-    "";                                  // Current track from StreamTitle (evt_streamtitle)
-String lastTrackInfo = "";               // Track previous value to detect changes (UI task only)
-volatile bool metadataReceived = false;  // Flag to know when server sent metadata
+
+typedef struct {
+  char stationName[METADATA_BUFFER_SIZE];  // Station name from server (evt_name)
+  char trackInfo[METADATA_BUFFER_SIZE];    // Current track from StreamTitle (evt_streamtitle)
+  char bitRate[METADATA_BUFFER_SIZE];      // Bitrate info from server (evt_bitrate)
+  char id3data[METADATA_BUFFER_SIZE];      // ID3 tag data (evt_id3data)
+  char info[METADATA_BUFFER_SIZE];         // General info messages (evt_info)
+  char description[METADATA_BUFFER_SIZE];  // Stream description (evt_description)
+  char lyrics[METADATA_BUFFER_SIZE];       // Song lyrics (evt_lyrics)
+  char log[METADATA_BUFFER_SIZE];          // Log messages (evt_log)
+  volatile bool received;                  // Flag to know when server sent metadata
+} StreamMetadata;
+
+StreamMetadata streamMetadata = {"", "", "", "", "", "", "", "", false};
+String lastTrackInfo = "";  // Track previous value to detect changes (UI task only)
+
+// Track last displayed metadata to avoid flickering from redundant updates
+String lastDisplayedBitRate = "";
+String lastDisplayedID3 = "";
+String lastDisplayedInfo = "";
+String lastDisplayedDescription = "";
+String lastDisplayedLyrics = "";
+String lastDisplayedLog = "";
 
 // Forward declarations for callbacks
 void onWindowMinimize();
@@ -726,10 +744,10 @@ void onAddStationWindowMoved() {
  */
 void audio_showstation(const char* info) {
   if (info && strlen(info) > 0 && metadataMutex) {
-    if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {            // Non-blocking (0 timeout)
-      strncpy(serverStationNameBuffer, info, METADATA_BUFFER_SIZE - 1);
-      serverStationNameBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
-      metadataReceived = true;
+    if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {               // Non-blocking (0 timeout)
+      strncpy(streamMetadata.stationName, info, METADATA_BUFFER_SIZE - 1);
+      streamMetadata.stationName[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+      streamMetadata.received = true;
       xSemaphoreGive(metadataMutex);
     }
     // If mutex is busy, skip this update - UI is reading, we'll try next time
@@ -744,9 +762,9 @@ void audio_showstation(const char* info) {
 void audio_showstreamtitle(const char* info) {
   if (info && strlen(info) > 0 && metadataMutex) {
     if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {
-      strncpy(currentTrackInfoBuffer, info, METADATA_BUFFER_SIZE - 1);
-      currentTrackInfoBuffer[METADATA_BUFFER_SIZE - 1] = '\0';
-      metadataReceived = true;
+      strncpy(streamMetadata.trackInfo, info, METADATA_BUFFER_SIZE - 1);
+      streamMetadata.trackInfo[METADATA_BUFFER_SIZE - 1] = '\0';
+      streamMetadata.received = true;
       xSemaphoreGive(metadataMutex);
     }
   }
@@ -759,10 +777,10 @@ void audio_showstreamtitle(const char* info) {
 void audio_id3data(const char* info) {
   if (info && strlen(info) > 0 && metadataMutex) {
     if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {  // Non-blocking
-      if (strlen(currentTrackInfoBuffer) == 0) {
-        strncpy(currentTrackInfoBuffer, info, METADATA_BUFFER_SIZE - 1);
-        currentTrackInfoBuffer[METADATA_BUFFER_SIZE - 1] = '\0';
-        metadataReceived = true;
+      if (strlen(streamMetadata.trackInfo) == 0) {
+        strncpy(streamMetadata.trackInfo, info, METADATA_BUFFER_SIZE - 1);
+        streamMetadata.trackInfo[METADATA_BUFFER_SIZE - 1] = '\0';
+        streamMetadata.received = true;
       }
       xSemaphoreGive(metadataMutex);
     }
@@ -814,7 +832,7 @@ void setup() {
   } else {
     DEBUG_PRINTLN("ConfigManager initialized successfully");
     // TEMPORARY: Uncomment the line below to reset to default stations
-    // ConfigManager::factoryReset();
+    ConfigManager::factoryReset();
 
     // Load station list from config
     reloadStationList();
@@ -987,8 +1005,14 @@ void uiTask(void* parameter) {
         // Short timeout to avoid blocking UI for too long
         if (xSemaphoreTake(metadataMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
           // Convert char buffers to String objects (safe to do in UI task)
-          String serverStationName = String(serverStationNameBuffer);
-          String currentTrackInfo = String(currentTrackInfoBuffer);
+          String serverStationName = String(streamMetadata.stationName);
+          String currentTrackInfo = String(streamMetadata.trackInfo);
+          String bitRate = String(streamMetadata.bitRate);
+          String id3Data = String(streamMetadata.id3data);
+          String info = String(streamMetadata.info);
+          String description = String(streamMetadata.description);
+          String lyrics = String(streamMetadata.lyrics);
+          String log = String(streamMetadata.log);
 
           // Update station name if server provided one
           if (serverStationName.length() > 0 && serverStationName != currentStationName) {
@@ -1000,6 +1024,72 @@ void uiTask(void* parameter) {
           if (currentTrackInfo.length() > 0 && currentTrackInfo != lastTrackInfo) {
             lastTrackInfo = currentTrackInfo;
             updateStationMetadata(currentStationName, currentTrackInfo);
+          }
+
+          // Update bitrate display (only if changed)
+          if (bitRate.length() > 0 && bitRate != lastDisplayedBitRate) {
+            MacComponent* txtBitRate = findComponentById(radioWindow, 203);
+            if (txtBitRate && txtBitRate->customData) {
+              MacRunningText* runningText = (MacRunningText*)txtBitRate->customData;
+              runningText->text = "Bitrate: " + bitRate;
+              runningText->scrollOffset = 0;
+              lastDisplayedBitRate = bitRate;
+            }
+          }
+
+          // Update ID3 data display (only if changed)
+          if (id3Data.length() > 0 && id3Data != lastDisplayedID3) {
+            MacComponent* txtID3 = findComponentById(radioWindow, 204);
+            if (txtID3 && txtID3->customData) {
+              MacRunningText* runningText = (MacRunningText*)txtID3->customData;
+              runningText->text = "ID3: " + id3Data;
+              runningText->scrollOffset = 0;
+              lastDisplayedID3 = id3Data;
+            }
+          }
+
+          // Update info display (only if changed)
+          if (info.length() > 0 && info != lastDisplayedInfo) {
+            MacComponent* txtInfo = findComponentById(radioWindow, 205);
+            if (txtInfo && txtInfo->customData) {
+              MacRunningText* runningText = (MacRunningText*)txtInfo->customData;
+              runningText->text = "Info: " + info;
+              runningText->scrollOffset = 0;
+              lastDisplayedInfo = info;
+            }
+          }
+
+          // Update description display (only if changed)
+          if (description.length() > 0 && description != lastDisplayedDescription) {
+            MacComponent* txtDescription = findComponentById(radioWindow, 206);
+            if (txtDescription && txtDescription->customData) {
+              MacRunningText* runningText = (MacRunningText*)txtDescription->customData;
+              runningText->text = "Description: " + description;
+              runningText->scrollOffset = 0;
+              lastDisplayedDescription = description;
+            }
+          }
+
+          // Update lyrics display (only if changed)
+          if (lyrics.length() > 0 && lyrics != lastDisplayedLyrics) {
+            MacComponent* txtLyrics = findComponentById(radioWindow, 207);
+            if (txtLyrics && txtLyrics->customData) {
+              MacRunningText* runningText = (MacRunningText*)txtLyrics->customData;
+              runningText->text = "Lyrics: " + lyrics;
+              runningText->scrollOffset = 0;
+              lastDisplayedLyrics = lyrics;
+            }
+          }
+
+          // Update log display (only if changed)
+          if (log.length() > 0 && log != lastDisplayedLog) {
+            MacComponent* txtLog = findComponentById(radioWindow, 208);
+            if (txtLog && txtLog->customData) {
+              MacRunningText* runningText = (MacRunningText*)txtLog->customData;
+              runningText->text = "Log: " + log;
+              runningText->scrollOffset = 0;
+              lastDisplayedLog = log;
+            }
           }
 
           xSemaphoreGive(metadataMutex);
@@ -1220,36 +1310,47 @@ void my_audio_info(Audio::msg_t m) {
       // Station name from ICY headers
       // Use strncpy to avoid heap allocation in callback
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {            // Non-blocking (0 timeout)
-          strncpy(serverStationNameBuffer, m.msg, METADATA_BUFFER_SIZE - 1);
-          serverStationNameBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
-          metadataReceived = true;
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {               // Non-blocking (0 timeout)
+          strncpy(streamMetadata.stationName, m.msg, METADATA_BUFFER_SIZE - 1);
+          streamMetadata.stationName[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.received = true;
           xSemaphoreGive(metadataMutex);
         }
-        // If mutex is busy, skip this update - UI is reading, we'll try next time
       }
       break;
 
     case Audio::evt_streamtitle:
       // Current track/song from StreamTitle metadata
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {           // Non-blocking
-          strncpy(currentTrackInfoBuffer, m.msg, METADATA_BUFFER_SIZE - 1);
-          currentTrackInfoBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
-          metadataReceived = true;
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {             // Non-blocking
+          strncpy(streamMetadata.trackInfo, m.msg, METADATA_BUFFER_SIZE - 1);
+          streamMetadata.trackInfo[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.received = true;
           xSemaphoreGive(metadataMutex);
         }
       }
       break;
 
     case Audio::evt_icydescription:
-      // Station description - just store, don't draw
-      // UI task will handle display updates
+      if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {               // Non-blocking
+          strncpy(streamMetadata.description, m.msg, METADATA_BUFFER_SIZE - 1);
+          streamMetadata.description[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.received = true;
+          xSemaphoreGive(metadataMutex);
+        }
+      }
       break;
 
     case Audio::evt_bitrate:
-      // Stream bitrate information - just log, don't draw
-      // UI task will handle display updates
+      if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {           // Non-blocking (0 timeout)
+          strncpy(streamMetadata.bitRate, m.msg, METADATA_BUFFER_SIZE - 1);
+          streamMetadata.bitRate[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.received = true;
+          xSemaphoreGive(metadataMutex);
+        }
+      }
       break;
 
     case Audio::evt_id3data:
@@ -1257,10 +1358,10 @@ void my_audio_info(Audio::msg_t m) {
       // Store as track info if no StreamTitle is available
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
         if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {  // Non-blocking
-          if (strlen(currentTrackInfoBuffer) == 0) {
-            strncpy(currentTrackInfoBuffer, m.msg, METADATA_BUFFER_SIZE - 1);
-            currentTrackInfoBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
-            metadataReceived = true;
+          if (strlen(streamMetadata.id3data) == 0) {
+            strncpy(streamMetadata.id3data, m.msg, METADATA_BUFFER_SIZE - 1);
+            streamMetadata.id3data[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+            streamMetadata.received = true;
           }
           xSemaphoreGive(metadataMutex);
         }
@@ -1273,7 +1374,38 @@ void my_audio_info(Audio::msg_t m) {
       break;
 
     case Audio::evt_info:
-      // General information - just log, don't draw
+      if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {        // Non-blocking
+          strncpy(streamMetadata.info, m.msg, METADATA_BUFFER_SIZE - 1);
+          streamMetadata.info[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.received = true;
+          xSemaphoreGive(metadataMutex);
+        }
+      }
+      break;
+
+    case Audio::evt_lyrics:
+      // Song lyrics from stream
+      if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {          // Non-blocking
+          strncpy(streamMetadata.lyrics, m.msg, METADATA_BUFFER_SIZE - 1);
+          streamMetadata.lyrics[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.received = true;
+          xSemaphoreGive(metadataMutex);
+        }
+      }
+      break;
+
+    case Audio::evt_log:
+      // Log messages from audio library
+      if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {       // Non-blocking
+          strncpy(streamMetadata.log, m.msg, METADATA_BUFFER_SIZE - 1);
+          streamMetadata.log[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.received = true;
+          xSemaphoreGive(metadataMutex);
+        }
+      }
       break;
 
     default:
@@ -1432,20 +1564,69 @@ void initializeRadioWindow() {
   txtRadioDetails->onClick = onComponentClick;
   addChildComponent(radioWindow, txtRadioDetails);
 
-  MacComponent* txtRadio = createRunningTextComponent(10, 100,  // x, y position
-                                                      400, 15,  // width, height
-                                                      201,      // component ID
-                                                      "",
-                                                      2,  // scroll speed (2 pixels per update)
-                                                      MAC_BLACK,  // text color
-                                                      1           // text size
+  MacComponent* txtBitRate = createRunningTextComponent(10, 80,   // x, y position
+                                                        400, 15,  // width, height
+                                                        203,      // component ID
+                                                        "Bitrate: N/A",
+                                                        2,  // scroll speed (2 pixels per update)
+                                                        MAC_BLACK,  // text color
+                                                        1           // text size
   );
-  txtRadioDetails->onClick = onComponentClick;
-  addChildComponent(radioWindow, txtRadioDetails);
+  addChildComponent(radioWindow, txtBitRate);
+
+  MacComponent* txtID3 = createRunningTextComponent(10, 90,   // x, y position
+                                                    400, 15,  // width, height
+                                                    204,      // component ID
+                                                    "ID3: N/A",
+                                                    2,        // scroll speed (2 pixels per update)
+                                                    MAC_BLACK,  // text color
+                                                    1           // text size
+  );
+  addChildComponent(radioWindow, txtID3);
+
+  MacComponent* txtInfo = createRunningTextComponent(10, 100,  // x, y position
+                                                     400, 15,  // width, height
+                                                     205,      // component ID
+                                                     "Info: N/A",
+                                                     2,        // scroll speed (2 pixels per update)
+                                                     MAC_BLACK,  // text color
+                                                     1           // text size
+  );
+  addChildComponent(radioWindow, txtInfo);
+
+  MacComponent* txtDescription =
+      createRunningTextComponent(10, 110,    // x, y position
+                                 400, 15,    // width, height
+                                 206,        // component ID
+                                 "Description: N/A",
+                                 2,          // scroll speed (2 pixels per update)
+                                 MAC_BLACK,  // text color
+                                 1           // text size
+      );
+  addChildComponent(radioWindow, txtDescription);
+
+  MacComponent* txtLyrics = createRunningTextComponent(10, 120,  // x, y position
+                                                       400, 15,  // width, height
+                                                       207,      // component ID
+                                                       "Lyrics: N/A",
+                                                       2,  // scroll speed (2 pixels per update)
+                                                       MAC_BLACK,  // text color
+                                                       1           // text size
+  );
+  addChildComponent(radioWindow, txtLyrics);
+
+  MacComponent* txtLog = createRunningTextComponent(10, 130,  // x, y position
+                                                    400, 15,  // width, height
+                                                    208,      // component ID
+                                                    "Log: N/A",
+                                                    2,        // scroll speed (2 pixels per update)
+                                                    MAC_BLACK,  // text color
+                                                    1           // text size
+  );
+  addChildComponent(radioWindow, txtLog);
 
   // Add CPU usage label at the bottom
-  MacComponent* cpuLabel =
-      createLabelComponent(10, 95, 200, 15, 202, "CPU0: 0% CPU1: 0%", MAC_BLACK);
+  MacComponent* cpuLabel = createLabelComponent(0, 6, 200, 15, 202, "CPU0: 0% CPU1: 0%", MAC_BLACK);
   cpuLabel->onClick = onComponentClick;
   addChildComponent(radioWindow, cpuLabel);
 
@@ -1518,13 +1699,20 @@ void switchToStation(int index) {
   // Clear previous metadata buffers (thread-safe with mutex)
   if (metadataMutex) {
     if (xSemaphoreTake(metadataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
-      serverStationNameBuffer[0] = '\0';  // Clear buffer
-      currentTrackInfoBuffer[0] = '\0';   // Clear buffer
-      metadataReceived = false;
+      streamMetadata.stationName[0] = '\0';  // Clear buffer
+      streamMetadata.trackInfo[0] = '\0';    // Clear buffer
+      streamMetadata.received = false;
       xSemaphoreGive(metadataMutex);
     }
   }
-  lastTrackInfo = "";  // Clear UI-only string
+  // Clear all UI-only tracking strings to allow fresh metadata updates
+  lastTrackInfo = "";
+  lastDisplayedBitRate = "";
+  lastDisplayedID3 = "";
+  lastDisplayedInfo = "";
+  lastDisplayedDescription = "";
+  lastDisplayedLyrics = "";
+  lastDisplayedLog = "";
 
   // Update the running text component with the new station name (if component exists)
   MacComponent* txtRadioName = findComponentById(radioWindow, 200);
@@ -1557,7 +1745,7 @@ void switchToStation(int index) {
       if (connected) {
         isPlaying = true;
         btnData->symbol = SYMBOL_PAUSE;
-        ConfigManager::setLastStation(station.name);  // Save last played station
+        ConfigManager::setLastStation(station.name);
       } else {
         isPlaying = false;
         btnData->symbol = SYMBOL_PLAY;

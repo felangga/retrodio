@@ -268,6 +268,14 @@ bool ConfigManager::createDefaultStations() {
   addStation("Prambors FM - Jakarta", "https://s2.cloudmu.id/listen/prambors/radio.aac");
   addStation("Trax FM - Jakarta",
              "https://n09.radiojar.com/rrqf78p3bnzuv?rj-ttl=5&rj-tok=AAABm15hIEIAih4Fwo4sru3EjQ");
+  addStation("KISS.FM", "http://topradio-stream31.radiohost.de/kissfm_mp3-128");
+  addStation("Paradise FM", "http://stream-uk1.radioparadise.com/aac-320");
+  addStation("Costa FM", "http://radio4.cdm-radio.com:8020/stream-mp3-Chill_autodj");
+  addStation("iRadio FM",
+             "https://n09.radiojar.com/4ywdgup3bnzuv?rj-ttl=5&rj-tok=AAABm2VAjqYAZAvMAKsAkFVYDg");
+  addStation("Sonora FM", "https://cast3.asurahosting.com/proxy/radios28/stream");
+  addStation("BBC World Service",
+             "https://radio.garden/api/ara/content/listen/FXyhz9Xk/channel.mp3?1766930004566");
 
   return true;
 }
