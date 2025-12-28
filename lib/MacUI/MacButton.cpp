@@ -1,7 +1,7 @@
 /*
  * MacButton.cpp - Button Component Implementation
- * 
- * Copyright (c) 2025 Felangga
+ *
+ * Copyright (c) 2025 felangga
  */
 
 #include "MacUI.h"
@@ -18,40 +18,34 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
       }
       break;
 
-    case SYMBOL_PAUSE:
-      {
-        int barWidth = size / 4;
-        int spacing = size / 3;
-        lcd.fillRect(x, y, barWidth, size, color);
-        lcd.fillRect(x + barWidth + spacing, y, barWidth, size, color);
-      }
-      break;
+    case SYMBOL_PAUSE: {
+      int barWidth = size / 4;
+      int spacing = size / 3;
+      lcd.fillRect(x, y, barWidth, size, color);
+      lcd.fillRect(x + barWidth + spacing, y, barWidth, size, color);
+    } break;
 
     case SYMBOL_STOP:
       lcd.fillRect(x, y, size, size, color);
       break;
 
-    case SYMBOL_PREV:
-      {
-        lcd.fillRect(x, y, 2, size, color); 
-        int triSize = size - 4;
-        for (int i = 0; i < triSize; i++) {
-          int lineHeight = ((i + 1) * size) / triSize;
-          lcd.drawFastVLine(x + 3 + i, y + (size - lineHeight) / 2, lineHeight, color);
-        }
+    case SYMBOL_PREV: {
+      lcd.fillRect(x, y, 2, size, color);
+      int triSize = size - 4;
+      for (int i = 0; i < triSize; i++) {
+        int lineHeight = ((i + 1) * size) / triSize;
+        lcd.drawFastVLine(x + 3 + i, y + (size - lineHeight) / 2, lineHeight, color);
       }
-      break;
+    } break;
 
-    case SYMBOL_NEXT:
-      {
-        int triSize = size - 4;
-        for (int i = 0; i < triSize; i++) {
-          int lineHeight = ((triSize - i) * size) / triSize;
-          lcd.drawFastVLine(x + i, y + (size - lineHeight) / 2, lineHeight, color);
-        }
-        lcd.fillRect(x + size - 2, y, 2, size, color);  
+    case SYMBOL_NEXT: {
+      int triSize = size - 4;
+      for (int i = 0; i < triSize; i++) {
+        int lineHeight = ((triSize - i) * size) / triSize;
+        lcd.drawFastVLine(x + i, y + (size - lineHeight) / 2, lineHeight, color);
       }
-      break;
+      lcd.fillRect(x + size - 2, y, 2, size, color);
+    } break;
 
     case SYMBOL_VOL_UP:
       lcd.fillRect(x, y + size / 3, size / 3, size / 3, color);
@@ -71,17 +65,15 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
       lcd.fillRect(x + size / 2 + 2, y + size / 2 - 1, size / 4, 2, color);
       break;
 
-    case SYMBOL_LIST:
-      {
-        int lineHeight = 2;
-        int spacing = size / 4;
-        int lineWidth = size;
-        int startY = y + (size - (3 * lineHeight + 2 * spacing)) / 2;
-        lcd.fillRect(x, startY, lineWidth, lineHeight, color);
-        lcd.fillRect(x, startY + lineHeight + spacing, lineWidth, lineHeight, color);
-        lcd.fillRect(x, startY + 2 * (lineHeight + spacing), lineWidth, lineHeight, color);
-      }
-      break;
+    case SYMBOL_LIST: {
+      int lineHeight = 2;
+      int spacing = size / 4;
+      int lineWidth = size;
+      int startY = y + (size - (3 * lineHeight + 2 * spacing)) / 2;
+      lcd.fillRect(x, startY, lineWidth, lineHeight, color);
+      lcd.fillRect(x, startY + lineHeight + spacing, lineWidth, lineHeight, color);
+      lcd.fillRect(x, startY + 2 * (lineHeight + spacing), lineWidth, lineHeight, color);
+    } break;
 
     case SYMBOL_NONE:
     default:
@@ -89,7 +81,8 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
   }
 }
 
-void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& text, bool pressed) {
+void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& text,
+                bool pressed) {
   // Choose colors based on pressed state - inverted when pressed
   uint16_t bgColor = pressed ? MAC_BLACK : MAC_WHITE;
   uint16_t textColor = pressed ? MAC_WHITE : MAC_BLACK;
@@ -129,7 +122,8 @@ void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
 /**
  * Draw a button with a symbol instead of text
  */
-void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, SymbolType symbol, bool pressed) {
+void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, SymbolType symbol,
+                      bool pressed) {
   // Inverted colors when pressed
   uint16_t bgColor = pressed ? MAC_BLACK : MAC_WHITE;
   uint16_t borderColor = MAC_BLACK;
@@ -167,15 +161,16 @@ void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, Symbol
   drawSymbol(lcd, symbolX, symbolY, symbolSize, symbol, symbolColor);
 }
 
-MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const String& text, SymbolType symbol) {
+MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const String& text,
+                                    SymbolType symbol) {
   MacComponent* component = createComponent(COMPONENT_BUTTON, x, y, w, h, id);
-  
+
   // Create button-specific data
   MacButton* buttonData = new MacButton();
   buttonData->text = text;
   buttonData->symbol = symbol;
   buttonData->pressed = false;
-  
+
   component->customData = buttonData;
   return component;
 }

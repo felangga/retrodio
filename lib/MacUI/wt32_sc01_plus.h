@@ -10,6 +10,11 @@
 #ifndef WT32_SC01_PLUS_H
 #define WT32_SC01_PLUS_H
 
+// ESP32 Core compatibility fix
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+#define LGFX_ESP32_V3_COMPAT
+#endif
+
 #include <Arduino.h>
 #include <LovyanGFX.hpp>
 
