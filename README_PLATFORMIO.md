@@ -27,18 +27,31 @@ brew install platformio
 ```
 retrodio/
 ├── platformio.ini              # PlatformIO configuration
-├── partitions_custom.csv       # Custom partition table (3MB app)
+├── partition_16MB_ota_spiffs.csv
 ├── src/
 │   ├── main.cpp               # Main application (was retrodio.ino)
-│   ├── ConfigManager.cpp      # Configuration management
-│   └── MacUI.cpp              # MacUI implementation
+│   └── ConfigManager.cpp      # Configuration management
 ├── include/
 │   ├── ConfigManager.h
-│   ├── MacUI.h
 │   ├── config.h
 │   └── wt32_sc01_plus.h       # Display hardware config
 └── lib/
-    └── MacUI/                 # MacUI library with components
+    └── MacUI/                 # MacUI library (custom UI components)
+        ├── library.json       # Library metadata
+        └── src/
+            ├── MacUI.h        # Main header
+            ├── MacUI.cpp      # Core UI functions
+            ├── wt32_sc01_plus.h  # Hardware config (copy)
+            ├── MacButton.cpp
+            ├── MacCheckBox.cpp
+            ├── MacInputField.cpp
+            ├── MacKeyboard.cpp
+            ├── MacLabel.cpp
+            ├── MacListView.cpp
+            ├── MacProgressBar.cpp
+            ├── MacRunningText.cpp
+            ├── MacSlider.cpp
+            └── MacTextBox.cpp
 ```
 
 ## Building the Project
@@ -102,6 +115,7 @@ The following libraries are automatically installed by PlatformIO:
 2. **LovyanGFX** (^1.2.7) - Graphics library for displays
 3. **ArduinoJson** (^7.4.2) - JSON parsing for configuration
 4. **LVGL** (^8.3.3) - Graphics library
+5. **MacUI** (local) - Custom classic Macintosh-style UI library
 
 ## Troubleshooting
 
@@ -122,7 +136,7 @@ upload_port = COM3                    # Windows
 
 Ensure you're using the custom partition table:
 ```ini
-board_build.partitions = partitions_custom.csv
+board_build.partitions = partition_16MB_ota_spiffs.csv
 ```
 
 ### Library Not Found
@@ -190,6 +204,37 @@ build_flags =
 upload_speed = 460800     # Slower but more reliable
 upload_port = /dev/ttyUSB0
 ```
+
+## Features
+
+### MacUI Library
+
+The custom MacUI library provides classic Macintosh-style UI components:
+
+- **Windows**: Draggable windows with title bars, minimize/close buttons
+- **Buttons**: Standard and symbol buttons (play, pause, stop, etc.)
+- **Labels**: Text display with customizable colors and sizes
+- **Running Text**: Auto-scrolling text with pause/resume
+- **List Views**: Scrollable lists with touch support
+- **Input Fields**: Text input with cursor support
+- **Checkboxes**: Toggle controls
+- **Sliders**: Value adjustment controls
+- **Progress Bars**: Visual progress indicators
+- **Keyboard**: On-screen keyboard for text input
+
+### Real-time Monitoring
+
+- **CPU Usage**: Displays real-time CPU usage for both ESP32 cores
+  - Core 0: Audio streaming task
+  - Core 1: UI rendering task
+- **Clock**: Real-time clock display synchronized via NTP
+- **Station Metadata**: Shows current station name and track info
+
+### Multi-Core Architecture
+
+- **Core 0**: Handles audio streaming and decoding
+- **Core 1**: Manages UI rendering and user interaction
+- **Thread-Safe**: Mutex-protected communication between cores
 
 ## Next Steps
 
