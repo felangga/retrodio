@@ -8,19 +8,6 @@
  */
 
 #include "MacUI.h"
-
-// Include component implementations
-#include "MacUI/MacButton.cpp"
-#include "MacUI/MacCheckBox.cpp"
-#include "MacUI/MacInputField.cpp"
-#include "MacUI/MacKeyboard.cpp"
-#include "MacUI/MacLabel.cpp"
-#include "MacUI/MacListView.cpp"
-#include "MacUI/MacProgressBar.cpp"
-#include "MacUI/MacRunningText.cpp"
-#include "MacUI/MacSlider.cpp"
-#include "MacUI/MacTextBox.cpp"
-
 // Sprite buffer for double buffering components
 lgfx::LGFX_Sprite* componentSprite = nullptr;
 lgfx::LGFX_Sprite* windowSprite = nullptr;

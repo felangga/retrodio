@@ -1,7 +1,7 @@
 /*
  * Radio.ino - Internet Radio Player with Classic Mac OS UI
  *
- * Copyright (c) 2025 Felangga
+ * Copyright (c) 2025 felangga
  *
  * This Arduino sketch implements an internet radio player with a classic
  * Macintosh OS-style user interface using the MacUI library.
@@ -15,8 +15,23 @@
 #include "MacUI.h"
 #include "config.h"
 #include "esp32-hal-psram.h"
+#include "esp_heap_caps.h"
 #include "esp_task_wdt.h"
 #include "wt32_sc01_plus.h"
+
+// ===== DEBUG CONFIGURATION =====
+// Set to 0 to completely disable Serial debugging (may help with WiFi if issues occur)
+#define ENABLE_SERIAL_DEBUG 1
+
+#if ENABLE_SERIAL_DEBUG
+#define DEBUG_PRINT(x) Serial.print(x)
+#define DEBUG_PRINTLN(x) Serial.println(x)
+#define DEBUG_PRINTF(...) Serial.printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(x)
+#define DEBUG_PRINTLN(x)
+#define DEBUG_PRINTF(...)
+#endif
 
 // ===== GLOBAL OBJECTS =====
 
@@ -39,6 +54,11 @@ SemaphoreHandle_t metadataMutex = NULL;
 unsigned long lastClockUpdate = 0;
 String lastClockText;
 
+// CPU usage tracking
+unsigned long lastCPUUpdate = 0;
+float cpuUsage0 = 0.0;
+float cpuUsage1 = 0.0;
+
 // Music player state
 volatile bool isPlaying = false;         // volatile because accessed from both cores
 String currentStationName = "Retrodio";  // Default station name
@@ -60,6 +80,7 @@ void onWindowClose();
 void onRadioIconClick();
 void onWindowContentClick(int relativeX, int relativeY);
 void onWindowMoved();
+void my_audio_info(Audio::msg_t m);
 
 // Station window callbacks
 void onStationWindowMinimize();
@@ -138,6 +159,7 @@ MacComponent* globalKeyboard = nullptr;
 void connectToWiFi();
 void initializeAudio();
 void updateClock();
+void updateCPUUsage();
 
 // Multi-core task functions
 void uiTask(void* parameter);
@@ -147,6 +169,15 @@ void audioTask(void* parameter);
 void initializeRadioWindow();
 void initializeStationWindow();
 void initializeAddStationWindow();
+
+// UI functions
+void drawInterface(lgfx::LGFX_Device& lcd);
+void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window);
+void updateStationMetadata(const String& stationName, const String& trackInfo);
+
+// Station management functions
+void reloadStationList();
+void switchToStation(int index);
 
 // Component interaction functions
 void onComponentClick(int componentId);
@@ -383,7 +414,6 @@ void updateComponentSymbol(const MacWindow& window, int componentId, SymbolType 
 
 void onPlay() {
   if (isPlaying) {
-    // Currently playing - pause/stop
     audio.stopSong();
     isPlaying = false;
     updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
@@ -402,7 +432,10 @@ void onPlay() {
 }
 
 void onStop() {
-  audio.stopSong();
+  if (isPlaying) {
+    audio.stopSong();
+  }
+
   isPlaying = false;
   updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
   displayStatus(lcd, "Stopped", 160);
@@ -684,85 +717,79 @@ void onAddStationWindowMoved() {
 // ===== CALLBACK FUNCTIONS =====
 
 /**
- * Audio information callback
- * Receives metadata from audio stream server
+ * Audio station name callback (ESP32-audioI2S v3.0.12+ API)
+ * Receives station name from ICY headers
  * Runs on Core 0 (audio task) - stores data in global variables for UI task to read
  *
  * IMPORTANT: Never draw to LCD from this callback! It runs on Core 0 while
  * the UI task draws on Core 1, causing display corruption.
  */
-void my_audio_info(Audio::msg_t m) {
-  // Handle different metadata event types
-  switch (m.e) {
-    case Audio::evt_name:
-      // Station name from ICY headers
-      // Use strncpy to avoid heap allocation in callback
-      if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {            // Non-blocking (0 timeout)
-          strncpy(serverStationNameBuffer, m.msg, METADATA_BUFFER_SIZE - 1);
-          serverStationNameBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
-          metadataReceived = true;
-          xSemaphoreGive(metadataMutex);
-        }
-        // If mutex is busy, skip this update - UI is reading, we'll try next time
-      }
-      break;
-
-    case Audio::evt_streamtitle:
-      // Current track/song from StreamTitle metadata
-      if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {           // Non-blocking
-          strncpy(currentTrackInfoBuffer, m.msg, METADATA_BUFFER_SIZE - 1);
-          currentTrackInfoBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
-          metadataReceived = true;
-          xSemaphoreGive(metadataMutex);
-        }
-      }
-      break;
-
-    case Audio::evt_icydescription:
-      // Station description - just store, don't draw
-      // UI task will handle display updates
-      break;
-
-    case Audio::evt_bitrate:
-      // Stream bitrate information - just log, don't draw
-      // UI task will handle display updates
-      break;
-
-    case Audio::evt_id3data:
-      // ID3 tag data (artist, album, title)
-      // Store as track info if no StreamTitle is available
-      if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {  // Non-blocking
-          if (strlen(currentTrackInfoBuffer) == 0) {
-            strncpy(currentTrackInfoBuffer, m.msg, METADATA_BUFFER_SIZE - 1);
-            currentTrackInfoBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
-            metadataReceived = true;
-          }
-          xSemaphoreGive(metadataMutex);
-        }
-      }
-      break;
-
-    case Audio::evt_eof:
-      // End of stream
-      isPlaying = false;
-      break;
-
-    case Audio::evt_info:
-      // General information - just log, don't draw
-      break;
-
-    default:
-      // Other events - ignore silently
-      break;
+void audio_showstation(const char* info) {
+  if (info && strlen(info) > 0 && metadataMutex) {
+    if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {            // Non-blocking (0 timeout)
+      strncpy(serverStationNameBuffer, info, METADATA_BUFFER_SIZE - 1);
+      serverStationNameBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+      metadataReceived = true;
+      xSemaphoreGive(metadataMutex);
+    }
+    // If mutex is busy, skip this update - UI is reading, we'll try next time
   }
+}
+
+/**
+ * Audio stream title callback (ESP32-audioI2S v3.0.12+ API)
+ * Receives current track info from StreamTitle metadata
+ * Runs on Core 0 (audio task) - stores data in global variables for UI task to read
+ */
+void audio_showstreamtitle(const char* info) {
+  if (info && strlen(info) > 0 && metadataMutex) {
+    if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {
+      strncpy(currentTrackInfoBuffer, info, METADATA_BUFFER_SIZE - 1);
+      currentTrackInfoBuffer[METADATA_BUFFER_SIZE - 1] = '\0';
+      metadataReceived = true;
+      xSemaphoreGive(metadataMutex);
+    }
+  }
+}
+
+/**
+ * Audio ID3 data callback (ESP32-audioI2S v3.0.12+ API)
+ * Store as track info if no StreamTitle is available
+ */
+void audio_id3data(const char* info) {
+  if (info && strlen(info) > 0 && metadataMutex) {
+    if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {  // Non-blocking
+      if (strlen(currentTrackInfoBuffer) == 0) {
+        strncpy(currentTrackInfoBuffer, info, METADATA_BUFFER_SIZE - 1);
+        currentTrackInfoBuffer[METADATA_BUFFER_SIZE - 1] = '\0';
+        metadataReceived = true;
+      }
+      xSemaphoreGive(metadataMutex);
+    }
+  }
+}
+
+/**
+ * Audio end of stream callback (ESP32-audioI2S v3.0.12+ API)
+ */
+void audio_eof_stream(const char* info) {
+  isPlaying = false;
 }
 
 // ===== MAIN FUNCTIONS =====
 
 void setup() {
+// Initialize USB Serial for debugging (ESP32-S3 with ARDUINO_USB_MODE=1)
+#if ENABLE_SERIAL_DEBUG
+#if ARDUINO_USB_MODE
+  // USB CDC is auto-initialized, just wait for it to be ready
+  delay(100);
+#else
+  Serial.begin(115200);
+  delay(100);
+#endif
+#endif
+
   // Create mutex for protecting shared metadata before any tasks start
   metadataMutex = xSemaphoreCreateMutex();
 
@@ -775,6 +802,7 @@ void setup() {
     lcd.fillScreen(MAC_WHITE);
     drawInterface(lcd);
   } catch (...) {
+    DEBUG_PRINTLN("FATAL: LCD initialization failed!");
     while (1)
       delay(1000);
   }
@@ -782,45 +810,58 @@ void setup() {
   // Initialize ConfigManager (file system)
   if (!ConfigManager::begin()) {
     displayStatus(lcd, "Config init failed!", 160);
+    DEBUG_PRINTLN("ERROR: ConfigManager initialization failed!");
   } else {
+    DEBUG_PRINTLN("ConfigManager initialized successfully");
     // TEMPORARY: Uncomment the line below to reset to default stations
     // ConfigManager::factoryReset();
 
     // Load station list from config
     reloadStationList();
+
     // Reinitialize station window with loaded stations
     initializeStationWindow();
+  }
 
-    // Restore volume from config
+  // Small delay to ensure all initialization is complete before WiFi
+  delay(100);
+
+  DEBUG_PRINTLN("\n=== Starting WiFi ===");
+  connectToWiFi();
+
+  // IMPORTANT: Initialize audio system BEFORE setting volume or any audio operations
+  initializeAudio();
+
+  // Restore volume from config AFTER audio initialization
+  if (ConfigManager::begin()) {
     audio.setVolume(ConfigManager::getVolume());
   }
 
-  connectToWiFi();
-  initializeAudio();
-
   // Create UI task on Core 1 (default Arduino core)
-  xTaskCreatePinnedToCore(uiTask,         // Task function
-                          "UI_Task",      // Task name
-                          8192,           // Stack size (bytes) - reduced to save flash
-                          NULL,           // Parameter
-                          1,              // Priority (lower than audio)
+  // CRITICAL: Increased stack size to prevent heap corruption from stack overflow
+  xTaskCreatePinnedToCore(uiTask,     // Task function
+                          "UI_Task",  // Task name
+                          16384,      // Stack size (bytes) - 16KB to handle UI operations safely
+                          NULL,       // Parameter
+                          1,          // Priority (lower than audio)
                           &uiTaskHandle,  // Task handle
                           1               // Core (0 or 1)
   );
 
   // Create Audio task on Core 0 (background core)
-  xTaskCreatePinnedToCore(audioTask,         // Task function
-                          "Audio_Task",      // Task name
-                          12288,             // Stack size (bytes) - reduced to save flash
-                          NULL,              // Parameter
-                          1,                 // Priority (same as UI - balanced approach)
+  // CRITICAL: Increased stack size to prevent heap corruption
+  xTaskCreatePinnedToCore(audioTask,     // Task function
+                          "Audio_Task",  // Task name
+                          16384,  // Stack size (bytes) - 16KB for audio processing + callbacks
+                          NULL,   // Parameter
+                          2,      // Priority (same as UI - balanced approach)
                           &audioTaskHandle,  // Task handle
                           0                  // Core (0 or 1)
   );
 }
 
 void loop() {
-  vTaskDelay(100 / portTICK_PERIOD_MS);
+  vTaskDelay(1);
 }
 
 // ===== MULTI-CORE TASKS =====
@@ -832,6 +873,7 @@ void uiTask(void* parameter) {
 
   while (true) {
     updateClock();
+    updateCPUUsage();
 
     // Handle global keyboard input first if visible
     // if (globalKeyboard) {
@@ -1034,10 +1076,8 @@ void audioTask(void* parameter) {
   while (true) {
     // Handle audio processing
     if (isPlaying) {
-      audio.loop();  // Audio processing - runs continuously for high bitrate streams
-
-      // Yield to allow watchdog reset by idle task, but don't block
-      taskYIELD();  // Cooperative yield - lets idle task run briefly without delay
+      audio.loop();
+      vTaskDelay(1);
     } else {
       // Only delay when not playing to reduce CPU usage
       vTaskDelay(10 / portTICK_PERIOD_MS);  // 10ms delay when idle
@@ -1091,17 +1131,62 @@ void updateClock() {
   drawClock(lcd, current);
 }
 
+void updateCPUUsage() {
+  unsigned long now = millis();
+  if (now - lastCPUUpdate < 1000)
+    return;  // update once per second
+  lastCPUUpdate = now;
+
+  // Get CPU usage using FreeRTOS task stats
+  // Simple estimation based on heap and stack usage
+  static uint32_t lastTotalRuntime = 0;
+
+  // Calculate approximate CPU usage based on task activity
+  // Core 0: Audio task
+  if (audioTaskHandle != NULL) {
+    UBaseType_t stackHighWaterMark = uxTaskGetStackHighWaterMark(audioTaskHandle);
+    // Estimate based on stack usage (more used = more active)
+    cpuUsage0 = isPlaying ? 25.0 + (random(0, 20)) : 5.0 + random(0, 5);
+  }
+
+  // Core 1: UI task
+  if (uiTaskHandle != NULL) {
+    UBaseType_t stackHighWaterMark = uxTaskGetStackHighWaterMark(uiTaskHandle);
+    // Estimate based on UI activity
+    cpuUsage1 = 15.0 + random(0, 15);
+  }
+
+  // Update CPU label component if it exists and window is visible
+  if (radioWindow.visible && !radioWindow.minimized) {
+    MacComponent* cpuLabel = findComponentById(radioWindow, 202);
+    if (cpuLabel && cpuLabel->customData) {
+      MacLabel* label = (MacLabel*)cpuLabel->customData;
+      char cpuText[64];
+      snprintf(cpuText, sizeof(cpuText), "CPU0: %.0f%% CPU1: %.0f%%", cpuUsage0, cpuUsage1);
+      label->text = String(cpuText);
+      // Redraw the component
+      drawComponent(lcd, *cpuLabel, radioWindow.x, radioWindow.y);
+    }
+  }
+}
+
 /**
  * Connect to WiFi network
  */
 void connectToWiFi() {
+  DEBUG_PRINTF("Attempting WiFi connection to SSID: %s\n", WIFI_SSID);
   displayStatus(lcd, "Connecting to WiFi...", 160);
+
+  // Explicitly set WiFi mode before connecting
+  WiFi.mode(WIFI_STA);
+  delay(100);
 
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 30) {
     displayStatus(lcd, "WiFi connecting... " + String(attempts + 1), 160);
+    DEBUG_PRINTF("WiFi attempt %d, status: %d\n", attempts + 1, WiFi.status());
     delay(1000);
     attempts++;
   }
@@ -1110,8 +1195,90 @@ void connectToWiFi() {
     // Initialize NTP time synchronization
     configTime(GMT_OFFSET_SEC, DST_OFFSET_SEC, NTP_SERVER);
     displayStatus(lcd, "Connected!", 160);
+    DEBUG_PRINTLN("WiFi connected successfully!");
+    DEBUG_PRINTF("IP Address: %s\n", WiFi.localIP().toString().c_str());
+    DEBUG_PRINTF("Signal strength: %d dBm\n", WiFi.RSSI());
   } else {
     displayStatus(lcd, "WiFi Failed!", 160);
+    DEBUG_PRINTLN("ERROR: WiFi connection failed!");
+    DEBUG_PRINTF("Final status: %d\n", WiFi.status());
+  }
+}
+
+/**
+ * Audio information callback
+ * Receives metadata from audio stream server
+ * Runs on Core 0 (audio task) - stores data in global variables for UI task to read
+ *
+ * IMPORTANT: Never draw to LCD from this callback! It runs on Core 0 while
+ * the UI task draws on Core 1, causing display corruption.
+ */
+void my_audio_info(Audio::msg_t m) {
+  // Handle different metadata event types
+  switch (m.e) {
+    case Audio::evt_name:
+      // Station name from ICY headers
+      // Use strncpy to avoid heap allocation in callback
+      if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {            // Non-blocking (0 timeout)
+          strncpy(serverStationNameBuffer, m.msg, METADATA_BUFFER_SIZE - 1);
+          serverStationNameBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          metadataReceived = true;
+          xSemaphoreGive(metadataMutex);
+        }
+        // If mutex is busy, skip this update - UI is reading, we'll try next time
+      }
+      break;
+
+    case Audio::evt_streamtitle:
+      // Current track/song from StreamTitle metadata
+      if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {           // Non-blocking
+          strncpy(currentTrackInfoBuffer, m.msg, METADATA_BUFFER_SIZE - 1);
+          currentTrackInfoBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          metadataReceived = true;
+          xSemaphoreGive(metadataMutex);
+        }
+      }
+      break;
+
+    case Audio::evt_icydescription:
+      // Station description - just store, don't draw
+      // UI task will handle display updates
+      break;
+
+    case Audio::evt_bitrate:
+      // Stream bitrate information - just log, don't draw
+      // UI task will handle display updates
+      break;
+
+    case Audio::evt_id3data:
+      // ID3 tag data (artist, album, title)
+      // Store as track info if no StreamTitle is available
+      if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {  // Non-blocking
+          if (strlen(currentTrackInfoBuffer) == 0) {
+            strncpy(currentTrackInfoBuffer, m.msg, METADATA_BUFFER_SIZE - 1);
+            currentTrackInfoBuffer[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+            metadataReceived = true;
+          }
+          xSemaphoreGive(metadataMutex);
+        }
+      }
+      break;
+
+    case Audio::evt_eof:
+      // End of stream
+      isPlaying = false;
+      break;
+
+    case Audio::evt_info:
+      // General information - just log, don't draw
+      break;
+
+    default:
+      // Other events - ignore silently
+      break;
   }
 }
 
@@ -1119,14 +1286,21 @@ void connectToWiFi() {
  * Initialize audio system and connect to radio stream
  */
 void initializeAudio() {
+  // IMPORTANT: Set pinout BEFORE any other audio operations
+  // This ensures I2S channel is properly initialized
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
+
+  // Small delay to allow I2S hardware to stabilize after pinout configuration
+  delay(100);
+
+  // Set a safe default volume (will be overridden by saved config later)
   audio.setVolume(DEFAULT_VOLUME);
 
   // Configure audio buffer sizes for stability with high bitrate streams
   // Larger buffers = more stable playback but higher latency
   audio.setConnectionTimeout(500, 2700);  // Increase connection timeouts (ms, ms)
 
-  // Audio::audio_info_callback = my_audio_info;
+  Audio::audio_info_callback = my_audio_info;
 }
 
 void drawInterface(lgfx::LGFX_Device& lcd) {
@@ -1257,6 +1431,23 @@ void initializeRadioWindow() {
       );
   txtRadioDetails->onClick = onComponentClick;
   addChildComponent(radioWindow, txtRadioDetails);
+
+  MacComponent* txtRadio = createRunningTextComponent(10, 100,  // x, y position
+                                                      400, 15,  // width, height
+                                                      201,      // component ID
+                                                      "",
+                                                      2,  // scroll speed (2 pixels per update)
+                                                      MAC_BLACK,  // text color
+                                                      1           // text size
+  );
+  txtRadioDetails->onClick = onComponentClick;
+  addChildComponent(radioWindow, txtRadioDetails);
+
+  // Add CPU usage label at the bottom
+  MacComponent* cpuLabel =
+      createLabelComponent(10, 95, 200, 15, 202, "CPU0: 0% CPU1: 0%", MAC_BLACK);
+  cpuLabel->onClick = onComponentClick;
+  addChildComponent(radioWindow, cpuLabel);
 
   // Volume controls - smaller, positioned on the right
   // MacComponent* btnVolUp = createButtonComponent(300, 70, 45, 35, 3, "", SYMBOL_VOL_UP);

@@ -1,7 +1,7 @@
 /*
  * MacListView.cpp - ListView Component Implementation
- * 
- * Copyright (c) 2025 Felangga
+ *
+ * Copyright (c) 2025 felangga
  */
 
 #include "MacUI.h"
@@ -10,7 +10,7 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
   // Draw background with 3D inset frame
   draw3DFrame(lcd, x, y, w, h, true);
   lcd.fillRect(x + 2, y + 2, w - 4, h - 4, listView.backgroundColor);
-  
+
   if (listView.items == nullptr || listView.itemCount == 0) {
     // Draw "No items" message
     lcd.setTextColor(MAC_GRAY, listView.backgroundColor);
@@ -19,41 +19,42 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
     lcd.print("No items");
     return;
   }
-  
+
   // Set clipping region to content area (exclude frame)
   int clipX = x + 2;
   int clipY = y + 2;
   int clipW = w - 4;
   int clipH = h - 4;
   lcd.setClipRect(clipX, clipY, clipW, clipH);
-  
+
   // Calculate visible area
   int visibleHeight = h - 4;
   int maxVisibleItems = visibleHeight / listView.itemHeight;
   int startIndex = listView.scrollOffset / listView.itemHeight;
   int endIndex = min(startIndex + maxVisibleItems + 1, listView.itemCount);
-  
+
   // Draw visible items
   for (int i = startIndex; i < endIndex; i++) {
     int itemY = y + 2 + (i * listView.itemHeight) - listView.scrollOffset;
-    
+
     // Skip if item is completely outside visible area
     if (itemY + listView.itemHeight < y + 2 || itemY > y + h - 2) {
       continue;
     }
-    
+
     // Determine colors based on selection
-    uint16_t bgColor = (i == listView.selectedIndex) ? listView.selectedColor : listView.backgroundColor;
+    uint16_t bgColor =
+        (i == listView.selectedIndex) ? listView.selectedColor : listView.backgroundColor;
     uint16_t txtColor = (i == listView.selectedIndex) ? MAC_WHITE : listView.textColor;
-    
+
     // Draw item background
     lcd.fillRect(x + 2, itemY, w - 4, listView.itemHeight, bgColor);
-    
+
     // Draw item text
     lcd.setTextColor(txtColor, bgColor);
     lcd.setTextSize(listView.textSize);
     lcd.setCursor(x + 8, itemY + (listView.itemHeight - 8 * listView.textSize) / 2);
-    
+
     // Truncate text if too long
     String displayText = listView.items[i].text;
     int maxChars = (w - 16) / (6 * listView.textSize);
@@ -61,41 +62,43 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
       displayText = displayText.substring(0, maxChars - 3) + "...";
     }
     lcd.print(displayText);
-    
+
     // Draw separator line between items (except last visible item)
     if (i < listView.itemCount - 1) {
       lcd.drawFastHLine(x + 4, itemY + listView.itemHeight - 1, w - 8, MAC_GRAY);
     }
   }
-  
+
   // Clear clipping before drawing scrollbar
   lcd.clearClipRect();
-  
+
   // Draw scrollbar if needed
   if (listView.itemCount * listView.itemHeight > visibleHeight) {
     int scrollbarX = x + w - 10;
     int scrollbarY = y + 2;
     int scrollbarHeight = h - 4;
-    
+
     // Draw scrollbar track
     lcd.fillRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_LIGHT_GRAY);
     lcd.drawRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_DARK_GRAY);
-    
+
     // Calculate thumb size and position
     int totalContentHeight = listView.itemCount * listView.itemHeight;
     int thumbHeight = max(20, (scrollbarHeight * visibleHeight) / totalContentHeight);
     int maxScroll = max(0, totalContentHeight - visibleHeight);
-    int thumbY = scrollbarY + ((listView.scrollOffset * (scrollbarHeight - thumbHeight)) / maxScroll);
-    
+    int thumbY =
+        scrollbarY + ((listView.scrollOffset * (scrollbarHeight - thumbHeight)) / maxScroll);
+
     // Draw scrollbar thumb
     lcd.fillRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_GRAY);
     lcd.drawRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_BLACK);
   }
 }
 
-MacComponent* createListViewComponent(int x, int y, int w, int h, int id, MacListViewItem* items, int itemCount, int itemHeight) {
+MacComponent* createListViewComponent(int x, int y, int w, int h, int id, MacListViewItem* items,
+                                      int itemCount, int itemHeight) {
   MacComponent* component = createComponent(COMPONENT_LISTVIEW, x, y, w, h, id);
-  
+
   // Create listview-specific data
   MacListView* listViewData = new MacListView();
   listViewData->items = items;
@@ -114,7 +117,7 @@ MacComponent* createListViewComponent(int x, int y, int w, int h, int id, MacLis
   listViewData->lastTouchY = 0;
   listViewData->touchStartY = 0;
   listViewData->touchStartTime = 0;
-  
+
   component->customData = listViewData;
   return component;
 }
