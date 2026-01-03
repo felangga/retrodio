@@ -185,6 +185,8 @@ struct MacListView {
   int lastTouchY;                // Last touch Y position
   int touchStartY;               // Touch start Y position
   unsigned long touchStartTime;  // Touch start time for detecting taps vs swipes
+  bool needsFullRedraw;          // Flag to indicate full redraw (frame + content) vs content-only
+  int lastScrollbarThumbY;       // Last scrollbar thumb Y position to detect changes
 };
 
 // ===== WINDOW STRUCT =====

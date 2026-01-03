@@ -226,6 +226,9 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
         }
       } else if (window.visible) {
         // Handle ongoing swipe for ListView (only if window is visible)
+        static unsigned long lastScrollUpdate = 0;
+        unsigned long now = millis();
+
         for (int i = 0; i < window.childComponentCount; i++) {
           MacComponent* component = window.childComponents[i];
           if (component && component->type == COMPONENT_LISTVIEW && component->customData) {
@@ -243,9 +246,12 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
                   max(0, listViewData->itemCount * listViewData->itemHeight - visibleHeight);
               listViewData->scrollOffset = max(0, min(listViewData->scrollOffset, maxScroll));
 
-              // Redraw if scroll changed
-              if (oldOffset != listViewData->scrollOffset) {
+              // Throttle redraw to reduce flickering (max 30 FPS)
+              if (oldOffset != listViewData->scrollOffset && (now - lastScrollUpdate > 33)) {
+                lcd.startWrite();
                 drawComponent(lcd, *component, window.x, window.y);
+                lcd.endWrite();
+                lastScrollUpdate = now;
               }
 
               listViewData->lastTouchY = ty;

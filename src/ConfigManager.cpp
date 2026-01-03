@@ -8,7 +8,7 @@
 
 // Static member initialization
 int ConfigManager::volume = 5;
-String ConfigManager::lastStation = "";
+LastStation ConfigManager::lastStation = {"", ""};
 Station ConfigManager::stations[MAX_STATIONS];
 int ConfigManager::stationCount = 0;
 
@@ -53,7 +53,8 @@ bool ConfigManager::loadSettings() {
 
   // Read settings
   volume = doc["volume"] | 5;
-  lastStation = doc["lastStation"] | "";
+  lastStation.name = doc["lastStationName"] | "";
+  lastStation.url = doc["lastStationURL"] | "";
 
   return true;
 }
@@ -65,7 +66,8 @@ bool ConfigManager::saveSettings() {
   // Create JSON document
   JsonDocument doc;
   doc["volume"] = volume;
-  doc["lastStation"] = lastStation;
+  doc["lastStationName"] = lastStation.name;
+  doc["lastStationURL"] = lastStation.url;
 
   // Write to file
   File file = LittleFS.open(SETTINGS_FILE, "w");
@@ -157,15 +159,15 @@ void ConfigManager::setVolume(int vol) {
 /**
  * Get last played station
  */
-String ConfigManager::getLastStation() {
+LastStation ConfigManager::getLastStation() {
   return lastStation;
 }
 
 /**
  * Set last played station and save
  */
-void ConfigManager::setLastStation(const String& stationName) {
-  lastStation = stationName;
+void ConfigManager::setLastStation(const LastStation& station) {
+  lastStation = station;
   saveSettings();
 }
 
@@ -253,7 +255,7 @@ void ConfigManager::factoryReset() {
  */
 bool ConfigManager::createDefaultSettings() {
   volume = 5;
-  lastStation = "";
+  lastStation = {"", ""};
   return saveSettings();
 }
 

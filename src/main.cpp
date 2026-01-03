@@ -21,7 +21,8 @@
 
 // ===== DEBUG CONFIGURATION =====
 // Set to 0 to completely disable Serial debugging (may help with WiFi if issues occur)
-#define ENABLE_SERIAL_DEBUG 1
+#define ENABLE_SERIAL_DEBUG 0
+#define ENABLE_DEBUG 0
 
 #if ENABLE_SERIAL_DEBUG
 #define DEBUG_PRINT(x) Serial.print(x)
@@ -50,6 +51,22 @@ TaskHandle_t audioTaskHandle = NULL;
 // Mutex for protecting shared metadata strings between cores
 SemaphoreHandle_t metadataMutex = NULL;
 
+// Audio command queue for thread-safe communication between cores
+QueueHandle_t audioCommandQueue = NULL;
+
+// Audio commands
+enum AudioCommand {
+  CMD_NONE = 0,
+  CMD_PLAY,
+  CMD_STOP,
+  CMD_CONNECT
+};
+
+struct AudioCommandMsg {
+  AudioCommand cmd;
+  char url[256];  // URL for CMD_CONNECT
+};
+
 // Clock state
 unsigned long lastClockUpdate = 0;
 String lastClockText;
@@ -67,7 +84,7 @@ int currentStationIndex = -1;  // Current station index in the list (-1 = no sta
 
 // Metadata from audio stream server (protected by metadataMutex)
 // Use char buffers instead of String to avoid heap allocation in ISR
-#define METADATA_BUFFER_SIZE 256
+#define METADATA_BUFFER_SIZE 128  // Reduced from 256 to save 1KB RAM
 
 typedef struct {
   char stationName[METADATA_BUFFER_SIZE];  // Station name from server (evt_name)
@@ -177,7 +194,7 @@ MacComponent* globalKeyboard = nullptr;
 void connectToWiFi();
 void initializeAudio();
 void updateClock();
-void updateCPUUsage();
+// void updateCPUUsage();
 
 // Multi-core task functions
 void uiTask(void* parameter);
@@ -429,29 +446,28 @@ void updateComponentSymbol(const MacWindow& window, int componentId, SymbolType 
 }
 
 // ===== BUTTON CALLBACKS =====
-
 void onPlay() {
   if (isPlaying) {
-    audio.stopSong();
+    // Send stop command to audio task
+    AudioCommandMsg msg = {CMD_STOP, ""};
+    xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
     isPlaying = false;
     updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
     displayStatus(lcd, "Paused", 160);
   } else {
     // Currently stopped - start playing
     displayStatus(lcd, "Connecting...", 160);
-    if (audio.connecttohost(RadioURL.c_str())) {
-      isPlaying = true;
-      updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);
-      displayStatus(lcd, "Playing", 160);
-    } else {
-      displayStatus(lcd, "Connection failed", 160);
-    }
+    AudioCommandMsg msg = {CMD_CONNECT, ""};
+    strncpy(msg.url, RadioURL.c_str(), sizeof(msg.url) - 1);
+    xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
+    // isPlaying will be set by audio task after successful connection
   }
 }
 
 void onStop() {
   if (isPlaying) {
-    audio.stopSong();
+    AudioCommandMsg msg = {CMD_STOP, ""};
+    xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
   }
 
   isPlaying = false;
@@ -811,6 +827,9 @@ void setup() {
   // Create mutex for protecting shared metadata before any tasks start
   metadataMutex = xSemaphoreCreateMutex();
 
+  // Create audio command queue for thread-safe communication
+  audioCommandQueue = xQueueCreate(5, sizeof(AudioCommandMsg));
+
   try {
     lcd.init();
     tft.initDMA();
@@ -853,13 +872,30 @@ void setup() {
   // Restore volume from config AFTER audio initialization
   if (ConfigManager::begin()) {
     audio.setVolume(ConfigManager::getVolume());
+
+    // Auto-play last station if available
+    LastStation lastStation = ConfigManager::getLastStation();
+    if (lastStation.name.length() > 0 && lastStation.url.length() > 0) {
+      currentStationName = lastStation.name;
+      RadioURL = lastStation.url;
+
+      // Find the station index (for prev/next navigation)
+      int stationCount = ConfigManager::getStationCount();
+      for (int i = 0; i < stationCount; i++) {
+        Station station = ConfigManager::getStation(i);
+        if (station.name == lastStation.name) {
+          currentStationIndex = i;
+          break;
+        }
+      }
+    }
   }
 
   // Create UI task on Core 1 (default Arduino core)
-  // CRITICAL: Increased stack size to prevent heap corruption from stack overflow
+  // Optimized stack size to save RAM
   xTaskCreatePinnedToCore(uiTask,     // Task function
                           "UI_Task",  // Task name
-                          16384,      // Stack size (bytes) - 16KB to handle UI operations safely
+                          6144,       // Stack size (bytes) 
                           NULL,       // Parameter
                           1,          // Priority (lower than audio)
                           &uiTaskHandle,  // Task handle
@@ -867,15 +903,27 @@ void setup() {
   );
 
   // Create Audio task on Core 0 (background core)
-  // CRITICAL: Increased stack size to prevent heap corruption
+  // Optimized stack size to save RAM
   xTaskCreatePinnedToCore(audioTask,     // Task function
                           "Audio_Task",  // Task name
-                          16384,  // Stack size (bytes) - 16KB for audio processing + callbacks
+                          12288,  // Stack size (bytes) - Reduced from 16KB to 12KB
                           NULL,   // Parameter
                           2,      // Priority (same as UI - balanced approach)
                           &audioTaskHandle,  // Task handle
                           0                  // Core (0 or 1)
   );
+
+  // Auto-play last station if it was loaded
+  if (RadioURL.length() > 0) {
+    delay(500);  // Wait for tasks to initialize
+    AudioCommandMsg msg = {CMD_CONNECT, ""};
+    strncpy(msg.url, RadioURL.c_str(), sizeof(msg.url) - 1);
+    xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
+    isPlaying = true;
+
+    // Update play button to pause symbol
+    updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);
+  }
 }
 
 void loop() {
@@ -891,7 +939,7 @@ void uiTask(void* parameter) {
 
   while (true) {
     updateClock();
-    updateCPUUsage();
+    // updateCPUUsage();
 
     // Handle global keyboard input first if visible
     // if (globalKeyboard) {
@@ -1053,7 +1101,7 @@ void uiTask(void* parameter) {
             MacComponent* txtInfo = findComponentById(radioWindow, 205);
             if (txtInfo && txtInfo->customData) {
               MacRunningText* runningText = (MacRunningText*)txtInfo->customData;
-              runningText->text = "Info: " + info;
+              runningText->text = info;
               runningText->scrollOffset = 0;
               lastDisplayedInfo = info;
             }
@@ -1164,6 +1212,25 @@ void uiTask(void* parameter) {
 // Audio Task - runs on Core 0 (background core)
 void audioTask(void* parameter) {
   while (true) {
+    // Check for commands from UI task (non-blocking)
+    AudioCommandMsg msg;
+    if (xQueueReceive(audioCommandQueue, &msg, 0) == pdTRUE) {
+      switch (msg.cmd) {
+        case CMD_CONNECT:
+          // Connect to stream (safe to call from audio task)
+          if (audio.connecttohost(msg.url)) {
+            isPlaying = true;
+          }
+          break;
+        case CMD_STOP:
+          audio.stopSong();
+          isPlaying = false;
+          break;
+        default:
+          break;
+      }
+    }
+
     // Handle audio processing
     if (isPlaying) {
       audio.loop();
@@ -1175,19 +1242,14 @@ void audioTask(void* parameter) {
   }
 }
 
-// Clean up resources when done (call this if you need to free memory)
-void cleanup() {
-  // Additional cleanup can be added here if needed
-}
 
-// ===== HELPER FUNCTIONS =====
 void updateStationMetadata(const String& stationName, const String& trackInfo) {
   // Update component 200 (station name)
   MacComponent* txtRadioName = findComponentById(radioWindow, 200);
   if (txtRadioName && txtRadioName->customData) {
     MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
     runningText->text = stationName;
-    runningText->scrollOffset = 0;  // Reset scroll position
+    runningText->scrollOffset = 0;  
   }
 
   // Update component 201 (track info)
@@ -1195,7 +1257,7 @@ void updateStationMetadata(const String& stationName, const String& trackInfo) {
   if (txtRadioDetails && txtRadioDetails->customData) {
     MacRunningText* runningText = (MacRunningText*)txtRadioDetails->customData;
     runningText->text = trackInfo;
-    runningText->scrollOffset = 0;  // Reset scroll position
+    runningText->scrollOffset = 0;  
   }
 }
 
@@ -1207,7 +1269,7 @@ void updateClock() {
 
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    return;  // keep previous
+    return;  
   }
 
   char buf[9];  // HH:MM:SS
@@ -1246,13 +1308,27 @@ void updateCPUUsage() {
     cpuUsage1 = 15.0 + random(0, 15);
   }
 
-  // Update CPU label component if it exists and window is visible
+  // Get RAM usage
+  uint32_t freeHeap = ESP.getFreeHeap();
+  uint32_t totalHeap = ESP.getHeapSize();
+  uint32_t usedHeap = totalHeap - freeHeap;
+  float ramUsagePercent = (usedHeap * 100.0) / totalHeap;
+
+  // Get PSRAM usage if available
+  uint32_t freePsram = ESP.getFreePsram();
+  uint32_t totalPsram = ESP.getPsramSize();
+  uint32_t usedPsram = totalPsram - freePsram;
+
+  // Update CPU and RAM label component if it exists and window is visible
   if (radioWindow.visible && !radioWindow.minimized) {
     MacComponent* cpuLabel = findComponentById(radioWindow, 202);
     if (cpuLabel && cpuLabel->customData) {
       MacLabel* label = (MacLabel*)cpuLabel->customData;
-      char cpuText[64];
-      snprintf(cpuText, sizeof(cpuText), "CPU0: %.0f%% CPU1: %.0f%%", cpuUsage0, cpuUsage1);
+      char cpuText[128];
+      snprintf(cpuText, sizeof(cpuText), "CPU0: %.0f%% CPU1: %.0f%% | RAM: %dKB/%dKB (%.0f%%) | PSRAM: %dKB/%dKB",
+               cpuUsage0, cpuUsage1,
+               usedHeap / 1024, totalHeap / 1024, ramUsagePercent,
+               usedPsram / 1024, totalPsram / 1024);
       label->text = String(cpuText);
       // Redraw the component
       drawComponent(lcd, *cpuLabel, radioWindow.x, radioWindow.y);
@@ -1304,15 +1380,12 @@ void connectToWiFi() {
  * the UI task draws on Core 1, causing display corruption.
  */
 void audio_callback(Audio::msg_t m) {
-  // Handle different metadata event types
   switch (m.e) {
     case Audio::evt_name:
-      // Station name from ICY headers
-      // Use strncpy to avoid heap allocation in callback
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {               // Non-blocking (0 timeout)
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) { 
           strncpy(streamMetadata.stationName, m.msg, METADATA_BUFFER_SIZE - 1);
-          streamMetadata.stationName[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.stationName[METADATA_BUFFER_SIZE - 1] = '\0';  
           streamMetadata.received = true;
           xSemaphoreGive(metadataMutex);
         }
@@ -1320,11 +1393,10 @@ void audio_callback(Audio::msg_t m) {
       break;
 
     case Audio::evt_streamtitle:
-      // Current track/song from StreamTitle metadata
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {             // Non-blocking
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {            
           strncpy(streamMetadata.trackInfo, m.msg, METADATA_BUFFER_SIZE - 1);
-          streamMetadata.trackInfo[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.trackInfo[METADATA_BUFFER_SIZE - 1] = '\0';  
           streamMetadata.received = true;
           xSemaphoreGive(metadataMutex);
         }
@@ -1333,9 +1405,9 @@ void audio_callback(Audio::msg_t m) {
 
     case Audio::evt_icydescription:
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {               // Non-blocking
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {               
           strncpy(streamMetadata.description, m.msg, METADATA_BUFFER_SIZE - 1);
-          streamMetadata.description[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.description[METADATA_BUFFER_SIZE - 1] = '\0';  
           streamMetadata.received = true;
           xSemaphoreGive(metadataMutex);
         }
@@ -1344,9 +1416,9 @@ void audio_callback(Audio::msg_t m) {
 
     case Audio::evt_bitrate:
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {           // Non-blocking (0 timeout)
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {        
           strncpy(streamMetadata.bitRate, m.msg, METADATA_BUFFER_SIZE - 1);
-          streamMetadata.bitRate[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.bitRate[METADATA_BUFFER_SIZE - 1] = '\0';  
           streamMetadata.received = true;
           xSemaphoreGive(metadataMutex);
         }
@@ -1357,10 +1429,10 @@ void audio_callback(Audio::msg_t m) {
       // ID3 tag data (artist, album, title)
       // Store as track info if no StreamTitle is available
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {  // Non-blocking
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {  
           if (strlen(streamMetadata.id3data) == 0) {
             strncpy(streamMetadata.id3data, m.msg, METADATA_BUFFER_SIZE - 1);
-            streamMetadata.id3data[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+            streamMetadata.id3data[METADATA_BUFFER_SIZE - 1] = '\0'; 
             streamMetadata.received = true;
           }
           xSemaphoreGive(metadataMutex);
@@ -1369,15 +1441,14 @@ void audio_callback(Audio::msg_t m) {
       break;
 
     case Audio::evt_eof:
-      // End of stream
       isPlaying = false;
       break;
 
     case Audio::evt_info:
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {        // Non-blocking
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {        
           strncpy(streamMetadata.info, m.msg, METADATA_BUFFER_SIZE - 1);
-          streamMetadata.info[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.info[METADATA_BUFFER_SIZE - 1] = '\0'; 
           streamMetadata.received = true;
           xSemaphoreGive(metadataMutex);
         }
@@ -1385,11 +1456,10 @@ void audio_callback(Audio::msg_t m) {
       break;
 
     case Audio::evt_lyrics:
-      // Song lyrics from stream
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {          // Non-blocking
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {       
           strncpy(streamMetadata.lyrics, m.msg, METADATA_BUFFER_SIZE - 1);
-          streamMetadata.lyrics[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.lyrics[METADATA_BUFFER_SIZE - 1] = '\0';  
           streamMetadata.received = true;
           xSemaphoreGive(metadataMutex);
         }
@@ -1397,11 +1467,10 @@ void audio_callback(Audio::msg_t m) {
       break;
 
     case Audio::evt_log:
-      // Log messages from audio library
       if (m.msg && strlen(m.msg) > 0 && metadataMutex) {
-        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {       // Non-blocking
+        if (xSemaphoreTake(metadataMutex, 0) == pdTRUE) {    
           strncpy(streamMetadata.log, m.msg, METADATA_BUFFER_SIZE - 1);
-          streamMetadata.log[METADATA_BUFFER_SIZE - 1] = '\0';  // Ensure null termination
+          streamMetadata.log[METADATA_BUFFER_SIZE - 1] = '\0';  
           streamMetadata.received = true;
           xSemaphoreGive(metadataMutex);
         }
@@ -1409,7 +1478,6 @@ void audio_callback(Audio::msg_t m) {
       break;
 
     default:
-      // Other events - ignore silently
       break;
   }
 }
@@ -1418,7 +1486,6 @@ void audio_callback(Audio::msg_t m) {
  * Initialize audio system and connect to radio stream
  */
 void initializeAudio() {
-  // IMPORTANT: Set pinout BEFORE any other audio operations
   // This ensures I2S channel is properly initialized
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
 
@@ -1430,7 +1497,8 @@ void initializeAudio() {
 
   // Configure audio buffer sizes for stability with high bitrate streams
   // Larger buffers = more stable playback but higher latency
-  audio.setConnectionTimeout(500, 2700);  // Increase connection timeouts (ms, ms)
+  audio.setConnectionTimeout(500, 2700); 
+
 
   Audio::audio_info_callback = audio_callback;
 }
@@ -1518,12 +1586,6 @@ void initializeRadioWindow() {
   // Clear any existing child components
   clearChildComponents(radioWindow);
 
-  // Add a label for the now playing area
-  MacComponent* nowPlayingLabel =
-      createLabelComponent(15, 40, 180, 20, 100, "Now Playing:", MAC_BLACK);
-  nowPlayingLabel->onClick = onComponentClick;
-  addChildComponent(radioWindow, nowPlayingLabel);
-
   // Main playback controls - larger and centered
   MacComponent* btnPrev = createButtonComponent(30, 165, 50, 50, 4, "", SYMBOL_PREV);
   btnPrev->onClick = onComponentClick;
@@ -1533,7 +1595,7 @@ void initializeRadioWindow() {
   btnPlay->onClick = onComponentClick;
   addChildComponent(radioWindow, btnPlay);
 
-  MacComponent* btnStation = createButtonComponent(300, 165, 50, 50, btnStationID, "", SYMBOL_LIST);
+  MacComponent* btnStation = createButtonComponent(350, 165, 50, 50, btnStationID, "", SYMBOL_LIST);
   btnStation->onClick = onComponentClick;
   addChildComponent(radioWindow, btnStation);
 
@@ -1541,8 +1603,8 @@ void initializeRadioWindow() {
   btnNext->onClick = onComponentClick;
   addChildComponent(radioWindow, btnNext);
 
-  MacComponent* txtRadioName = createRunningTextComponent(10, 40,   // x, y position
-                                                          400, 25,  // width, height
+  MacComponent* txtRadioName = createRunningTextComponent(20, 40,   // x, y position
+                                                          380, 25,  // width, height
                                                           200,      // component ID
                                                           currentStationName,
                                                           2,  // scroll speed (2 pixels per update)
@@ -1553,8 +1615,8 @@ void initializeRadioWindow() {
   addChildComponent(radioWindow, txtRadioName);
 
   MacComponent* txtRadioDetails =
-      createRunningTextComponent(10, 70,     // x, y position
-                                 400, 15,    // width, height
+      createRunningTextComponent(20, 70,     // x, y position
+                                 200, 20,    // width, height
                                  201,        // component ID
                                  "Standby waiting for metadata ...",
                                  2,          // scroll speed (2 pixels per update)
@@ -1564,8 +1626,8 @@ void initializeRadioWindow() {
   txtRadioDetails->onClick = onComponentClick;
   addChildComponent(radioWindow, txtRadioDetails);
 
-  MacComponent* txtBitRate = createRunningTextComponent(10, 80,   // x, y position
-                                                        400, 15,  // width, height
+  MacComponent* txtBitRate = createRunningTextComponent(20, 85,   // x, y position
+                                                        200, 20,  // width, height
                                                         203,      // component ID
                                                         "Bitrate: N/A",
                                                         2,  // scroll speed (2 pixels per update)
@@ -1574,8 +1636,8 @@ void initializeRadioWindow() {
   );
   addChildComponent(radioWindow, txtBitRate);
 
-  MacComponent* txtID3 = createRunningTextComponent(10, 90,   // x, y position
-                                                    400, 15,  // width, height
+  MacComponent* txtID3 = createRunningTextComponent(20, 100,   // x, y position
+                                                    200, 20,  // width, height
                                                     204,      // component ID
                                                     "ID3: N/A",
                                                     2,        // scroll speed (2 pixels per update)
@@ -1584,10 +1646,10 @@ void initializeRadioWindow() {
   );
   addChildComponent(radioWindow, txtID3);
 
-  MacComponent* txtInfo = createRunningTextComponent(10, 100,  // x, y position
-                                                     400, 15,  // width, height
+  MacComponent* txtInfo = createRunningTextComponent(20, 115,  // x, y position
+                                                     200, 20,  // width, height
                                                      205,      // component ID
-                                                     "Info: N/A",
+                                                     "",
                                                      2,        // scroll speed (2 pixels per update)
                                                      MAC_BLACK,  // text color
                                                      1           // text size
@@ -1595,49 +1657,31 @@ void initializeRadioWindow() {
   addChildComponent(radioWindow, txtInfo);
 
   MacComponent* txtDescription =
-      createRunningTextComponent(10, 110,    // x, y position
-                                 400, 15,    // width, height
+      createRunningTextComponent(20, 130,    // x, y position
+                                 200, 20,    // width, height
                                  206,        // component ID
-                                 "Description: N/A",
+                                 "",
                                  2,          // scroll speed (2 pixels per update)
                                  MAC_BLACK,  // text color
                                  1           // text size
       );
   addChildComponent(radioWindow, txtDescription);
 
-  MacComponent* txtLyrics = createRunningTextComponent(10, 120,  // x, y position
-                                                       400, 15,  // width, height
-                                                       207,      // component ID
-                                                       "Lyrics: N/A",
-                                                       2,  // scroll speed (2 pixels per update)
-                                                       MAC_BLACK,  // text color
-                                                       1           // text size
-  );
-  addChildComponent(radioWindow, txtLyrics);
-
-  MacComponent* txtLog = createRunningTextComponent(10, 130,  // x, y position
-                                                    400, 15,  // width, height
-                                                    208,      // component ID
-                                                    "Log: N/A",
-                                                    2,        // scroll speed (2 pixels per update)
-                                                    MAC_BLACK,  // text color
-                                                    1           // text size
-  );
-  addChildComponent(radioWindow, txtLog);
-
+  #if ENABLE_DEBUG 
   // Add CPU usage label at the bottom
   MacComponent* cpuLabel = createLabelComponent(0, 6, 200, 15, 202, "CPU0: 0% CPU1: 0%", MAC_BLACK);
   cpuLabel->onClick = onComponentClick;
   addChildComponent(radioWindow, cpuLabel);
+  #endif
 
   // Volume controls - smaller, positioned on the right
-  // MacComponent* btnVolUp = createButtonComponent(300, 70, 45, 35, 3, "", SYMBOL_VOL_UP);
-  // btnVolUp->onClick = onComponentClick;
-  // addChildComponent(radioWindow, btnVolUp);
+  MacComponent* btnVolUp = createButtonComponent(200, 165, 50, 50, 3, "", SYMBOL_VOL_UP);
+  btnVolUp->onClick = onComponentClick;
+  addChildComponent(radioWindow, btnVolUp);
 
-  // MacComponent* btnVolDn = createButtonComponent(300, 110, 45, 35, 6, "", SYMBOL_VOL_DOWN);
-  // btnVolDn->onClick = onComponentClick;
-  // addChildComponent(radioWindow, btnVolDn);
+  MacComponent* btnVolDn = createButtonComponent(250, 165, 50, 50, 6, "", SYMBOL_VOL_DOWN);
+  btnVolDn->onClick = onComponentClick;
+  addChildComponent(radioWindow, btnVolDn);
 }
 
 // ===== STATION LIST DATA =====
@@ -1739,18 +1783,16 @@ void switchToStation(int index) {
   if (playButton && playButton->customData) {
     MacButton* btnData = (MacButton*)playButton->customData;
     if (btnData) {
-      // Connect to the selected station
-      bool connected = audio.connecttohost(station.url.c_str());
+      // Send connect command to audio task for thread-safe connection
+      AudioCommandMsg msg = {CMD_CONNECT, ""};
+      strncpy(msg.url, station.url.c_str(), sizeof(msg.url) - 1);
+      xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
 
-      if (connected) {
-        isPlaying = true;
-        btnData->symbol = SYMBOL_PAUSE;
-        ConfigManager::setLastStation(station.name);
-      } else {
-        isPlaying = false;
-        btnData->symbol = SYMBOL_PLAY;
-        updateStationMetadata(currentStationName, "Connection failed");
-      }
+      // Assume connection will succeed (audio task will update isPlaying)
+      isPlaying = true;
+      btnData->symbol = SYMBOL_PAUSE;
+      LastStation lastStation = {station.name, station.url};
+      ConfigManager::setLastStation(lastStation);
     }
   }
 }

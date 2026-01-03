@@ -7,12 +7,15 @@
 #include "MacUI.h"
 
 void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListView& listView) {
-  // Draw background with 3D inset frame
-  draw3DFrame(lcd, x, y, w, h, true);
-  lcd.fillRect(x + 2, y + 2, w - 4, h - 4, listView.backgroundColor);
+  // Only draw frame on full redraw (not during scrolling)
+  if (listView.needsFullRedraw) {
+    draw3DFrame(lcd, x, y, w, h, true);
+    listView.needsFullRedraw = false;
+  }
 
   if (listView.items == nullptr || listView.itemCount == 0) {
     // Draw "No items" message
+    lcd.fillRect(x + 2, y + 2, w - 4, h - 4, listView.backgroundColor);
     lcd.setTextColor(MAC_GRAY, listView.backgroundColor);
     lcd.setTextSize(1);
     lcd.setCursor(x + 10, y + h / 2);
@@ -31,9 +34,9 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
   int visibleHeight = h - 4;
   int maxVisibleItems = visibleHeight / listView.itemHeight;
   int startIndex = listView.scrollOffset / listView.itemHeight;
-  int endIndex = min(startIndex + maxVisibleItems + 1, listView.itemCount);
+  int endIndex = min(startIndex + maxVisibleItems + 2, listView.itemCount);
 
-  // Draw visible items
+  // Draw visible items directly to screen (sprite disabled to save RAM)
   for (int i = startIndex; i < endIndex; i++) {
     int itemY = y + 2 + (i * listView.itemHeight) - listView.scrollOffset;
 
@@ -78,10 +81,6 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
     int scrollbarY = y + 2;
     int scrollbarHeight = h - 4;
 
-    // Draw scrollbar track
-    lcd.fillRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_LIGHT_GRAY);
-    lcd.drawRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_DARK_GRAY);
-
     // Calculate thumb size and position
     int totalContentHeight = listView.itemCount * listView.itemHeight;
     int thumbHeight = max(20, (scrollbarHeight * visibleHeight) / totalContentHeight);
@@ -89,9 +88,19 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
     int thumbY =
         scrollbarY + ((listView.scrollOffset * (scrollbarHeight - thumbHeight)) / maxScroll);
 
-    // Draw scrollbar thumb
-    lcd.fillRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_GRAY);
-    lcd.drawRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_BLACK);
+    // Only redraw scrollbar if thumb position changed significantly (reduce flicker)
+    if (abs(thumbY - listView.lastScrollbarThumbY) > 2 || listView.needsFullRedraw) {
+      // Draw scrollbar track
+      lcd.fillRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_LIGHT_GRAY);
+      lcd.drawRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_DARK_GRAY);
+
+      // Draw scrollbar thumb
+      lcd.fillRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_GRAY);
+      lcd.drawRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_BLACK);
+
+      // Update last thumb position
+      listView.lastScrollbarThumbY = thumbY;
+    }
   }
 }
 
@@ -117,6 +126,8 @@ MacComponent* createListViewComponent(int x, int y, int w, int h, int id, MacLis
   listViewData->lastTouchY = 0;
   listViewData->touchStartY = 0;
   listViewData->touchStartTime = 0;
+  listViewData->needsFullRedraw = true;  // First draw should be full
+  listViewData->lastScrollbarThumbY = -1;  // Initialize to invalid position
 
   component->customData = listViewData;
   return component;

@@ -14,7 +14,7 @@
 #include <LittleFS.h>
 
 // Maximum stations supported
-#define MAX_STATIONS 50
+#define MAX_STATIONS 30  // Reduced from 50 to save ~10KB RAM
 
 // Configuration file paths
 #define SETTINGS_FILE "/settings.json"
@@ -26,6 +26,9 @@ struct Station {
   String url;
 };
 
+// Last station data structure (same as Station)
+typedef Station LastStation;
+
 class ConfigManager {
  public:
   // Initialize the configuration manager
@@ -36,8 +39,8 @@ class ConfigManager {
   static bool saveSettings();
   static int getVolume();
   static void setVolume(int volume);
-  static String getLastStation();
-  static void setLastStation(const String& stationName);
+  static LastStation getLastStation();
+  static void setLastStation(const LastStation& station);
 
   // Station list management
   static bool loadStations();
@@ -56,7 +59,7 @@ class ConfigManager {
  private:
   // Current settings
   static int volume;
-  static String lastStation;
+  static LastStation lastStation;
 
   // Station list
   static Station stations[MAX_STATIONS];
