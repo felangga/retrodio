@@ -117,6 +117,9 @@ void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
   int textY = y + (h - 16) / 2;
   lcd.setCursor(textX, textY);
   lcd.print(text);
+
+  // Reset font to default
+  lcd.setFont(nullptr);
 }
 
 /**
@@ -170,6 +173,7 @@ MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const St
   buttonData->text = text;
   buttonData->symbol = symbol;
   buttonData->pressed = false;
+  buttonData->font = FONT_DEFAULT;  // Default font
 
   component->customData = buttonData;
   return component;

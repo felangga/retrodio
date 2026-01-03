@@ -13,6 +13,23 @@ lgfx::LGFX_Sprite* componentSprite = nullptr;
 lgfx::LGFX_Sprite* windowSprite = nullptr;
 
 /**
+ * Convert FontType enum to GFXfont pointer
+ */
+const GFXfont* getFontFromType(FontType fontType) {
+  switch (fontType) {
+    case FONT_CHICAGO_9PT:
+      return CHICAGO9_FONT;
+    case FONT_CHICAGO_11PT:
+      return CHICAGO11_FONT;
+    case FONT_CHICAGO_14PT:
+      return CHICAGO14_FONT;
+    case FONT_DEFAULT:
+    default:
+      return nullptr;
+  }
+}
+
+/**
  * Initialize sprite buffer for double buffering
  * Call this once during setup after lcd.init()
  */
@@ -42,30 +59,28 @@ void initComponentBuffer(lgfx::LGFX_Device* lcd, int maxWidth, int maxHeight) {
  * Draw the classic Mac OS menu bar
  */
 void drawMenuBar(lgfx::LGFX_Device& lcd, const String& appName) {
-  // Draw menu bar background
   lcd.fillRect(0, 0, screenWidth, 20, MAC_WHITE);
   lcd.drawFastHLine(0, 20, screenWidth, MAC_BLACK);
 
   lcd.fillCircle(15, 10, 6, MAC_BLACK);
   lcd.fillCircle(18, 7, 3, MAC_WHITE);
 
-  // Draw menu items
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  lcd.setTextSize(1);
-  lcd.setCursor(30, 6);
-  lcd.print(appName);
+  lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+  lcd.setTextDatum(textdatum_t::middle_left);
+  lcd.drawString(appName, 30, 10);
+  lcd.setFont(nullptr);  
 }
 
 void drawClock(lgfx::LGFX_Device& lcd, const String& time) {
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  lcd.fillRect(screenWidth - 60, 0, 80, 20, MAC_WHITE);
-  lcd.setCursor(screenWidth - 60, 6);
-  lcd.print(time);
+  lcd.fillRect(screenWidth - 80, 0, 80, 20, MAC_WHITE);
+  lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+  lcd.setTextDatum(textdatum_t::middle_left);
+  lcd.drawString(time, screenWidth - 80, 10);
+  lcd.setFont(nullptr); 
 }
 
-/**
- * Draw a classic Mac OS window with title bar
- */
 void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& title,
                 bool active) {
   // Draw window shadow
@@ -82,12 +97,12 @@ void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
   uint16_t titleColor = active ? MAC_BLACK : MAC_GRAY;
   lcd.fillRect(x + 2, y + 2, w - 4, 24, titleColor);
 
-  // Draw title text (adjusted for larger title bar)
+  // Draw title text with Chicago font (adjusted for larger title bar)
   lcd.setTextColor(MAC_WHITE, titleColor);
-  lcd.setTextSize(1);
-  int titleX = x + (w - title.length() * 6) / 2;
-  lcd.setCursor(titleX, y + 10);  // Moved down to center in larger title bar
-  lcd.print(title);
+  lcd.setFont(getFontFromType(FONT_CHICAGO_11PT));
+  lcd.setTextDatum(textdatum_t::middle_center);
+  lcd.drawString(title, x + w / 2, y + 14);
+  lcd.setFont(nullptr);  // Reset to default font
 
   lcd.fillRect(x + w - 24, y + 4, 18, 18, MAC_WHITE);
   lcd.drawRect(x + w - 24, y + 4, 18, 18, MAC_BLACK);
@@ -103,13 +118,9 @@ void drawWindow(lgfx::LGFX_Device& lcd, const MacWindow& window) {
   if (!window.visible)
     return;
 
-  // Draw full window
   drawWindow(lcd, window.x, window.y, window.w, window.h, window.title, window.active);
 
-  // Skip drawing child components during drag to reduce flicker
-  // They'll be redrawn once the drag ends
   if (!window.isDragging) {
-    // Draw all child components (flexible system)
     drawWindowChildComponents(lcd, window);
   }
 }
@@ -119,7 +130,8 @@ void drawWindow(lgfx::LGFX_Device& lcd, const MacWindow& window) {
 bool isInsideCloseButton(const MacWindow& window, int tx, int ty) {
   if (!window.visible)
     return false;
-  int buttonHeight = 16;  // Now consistent 16 pixels for both normal and minimized
+
+  int buttonHeight = 16;  
   int buttonY = window.y + 4;
   return tx >= window.x + 4 && tx < window.x + 20 && ty >= buttonY && ty < buttonY + buttonHeight;
 }

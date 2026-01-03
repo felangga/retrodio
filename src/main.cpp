@@ -939,7 +939,10 @@ void uiTask(void* parameter) {
 
   while (true) {
     updateClock();
-    // updateCPUUsage();
+
+    #if ENABLE_DEBUG
+    updateCPUUsage();
+    #endif
 
     // Handle global keyboard input first if visible
     // if (globalKeyboard) {
@@ -1112,7 +1115,7 @@ void uiTask(void* parameter) {
             MacComponent* txtDescription = findComponentById(radioWindow, 206);
             if (txtDescription && txtDescription->customData) {
               MacRunningText* runningText = (MacRunningText*)txtDescription->customData;
-              runningText->text = "Description: " + description;
+              runningText->text = description;
               runningText->scrollOffset = 0;
               lastDisplayedDescription = description;
             }
@@ -1604,14 +1607,17 @@ void initializeRadioWindow() {
   addChildComponent(radioWindow, btnNext);
 
   MacComponent* txtRadioName = createRunningTextComponent(20, 40,   // x, y position
-                                                          380, 25,  // width, height
+                                                          380, 30,  // width, height
                                                           200,      // component ID
                                                           currentStationName,
                                                           2,  // scroll speed (2 pixels per update)
                                                           MAC_BLACK,  // text color
-                                                          3           // text size
+                                                          1           // text size
   );
   txtRadioName->onClick = onComponentClick;
+
+  FontType font = FONT_CHICAGO_14PT;
+  updateRunningTextProperties(txtRadioName, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &font);
   addChildComponent(radioWindow, txtRadioName);
 
   MacComponent* txtRadioDetails =
