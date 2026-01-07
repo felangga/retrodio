@@ -329,15 +329,16 @@ void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon);
 bool isInsideDesktopIcon(const DesktopIcon& icon, int tx, int ty);
 void redrawDesktopArea(lgfx::LGFX_Device& lcd);
 
-// ===== DOUBLE BUFFERING HELPERS =====
-void prepareBackgroundSprite(lgfx::LGFX_Device& lcd);
-void restoreBackgroundFromSprite(lgfx::LGFX_Device& lcd, int x, int y, int w, int h);
-
 // ===== WINDOW MANAGER =====
+// Multi-window management for proper layering and refresh
 void registerWindow(MacWindow* window);
 void unregisterWindow(MacWindow* window);
 void redrawAllWindows(lgfx::LGFX_Device& lcd);
 void redrawAllWindowsExcept(lgfx::LGFX_Device& lcd, MacWindow* exceptWindow);
 void showWindowOnTop(lgfx::LGFX_Device& lcd, MacWindow& window);
+
+// ===== DOUBLE BUFFERING =====
+// Internal helper for flicker-free window dragging
+void renderToSprite(MacWindow* draggedWindow);
 
 #endif
