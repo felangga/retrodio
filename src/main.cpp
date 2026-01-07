@@ -292,39 +292,13 @@ void onComponentClick(int componentId) {
       onVolDown();
       break;
     case btnStationID:  // Station List Button
-      // Clear the old window area first to prevent visual artifacts
-      drawCheckeredPatternArea(lcd, radioWindow.x, radioWindow.y, radioWindow.w, radioWindow.h);
-
-      // Hide radio window immediately to stop event processing
-      radioWindow.visible = false;
-
-      // Wait for touch release to prevent button redraw on new window
-      {
-        int tx, ty;
-        delay(200);
-        while (lcd.getTouch(&tx, &ty)) {
-          delay(10);
-        }
-        delay(50);  // Extra delay to ensure touch system is clear
-      }
-
-      // Redraw background and menu bar for clean slate
-      drawCheckeredPattern(lcd);
-      drawMenuBar(lcd, "Retrodio");
 
       // Show station window
-      stationWindow.visible = true;
-      stationWindow.minimized = false;
-      drawWindow(lcd, stationWindow);
+      showWindowOnTop(lcd, stationWindow);
       break;
 
-    case btnAddStationID:  // Add Station Button
-      displayStatus(lcd, "Opening Add Station", 160);
-
-      // Clear the old window area first to prevent visual artifacts
-      drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w,
-                               stationWindow.h);
-
+    case btnAddStationID: 
+      
       // Hide station window immediately to stop event processing
       stationWindow.visible = false;
 
@@ -341,8 +315,7 @@ void onComponentClick(int componentId) {
       // Show add station window
       addStationWindow.visible = true;
       addStationWindow.minimized = false;
-      drawCheckeredPattern(lcd);
-      drawMenuBar(lcd, "Retrodio");
+      
       drawWindow(lcd, addStationWindow);
       break;
 
@@ -395,8 +368,7 @@ void onComponentClick(int componentId) {
 
       addStationWindow.visible = false;
       stationWindow.visible = true;
-      drawCheckeredPattern(lcd);
-      drawMenuBar(lcd, "Retrodio");
+    
       drawWindow(lcd, stationWindow);
       break;
 
@@ -409,8 +381,7 @@ void onComponentClick(int componentId) {
 
       addStationWindow.visible = false;
       stationWindow.visible = true;
-      drawCheckeredPattern(lcd);
-      drawMenuBar(lcd, "Retrodio");
+     
       drawWindow(lcd, stationWindow);
       break;
 
@@ -579,26 +550,16 @@ void onWindowMoved() {
 
 // Station window callbacks
 void onStationWindowMinimize() {
-  // Clear the old window area first to prevent visual artifacts
-  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w, stationWindow.h);
-
-  // Close station window and return to radio window
   stationWindow.visible = false;
   radioWindow.visible = true;
-  drawCheckeredPattern(lcd);
-  drawMenuBar(lcd, "Retrodio");
+
   drawWindow(lcd, radioWindow);
 }
 
 void onStationWindowClose() {
-  // Clear the old window area first to prevent visual artifacts
-  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w, stationWindow.h);
-
-  // Close station window and return to radio window
   stationWindow.visible = false;
   radioWindow.visible = true;
-  drawCheckeredPattern(lcd);
-  drawMenuBar(lcd, "Retrodio");
+  
   drawWindow(lcd, radioWindow);
 }
 
@@ -618,15 +579,10 @@ void onAddStationWindowMinimize() {
     keyboard->visible = false;
   }
 
-  // Clear the old window area first to prevent visual artifacts
-  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w,
-                           addStationWindow.h);
-
   // Close add station window and return to station list
   addStationWindow.visible = false;
   stationWindow.visible = true;
-  drawCheckeredPattern(lcd);
-  drawMenuBar(lcd, "Retrodio");
+ 
   drawWindow(lcd, stationWindow);
 }
 
@@ -637,15 +593,9 @@ void onAddStationWindowClose() {
     keyboard->visible = false;
   }
 
-  // Clear the old window area first to prevent visual artifacts
-  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w,
-                           addStationWindow.h);
-
   // Close add station window and return to station list
   addStationWindow.visible = false;
   stationWindow.visible = true;
-  drawCheckeredPattern(lcd);
-  drawMenuBar(lcd, "Retrodio");
   drawWindow(lcd, stationWindow);
 }
 
@@ -839,6 +789,12 @@ void setup() {
     initComponentBuffer(&lcd, 420, 50);
     lcd.fillScreen(MAC_WHITE);
     drawInterface(lcd);
+    // Prepare background sprite for double buffering during window drag
+    prepareBackgroundSprite(lcd);
+    // Register all windows for proper refresh handling
+    registerWindow(&radioWindow);
+    registerWindow(&stationWindow);
+    registerWindow(&addStationWindow);
   } catch (...) {
     DEBUG_PRINTLN("FATAL: LCD initialization failed!");
     while (1)
@@ -1548,10 +1504,6 @@ void drawInterface(lgfx::LGFX_Device& lcd) {
   // This will automatically draw all child buttons
   drawWindow(lcd, radioWindow);
 
-  // Station and add station windows start hidden
-  stationWindow.visible = false;
-  addStationWindow.visible = false;
-
   // Only draw content if window is not minimized
   if (!radioWindow.minimized && radioWindow.visible) {
     redrawWindowContent(lcd, radioWindow);
@@ -1562,43 +1514,6 @@ void drawInterface(lgfx::LGFX_Device& lcd) {
 void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window) {
   if (!window.visible || window.minimized)
     return;
-
-  // Draw now playing info area at the top
-  // draw3DFrame(lcd, window.x + 10, window.y + 35, 200, 25, true);
-  // lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  // lcd.setTextSize(1);
-  // lcd.setCursor(window.x + 15, window.y + 43);
-  // if (isPlaying) {
-  //   lcd.println("♪ Now Playing: Radio Stream");
-  // } else {
-  //   lcd.println("Radio Ready - Press Play");
-  // }
-
-  // Draw spectrum visualization next to the info
-  // drawSpectrumVisualization(lcd, window.x + 220, window.y + 35, 80, 25, isPlaying);
-
-  // Draw volume indicator
-  // draw3DFrame(lcd, window.x + 310, window.y + 35, 90, 25, true);
-  // lcd.setCursor(window.x + 315, window.y + 43);
-  // lcd.printf("Volume: %d", 10);  // Fixed value instead of audio.getVolume()
-
-  // // Draw a fake progress bar area (since it's streaming, we'll show activity)
-  // draw3DFrame(lcd, window.x + 20, window.y + 160, 280, 8, true);
-  // if (isPlaying) {
-  //   // Show some activity in the progress bar
-  //   static int progressPos = 0;
-  //   progressPos = (progressPos + 5) % 260;
-  //   lcd.fillRect(window.x + 30 + progressPos, window.y + 162, 20, 4, MAC_BLUE);
-  // }
-
-  // // Draw status area at the bottom
-  // draw3DFrame(lcd, window.x + 20, window.y + 190, 280, 30, true);
-  // lcd.setCursor(window.x + 25, window.y + 200);
-  // if (isPlaying) {
-  //   lcd.println("♪ Streaming... Internet Radio v1.0");
-  // } else {
-  //   lcd.println("Ready to play - Internet Radio v1.0");
-  // }
 }
 
 // ===== DYNAMIC WINDOW SETUP =====
@@ -1848,8 +1763,7 @@ void onStationItemClick(int index, void* itemData) {
   // Close station window and show radio window
   stationWindow.visible = false;
   radioWindow.visible = true;
-  drawCheckeredPattern(lcd);
-  drawMenuBar(lcd, "Retrodio");
+
   drawWindow(lcd, radioWindow);
 }
 

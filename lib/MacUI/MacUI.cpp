@@ -12,6 +12,11 @@
 lgfx::LGFX_Sprite* componentSprite = nullptr;
 lgfx::LGFX_Sprite* windowSprite = nullptr;
 
+// Window manager - track all registered windows
+static MacWindow** registeredWindows = nullptr;
+static int registeredWindowCount = 0;
+static const int MAX_WINDOWS = 10;
+
 /**
  * Initialize sprite buffer for double buffering
  * Call this once during setup after lcd.init()
@@ -184,9 +189,11 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
           window.minimized = !window.minimized;  // Toggle minimize state
 
           if (window.minimized) {
-            // Hide the window completely and clear its area
+            // Hide the window completely and clear its area (including shadow)
             window.visible = false;
-            redrawDesktopArea(lcd, window.x, window.y, window.w, window.h);
+            lcd.startWrite();
+            drawCheckeredPatternArea(lcd, window.x, window.y, window.w + 5, window.h + 5);
+            lcd.endWrite();
           } else {
             // Restore the window
             window.visible = true;
@@ -296,17 +303,17 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
           // Draw dotted rectangle outline during drag for classic Mac look
           lcd.startWrite();
 
-          // Clear old position
-          drawCheckeredPatternArea(lcd, oldX, oldY, window.w + 5, window.h + 5);
+          // Restore old position using double buffering (more efficient)
+          restoreBackgroundFromSprite(lcd, oldX, oldY, window.w + 5, window.h + 5);
 
-          // Draw dotted rectangle at new position
+          // Draw bolder dotted rectangle at new position (2x2 pixels for each dot)
           for (int i = 0; i < window.w; i += 4) {
-            lcd.drawPixel(window.x + i, window.y, MAC_BLACK);
-            lcd.drawPixel(window.x + i, window.y + window.h - 1, MAC_BLACK);
+            lcd.fillRect(window.x + i, window.y, 2, 2, MAC_BLACK);
+            lcd.fillRect(window.x + i, window.y + window.h - 2, 2, 2, MAC_BLACK);
           }
           for (int i = 0; i < window.h; i += 4) {
-            lcd.drawPixel(window.x, window.y + i, MAC_BLACK);
-            lcd.drawPixel(window.x + window.w - 1, window.y + i, MAC_BLACK);
+            lcd.fillRect(window.x, window.y + i, 2, 2, MAC_BLACK);
+            lcd.fillRect(window.x + window.w - 2, window.y + i, 2, 2, MAC_BLACK);
           }
 
           lcd.endWrite();
@@ -334,8 +341,13 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
 
     if (window.isDragging) {
       window.isDragging = false;
-      // Redraw window with all components now that dragging has ended
+
       lcd.startWrite();
+      // Restore the background at the final position (clears the dotted outline)
+      restoreBackgroundFromSprite(lcd, window.x, window.y, window.w + 5, window.h + 5);
+      // Redraw all other windows that might have been obscured
+      redrawAllWindowsExcept(lcd, &window);
+      // Draw the dragged window at its final position with all components (on top)
       drawWindow(lcd, window);
       lcd.endWrite();
     }
@@ -390,6 +402,58 @@ void drawCheckeredPatternArea(lgfx::LGFX_Device& lcd, int startX, int startY, in
         lcd.fillRect(x, y, patternSize, patternSize, MAC_WHITE);
       }
     }
+  }
+}
+
+/**
+ * Prepare sprite buffer with checkered pattern for double buffering
+ */
+void prepareBackgroundSprite(lgfx::LGFX_Device& lcd) {
+  if (windowSprite != nullptr) {
+    // Draw checkered pattern to the sprite buffer
+    int patternSize = 3;
+    windowSprite->fillSprite(MAC_WHITE);
+
+    for (int y = 0; y < windowSprite->height(); y += patternSize) {
+      for (int x = 0; x < windowSprite->width(); x += patternSize) {
+        // Calculate absolute screen position for proper pattern alignment
+        int screenY = y + 21;  // Offset by menu bar height
+        if ((x / patternSize + screenY / patternSize) % 2 == 0) {
+          windowSprite->fillRect(x, y, patternSize, patternSize, MAC_LIGHT_GRAY);
+        } else {
+          windowSprite->fillRect(x, y, patternSize, patternSize, MAC_WHITE);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Restore background area from sprite buffer (for drag operations)
+ */
+void restoreBackgroundFromSprite(lgfx::LGFX_Device& lcd, int x, int y, int w, int h) {
+  if (windowSprite != nullptr) {
+    // Calculate source coordinates in sprite (accounting for menu bar offset)
+    int srcX = x;
+    int srcY = max(0, y - 21);  // Sprite starts at y=21 on screen
+
+    // Constrain to sprite bounds
+    int spriteW = (w < windowSprite->width() - srcX) ? w : (windowSprite->width() - srcX);
+    int spriteH = (h < windowSprite->height() - srcY) ? h : (windowSprite->height() - srcY);
+
+    if (spriteW > 0 && spriteH > 0) {
+      // Read pixels from sprite and draw to LCD line by line
+      uint16_t* srcBuffer = (uint16_t*)windowSprite->getBuffer();
+      int spriteWidth = windowSprite->width();
+
+      for (int row = 0; row < spriteH; row++) {
+        int srcOffset = (srcY + row) * spriteWidth + srcX;
+        lcd.pushImage(x, y + row, spriteW, 1, srcBuffer + srcOffset);
+      }
+    }
+  } else {
+    // Fallback: draw checkered pattern directly
+    drawCheckeredPatternArea(lcd, x, y, w, h);
   }
 }
 
@@ -472,7 +536,7 @@ void displayStatus(lgfx::LGFX_Device& lcd, const String& message, int y) {
 /**
  * Redraw desktop area with proper background pattern
  */
-void redrawDesktopArea(lgfx::LGFX_Device& lcd, int x, int y, int w, int h) {
+void redrawDesktopArea(lgfx::LGFX_Device& lcd) {
   drawCheckeredPattern(lcd);
 }
 
@@ -750,8 +814,10 @@ void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window) {
   // Restore window when icon is clicked
   window.minimized = false;
   window.visible = true;
-  // Trigger a full interface redraw to show the restored window
-  drawWindow(lcd, window);
+  // Redraw all windows to ensure proper layering and refresh
+  lcd.startWrite();
+  redrawAllWindows(lcd);
+  lcd.endWrite();
 }
 
 void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int relativeX,
@@ -825,4 +891,85 @@ void handleWindowMoved(lgfx::LGFX_Device& lcd, MacWindow& window) {
   // During dragging, don't constantly redraw - the drawing happens in interactiveWindow
   // This callback is just for notification purposes
   // Components are positioned relative to window, so no updates needed
+}
+
+// ===== WINDOW MANAGER IMPLEMENTATION =====
+
+/**
+ * Register a window to be tracked by the window manager
+ */
+void registerWindow(MacWindow* window) {
+  if (registeredWindows == nullptr) {
+    registeredWindows = new MacWindow*[MAX_WINDOWS];
+    for (int i = 0; i < MAX_WINDOWS; i++) {
+      registeredWindows[i] = nullptr;
+    }
+  }
+
+  // Find empty slot
+  for (int i = 0; i < MAX_WINDOWS; i++) {
+    if (registeredWindows[i] == nullptr) {
+      registeredWindows[i] = window;
+      registeredWindowCount++;
+      return;
+    }
+  }
+}
+
+/**
+ * Unregister a window from the window manager
+ */
+void unregisterWindow(MacWindow* window) {
+  if (registeredWindows == nullptr) return;
+
+  for (int i = 0; i < MAX_WINDOWS; i++) {
+    if (registeredWindows[i] == window) {
+      registeredWindows[i] = nullptr;
+      registeredWindowCount--;
+      return;
+    }
+  }
+}
+
+/**
+ * Redraw all registered windows
+ */
+void redrawAllWindows(lgfx::LGFX_Device& lcd) {
+  if (registeredWindows == nullptr) return;
+
+  for (int i = 0; i < MAX_WINDOWS; i++) {
+    if (registeredWindows[i] != nullptr && registeredWindows[i]->visible) {
+      drawWindow(lcd, *registeredWindows[i]);
+    }
+  }
+}
+
+/**
+ * Redraw all registered windows except the specified one
+ */
+void redrawAllWindowsExcept(lgfx::LGFX_Device& lcd, MacWindow* exceptWindow) {
+  if (registeredWindows == nullptr) return;
+
+  for (int i = 0; i < MAX_WINDOWS; i++) {
+    if (registeredWindows[i] != nullptr &&
+        registeredWindows[i] != exceptWindow &&
+        registeredWindows[i]->visible) {
+      drawWindow(lcd, *registeredWindows[i]);
+    }
+  }
+}
+
+/**
+ * Show a window on top of all others (makes it visible and redraws all windows)
+ */
+void showWindowOnTop(lgfx::LGFX_Device& lcd, MacWindow& window) {
+  window.visible = true;
+  window.minimized = false;
+
+  lcd.startWrite();
+  // Redraw all other windows first
+  redrawAllWindowsExcept(lcd, &window);
+  // Draw the target window on top
+  drawWindow(lcd, window);
+  lcd.endWrite();
 }
