@@ -465,7 +465,8 @@ void onPlay() {
 }
 
 void onStop() {
-  if (isPlaying) {
+  // CRITICAL: Only send stop command if audio is actually running
+  if (isPlaying && audio.isRunning()) {
     AudioCommandMsg msg = {CMD_STOP, ""};
     xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
   }
@@ -870,32 +871,30 @@ void setup() {
   initializeAudio();
 
   // Restore volume from config AFTER audio initialization
-  if (ConfigManager::begin()) {
-    audio.setVolume(ConfigManager::getVolume());
+  audio.setVolume(ConfigManager::getVolume());
 
-    // Auto-play last station if available
-    LastStation lastStation = ConfigManager::getLastStation();
-    if (lastStation.name.length() > 0 && lastStation.url.length() > 0) {
-      currentStationName = lastStation.name;
-      RadioURL = lastStation.url;
+  // Auto-play last station if available
+  LastStation lastStation = ConfigManager::getLastStation();
+  if (lastStation.name.length() > 0 && lastStation.url.length() > 0) {
+    currentStationName = lastStation.name;
+    RadioURL = lastStation.url;
 
-      // Find the station index (for prev/next navigation)
-      int stationCount = ConfigManager::getStationCount();
-      for (int i = 0; i < stationCount; i++) {
-        Station station = ConfigManager::getStation(i);
-        if (station.name == lastStation.name) {
-          currentStationIndex = i;
-          break;
-        }
+    // Find the station index (for prev/next navigation)
+    int stationCount = ConfigManager::getStationCount();
+    for (int i = 0; i < stationCount; i++) {
+      Station station = ConfigManager::getStation(i);
+      if (station.name == lastStation.name) {
+        currentStationIndex = i;
+        break;
       }
     }
   }
 
   // Create UI task on Core 1 (default Arduino core)
-  // Optimized stack size to save RAM
+  // CRITICAL: Increased stack size to prevent overflow crashes
   xTaskCreatePinnedToCore(uiTask,     // Task function
                           "UI_Task",  // Task name
-                          6144,       // Stack size (bytes) 
+                          8192,       // Stack size (bytes) - Increased to 8KB for stability
                           NULL,       // Parameter
                           1,          // Priority (lower than audio)
                           &uiTaskHandle,  // Task handle
@@ -903,10 +902,10 @@ void setup() {
   );
 
   // Create Audio task on Core 0 (background core)
-  // Optimized stack size to save RAM
+  // CRITICAL: Increased stack size to prevent overflow crashes
   xTaskCreatePinnedToCore(audioTask,     // Task function
                           "Audio_Task",  // Task name
-                          12288,  // Stack size (bytes) - Reduced from 16KB to 12KB
+                          16384,  // Stack size (bytes) - Increased to 16KB for stability
                           NULL,   // Parameter
                           2,      // Priority (same as UI - balanced approach)
                           &audioTaskHandle,  // Task handle
@@ -915,14 +914,18 @@ void setup() {
 
   // Auto-play last station if it was loaded
   if (RadioURL.length() > 0) {
-    delay(500);  // Wait for tasks to initialize
+    // CRITICAL: Wait longer for audio task to fully initialize (500ms internal delay + buffer)
+    delay(1000);  // Wait for tasks to initialize
     AudioCommandMsg msg = {CMD_CONNECT, ""};
     strncpy(msg.url, RadioURL.c_str(), sizeof(msg.url) - 1);
-    xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
-    isPlaying = true;
+    msg.url[sizeof(msg.url) - 1] = '\0';  // Ensure null termination
 
-    // Update play button to pause symbol
-    updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);
+    // Only send if queue is ready
+    if (xQueueSend(audioCommandQueue, &msg, pdMS_TO_TICKS(500)) == pdTRUE) {
+      isPlaying = true;
+      // Update play button to pause symbol
+      updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);
+    }
   }
 }
 
@@ -1211,20 +1214,38 @@ void uiTask(void* parameter) {
 
 // Audio Task - runs on Core 0 (background core)
 void audioTask(void* parameter) {
+  // Wait for audio system to fully initialize
+  vTaskDelay(pdMS_TO_TICKS(500));
+
   while (true) {
     // Check for commands from UI task (non-blocking)
     AudioCommandMsg msg;
     if (xQueueReceive(audioCommandQueue, &msg, 0) == pdTRUE) {
       switch (msg.cmd) {
         case CMD_CONNECT:
+          // CRITICAL: Only stop if currently running to prevent I2S crash
+          if (isPlaying && audio.isRunning()) {
+            audio.stopSong();
+            vTaskDelay(pdMS_TO_TICKS(200));  // Allow full cleanup
+            isPlaying = false;
+          }
+
           // Connect to stream (safe to call from audio task)
           if (audio.connecttohost(msg.url)) {
             isPlaying = true;
+          } else {
+            isPlaying = false;  // Connection failed
           }
           break;
         case CMD_STOP:
-          audio.stopSong();
-          isPlaying = false;
+          // CRITICAL: Only stop if audio is actually running
+          if (audio.isRunning()) {
+            audio.stopSong();
+            vTaskDelay(pdMS_TO_TICKS(100));  // Allow I2S cleanup
+            isPlaying = false;
+          } else {
+            isPlaying = false;  // Mark as stopped even if not running
+          }
           break;
         default:
           break;
@@ -1496,8 +1517,8 @@ void initializeAudio() {
   audio.setVolume(DEFAULT_VOLUME);
 
   // Configure audio buffer sizes for stability with high bitrate streams
-  // Larger buffers = more stable playback but higher latency
-  audio.setConnectionTimeout(500, 2700); 
+  // CRITICAL: Increased timeout to prevent premature disconnections causing crashes
+  audio.setConnectionTimeout(1000, 5000);  // 1s initial, 5s reconnect timeout
 
 
   Audio::audio_info_callback = audio_callback;
@@ -1692,27 +1713,41 @@ int stationItemCount = 0;
 
 // Helper function to reload station list from ConfigManager
 void reloadStationList() {
-  // Free old array if it exists
-  if (stationItems != nullptr) {
-    delete[] stationItems;
-    stationItems = nullptr;
-  }
+  // CRITICAL FIX: Prevent use-after-free by saving old pointer and delaying deletion
+  MacListViewItem* oldItems = stationItems;
+  int oldCount = stationItemCount;
 
   // Get station count from ConfigManager
   stationItemCount = ConfigManager::getStationCount();
 
   if (stationItemCount == 0) {
+    stationItems = nullptr;
+    // Safe to delete old items now
+    if (oldItems != nullptr) {
+      delete[] oldItems;
+    }
     return;
   }
 
   // Allocate new array
-  stationItems = new MacListViewItem[stationItemCount];
+  MacListViewItem* newItems = new MacListViewItem[stationItemCount];
 
   // Load stations from ConfigManager
   for (int i = 0; i < stationItemCount; i++) {
     Station station = ConfigManager::getStation(i);
-    stationItems[i].text = station.name;
-    stationItems[i].data = nullptr;  // URL stored in ConfigManager
+    newItems[i].text = station.name;
+    newItems[i].data = nullptr;  // URL stored in ConfigManager
+  }
+
+  // Atomically swap the pointer - prevents UI from accessing during transition
+  stationItems = newItems;
+
+  // Brief delay to ensure UI task isn't mid-access (not perfect but helps)
+  vTaskDelay(pdMS_TO_TICKS(50));
+
+  // Now safe to delete old items
+  if (oldItems != nullptr) {
+    delete[] oldItems;
   }
 }
 
@@ -1771,11 +1806,15 @@ void switchToStation(int index) {
   // Update details to show connecting
   updateStationMetadata(currentStationName, "Connecting...");
 
-  // Stop current playback if playing
-  if (isPlaying) {
-    audio.stopSong();
-    isPlaying = false;  // Set to false immediately
-    delay(200);         // Give audio time to fully stop and release resources
+  // CRITICAL: Use command queue to stop playback safely (avoid race conditions)
+  if (isPlaying && audio.isRunning()) {
+    AudioCommandMsg stopMsg = {CMD_STOP, ""};
+    xQueueSend(audioCommandQueue, &stopMsg, portMAX_DELAY);
+    isPlaying = false;
+    vTaskDelay(pdMS_TO_TICKS(200));  // Give audio task time to fully stop
+  } else {
+    // Not actually playing, just reset state
+    isPlaying = false;
   }
 
   // Update play button symbol data (without drawing immediately)
@@ -1786,13 +1825,18 @@ void switchToStation(int index) {
       // Send connect command to audio task for thread-safe connection
       AudioCommandMsg msg = {CMD_CONNECT, ""};
       strncpy(msg.url, station.url.c_str(), sizeof(msg.url) - 1);
-      xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
+      msg.url[sizeof(msg.url) - 1] = '\0';  // Ensure null termination
 
-      // Assume connection will succeed (audio task will update isPlaying)
-      isPlaying = true;
-      btnData->symbol = SYMBOL_PAUSE;
-      LastStation lastStation = {station.name, station.url};
-      ConfigManager::setLastStation(lastStation);
+      if (xQueueSend(audioCommandQueue, &msg, pdMS_TO_TICKS(1000)) == pdTRUE) {
+        // Command sent successfully
+        isPlaying = true;
+        btnData->symbol = SYMBOL_PAUSE;
+        LastStation lastStation = {station.name, station.url};
+        ConfigManager::setLastStation(lastStation);
+      } else {
+        // Queue full - something is wrong
+        updateStationMetadata(currentStationName, "Error: Command queue full");
+      }
     }
   }
 }
