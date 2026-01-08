@@ -143,10 +143,8 @@ void switchToStation(int index) {
 void onStationItemClick(int index, void* itemData) {
   switchToStation(index);
 
-  stationWindow.visible = false;
-  radioWindow.visible = true;
-
-  drawWindow(lcd, radioWindow);
+  // Keep the station window open, don't switch back to radio window
+  // User can select stations and delete them without closing the window
 }
 
 void initializeRadioWindow() {
@@ -214,12 +212,17 @@ void initializeRadioWindow() {
 
 void initializeStationWindow() {
   extern const int BTN_ADD_STATION;
+  extern const int BTN_DELETE_STATION;
 
   clearChildComponents(stationWindow);
 
   MacComponent* btnAddStation = createButtonComponent(310, 42, 90, 30, BTN_ADD_STATION, "Add +");
   btnAddStation->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(stationWindow, btnAddStation);
+
+  MacComponent* btnDeleteStation = createButtonComponent(310, 77, 90, 30, BTN_DELETE_STATION, "Delete");
+  btnDeleteStation->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
+  addChildComponent(stationWindow, btnDeleteStation);
 
   MacComponent* stationList = createListViewComponent(10, 42, 290, 188, 300,
                                                       stationItems, stationItemCount, 30);
@@ -260,4 +263,22 @@ void initializeAddStationWindow() {
   MacComponent* btnCancel = createButtonComponent(180, 120, 80, 30, BTN_CANCEL_ADD_STATION, "Cancel");
   btnCancel->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(addStationWindow, btnCancel);
+}
+
+void initializeConfirmDeleteWindow() {
+  extern const int BTN_CONFIRM_YES;
+  extern const int BTN_CONFIRM_NO;
+
+  clearChildComponents(confirmDeleteWindow);
+
+  MacComponent* lblMessage = createLabelComponent(20, 45, 240, 20, 500, "Delete this station?");
+  addChildComponent(confirmDeleteWindow, lblMessage);
+
+  MacComponent* btnYes = createButtonComponent(50, 75, 80, 30, BTN_CONFIRM_YES, "Yes");
+  btnYes->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
+  addChildComponent(confirmDeleteWindow, btnYes);
+
+  MacComponent* btnNo = createButtonComponent(150, 75, 80, 30, BTN_CONFIRM_NO, "No");
+  btnNo->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
+  addChildComponent(confirmDeleteWindow, btnNo);
 }

@@ -174,6 +174,32 @@ void onAddStationWindowMoved() {
   handleWindowMoved(lcd, addStationWindow);
 }
 
+void onConfirmDeleteWindowMinimize() {
+  confirmDeleteWindow.visible = false;
+  confirmDeleteWindow.active = false;
+  stationWindow.visible = true;
+  stationWindow.active = true;
+  drawCheckeredPatternArea(lcd, confirmDeleteWindow.x, confirmDeleteWindow.y, confirmDeleteWindow.w + 5, confirmDeleteWindow.h + 5);
+  drawWindow(lcd, stationWindow);
+}
+
+void onConfirmDeleteWindowClose() {
+  confirmDeleteWindow.visible = false;
+  confirmDeleteWindow.active = false;
+  stationWindow.visible = true;
+  stationWindow.active = true;
+  drawCheckeredPatternArea(lcd, confirmDeleteWindow.x, confirmDeleteWindow.y, confirmDeleteWindow.w + 5, confirmDeleteWindow.h + 5);
+  drawWindow(lcd, stationWindow);
+}
+
+void onConfirmDeleteWindowContentClick(int relativeX, int relativeY) {
+  handleWindowContentClick(lcd, confirmDeleteWindow, relativeX, relativeY);
+}
+
+void onConfirmDeleteWindowMoved() {
+  handleWindowMoved(lcd, confirmDeleteWindow);
+}
+
 MacComponent* findComponentById(const MacWindow& window, int id);
 void updateComponentSymbol(const MacWindow& window, int componentId, SymbolType newSymbol);
 
@@ -193,6 +219,9 @@ void onComponentClick(int componentId, void* data) {
   extern const int BTN_ADD_STATION;
   extern const int BTN_SAVE_STATION;
   extern const int BTN_CANCEL_ADD_STATION;
+  extern const int BTN_DELETE_STATION;
+  extern const int BTN_CONFIRM_YES;
+  extern const int BTN_CONFIRM_NO;
 
   if (componentId == BTN_PLAY) {
     onPlay();
@@ -285,6 +314,63 @@ void onComponentClick(int componentId, void* data) {
     stationWindow.active = true;
 
     drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5, addStationWindow.h + 5);
+    drawWindow(lcd, stationWindow);
+  } else if (componentId == BTN_DELETE_STATION) {
+    // Find the station list component to get selected index
+    MacComponent* stationListComp = findComponentById(stationWindow, 300);
+
+    if (stationListComp && stationListComp->customData) {
+      MacListView* listViewData = (MacListView*)stationListComp->customData;
+
+      if (listViewData->selectedIndex >= 0 && listViewData->selectedIndex < ConfigManager::getStationCount()) {
+        // Store the station index to delete
+        stationToDeleteIndex = listViewData->selectedIndex;
+
+        // Show confirmation dialog
+        stationWindow.visible = false;
+        stationWindow.active = false;
+
+        initializeConfirmDeleteWindow();
+        confirmDeleteWindow.visible = true;
+        confirmDeleteWindow.active = true;
+
+        drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
+        drawWindow(lcd, confirmDeleteWindow);
+      }
+    }
+  } else if (componentId == BTN_CONFIRM_YES) {
+    // User confirmed deletion
+    if (stationToDeleteIndex >= 0 && stationToDeleteIndex < ConfigManager::getStationCount()) {
+      // Delete the station
+      if (ConfigManager::removeStation(stationToDeleteIndex)) {
+        // Reload the station list
+        reloadStationList();
+        initializeStationWindow();
+      }
+    }
+
+    // Reset the deletion index
+    stationToDeleteIndex = -1;
+
+    // Hide confirmation dialog and show station window
+    confirmDeleteWindow.visible = false;
+    confirmDeleteWindow.active = false;
+    stationWindow.visible = true;
+    stationWindow.active = true;
+
+    drawCheckeredPatternArea(lcd, confirmDeleteWindow.x, confirmDeleteWindow.y, confirmDeleteWindow.w + 5, confirmDeleteWindow.h + 5);
+    drawWindow(lcd, stationWindow);
+  } else if (componentId == BTN_CONFIRM_NO) {
+    // User cancelled deletion
+    stationToDeleteIndex = -1;
+
+    // Hide confirmation dialog and show station window
+    confirmDeleteWindow.visible = false;
+    confirmDeleteWindow.active = false;
+    stationWindow.visible = true;
+    stationWindow.active = true;
+
+    drawCheckeredPatternArea(lcd, confirmDeleteWindow.x, confirmDeleteWindow.y, confirmDeleteWindow.w + 5, confirmDeleteWindow.h + 5);
     drawWindow(lcd, stationWindow);
   }
 }

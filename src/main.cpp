@@ -58,6 +58,9 @@ const int BTN_STATION = 7;
 const int BTN_ADD_STATION = 8;
 const int BTN_SAVE_STATION = 9;
 const int BTN_CANCEL_ADD_STATION = 10;
+const int BTN_DELETE_STATION = 11;
+const int BTN_CONFIRM_YES = 12;
+const int BTN_CONFIRM_NO = 13;
 
 // ===== GLOBAL OBJECTS =====
 
@@ -104,9 +107,15 @@ MacWindow addStationWindow{60, 40, 360, 160, "Add Station", false, false, false,
                            onAddStationWindowContentClick, onAddStationWindowMoved,
                            nullptr, 0, false, 0, 0};
 
+MacWindow confirmDeleteWindow{100, 100, 280, 120, "Confirm Delete", false, false, false,
+                              onConfirmDeleteWindowMinimize, onConfirmDeleteWindowClose,
+                              onConfirmDeleteWindowContentClick, onConfirmDeleteWindowMoved,
+                              nullptr, 0, false, 0, 0};
+
 DesktopIcon radioIcon{50, 60, "Radio Player", "window", false, false, &radioWindow, onRadioIconClick};
 
 MacComponent* globalKeyboard = nullptr;
+int stationToDeleteIndex = -1;  // Track which station to delete
 
 // ===== HELPER FUNCTIONS =====
 
@@ -162,6 +171,7 @@ void setup() {
     registerWindow(&radioWindow);
     registerWindow(&stationWindow);
     registerWindow(&addStationWindow);
+    registerWindow(&confirmDeleteWindow);
 
   } catch (...) {
     DEBUG_PRINTLN("FATAL: LCD initialization failed!");

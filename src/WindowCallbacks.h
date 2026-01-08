@@ -30,6 +30,12 @@ void onAddStationWindowClose();
 void onAddStationWindowContentClick(int relativeX, int relativeY);
 void onAddStationWindowMoved();
 
+// Confirm Delete window callbacks
+void onConfirmDeleteWindowMinimize();
+void onConfirmDeleteWindowClose();
+void onConfirmDeleteWindowContentClick(int relativeX, int relativeY);
+void onConfirmDeleteWindowMoved();
+
 // Component interaction callbacks
 void onComponentClick(int componentId);
 

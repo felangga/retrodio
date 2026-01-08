@@ -23,5 +23,6 @@ void onStationItemClick(int index, void* itemData);
 void initializeRadioWindow();
 void initializeStationWindow();
 void initializeAddStationWindow();
+void initializeConfirmDeleteWindow();
 
 #endif
