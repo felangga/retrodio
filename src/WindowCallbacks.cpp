@@ -12,6 +12,7 @@
 #include "AudioHandlers.h"
 #include "wt32_sc01_plus.h"
 #include "ConfigManager.h"
+#include "UIHelpers.h"
 
 void onWindowMinimize() {
   handleWindowMinimize(lcd, radioWindow, &radioIcon);
@@ -65,6 +66,9 @@ void onAddStationWindowMinimize() {
     keyboard->visible = false;
   }
 
+  // Restore window position before hiding
+  adjustWindowForKeyboard(addStationWindow, nullptr, false);
+
   addStationWindow.visible = false;
   addStationWindow.active = false;
   stationWindow.visible = true;
@@ -78,6 +82,9 @@ void onAddStationWindowClose() {
     MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
     keyboard->visible = false;
   }
+
+  // Restore window position before hiding
+  adjustWindowForKeyboard(addStationWindow, nullptr, false);
 
   addStationWindow.visible = false;
   addStationWindow.active = false;
@@ -113,6 +120,9 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
       keyboard->targetInputId = 401;
       keyboard->visible = true;
 
+      // Adjust window position to reveal input field
+      adjustWindowForKeyboard(addStationWindow, nameInputComp, true);
+
       drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *globalKeyboard, 0, 0);
@@ -134,6 +144,9 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
       urlInput->focused = true;
       keyboard->targetInputId = 403;
       keyboard->visible = true;
+
+      // Adjust window position to reveal input field
+      adjustWindowForKeyboard(addStationWindow, urlInputComp, true);
 
       drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
@@ -158,6 +171,9 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
         MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
         urlInput->focused = false;
       }
+
+      // Restore window to original position
+      adjustWindowForKeyboard(addStationWindow, nullptr, false);
 
       int keyboardHeight = screenHeight / 2;
       int keyboardY = screenHeight - keyboardHeight;
@@ -295,6 +311,9 @@ void onComponentClick(int componentId, void* data) {
       keyboard->visible = false;
     }
 
+    // Restore window position before hiding
+    adjustWindowForKeyboard(addStationWindow, nullptr, false);
+
     addStationWindow.visible = false;
     addStationWindow.active = false;
     stationWindow.visible = true;
@@ -307,6 +326,9 @@ void onComponentClick(int componentId, void* data) {
       MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
       keyboard->visible = false;
     }
+
+    // Restore window position before hiding
+    adjustWindowForKeyboard(addStationWindow, nullptr, false);
 
     addStationWindow.visible = false;
     addStationWindow.active = false;
