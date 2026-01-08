@@ -252,9 +252,6 @@ void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, bool inset 
 void drawDesktopIcon(lgfx::LGFX_Device& lcd, int x, int y, const String& name,
                      bool selected = false);
 
-// Utility functions
-void displayStatus(lgfx::LGFX_Device& lcd, const String& message, int y = 160);
-
 // ===== WINDOW HELPERS =====
 void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window);
 bool isInsideCloseButton(const MacWindow& window, int tx, int ty);
@@ -327,6 +324,18 @@ void handleWindowMoved(lgfx::LGFX_Device& lcd, MacWindow& window);
 // ===== DESKTOP ICON HELPERS =====
 void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon);
 bool isInsideDesktopIcon(const DesktopIcon& icon, int tx, int ty);
-void redrawDesktopArea(lgfx::LGFX_Device& lcd, int x, int y, int w, int h);
+void redrawDesktopArea(lgfx::LGFX_Device& lcd);
 
-#endif  // MAC_UI_H
+// ===== WINDOW MANAGER =====
+// Multi-window management for proper layering and refresh
+void registerWindow(MacWindow* window);
+void unregisterWindow(MacWindow* window);
+void redrawAllWindows(lgfx::LGFX_Device& lcd);
+void redrawAllWindowsExcept(lgfx::LGFX_Device& lcd, MacWindow* exceptWindow);
+void showWindowOnTop(lgfx::LGFX_Device& lcd, MacWindow& window);
+
+// ===== DOUBLE BUFFERING =====
+// Internal helper for flicker-free window dragging
+void renderToSprite(MacWindow* draggedWindow);
+
+#endif
