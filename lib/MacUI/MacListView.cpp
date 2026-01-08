@@ -75,32 +75,40 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
   // Clear clipping before drawing scrollbar
   lcd.clearClipRect();
 
-  // Draw scrollbar if needed
-  if (listView.itemCount * listView.itemHeight > visibleHeight) {
-    int scrollbarX = x + w - 10;
-    int scrollbarY = y + 2;
-    int scrollbarHeight = h - 4;
+  // Draw scrollbar (always shown)
+  int scrollbarX = x + w - 10;
+  int scrollbarY = y + 2;
+  int scrollbarHeight = h - 4;
 
-    // Calculate thumb size and position
-    int totalContentHeight = listView.itemCount * listView.itemHeight;
-    int thumbHeight = max(20, (scrollbarHeight * visibleHeight) / totalContentHeight);
+  // Calculate thumb size and position
+  int totalContentHeight = listView.itemCount * listView.itemHeight;
+  bool needsScrolling = totalContentHeight > visibleHeight;
+
+  int thumbHeight;
+  int thumbY;
+
+  if (needsScrolling) {
+    thumbHeight = max(20, (scrollbarHeight * visibleHeight) / totalContentHeight);
     int maxScroll = max(0, totalContentHeight - visibleHeight);
-    int thumbY =
-        scrollbarY + ((listView.scrollOffset * (scrollbarHeight - thumbHeight)) / maxScroll);
+    thumbY = scrollbarY + ((listView.scrollOffset * (scrollbarHeight - thumbHeight)) / maxScroll);
+  } else {
+    // When no scrolling needed, thumb fills entire track
+    thumbHeight = scrollbarHeight;
+    thumbY = scrollbarY;
+  }
 
-    // Only redraw scrollbar if thumb position changed significantly (reduce flicker)
-    if (abs(thumbY - listView.lastScrollbarThumbY) > 2 || listView.needsFullRedraw) {
-      // Draw scrollbar track
-      lcd.fillRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_LIGHT_GRAY);
-      lcd.drawRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_DARK_GRAY);
+  // Only redraw scrollbar if thumb position changed significantly (reduce flicker)
+  if (abs(thumbY - listView.lastScrollbarThumbY) > 2 || listView.needsFullRedraw) {
+    // Draw scrollbar track
+    lcd.fillRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_LIGHT_GRAY);
+    lcd.drawRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_DARK_GRAY);
 
-      // Draw scrollbar thumb
-      lcd.fillRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_GRAY);
-      lcd.drawRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_BLACK);
+    // Draw scrollbar thumb
+    lcd.fillRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_GRAY);
+    lcd.drawRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_BLACK);
 
-      // Update last thumb position
-      listView.lastScrollbarThumbY = thumbY;
-    }
+    // Update last thumb position
+    listView.lastScrollbarThumbY = thumbY;
   }
 }
 

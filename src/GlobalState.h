@@ -31,6 +31,9 @@ extern const int BTN_STATION;
 extern const int BTN_ADD_STATION;
 extern const int BTN_SAVE_STATION;
 extern const int BTN_CANCEL_ADD_STATION;
+extern const int BTN_DELETE_STATION;
+extern const int BTN_CONFIRM_YES;
+extern const int BTN_CONFIRM_NO;
 
 // Global Objects
 extern LGFX lcd;
@@ -96,8 +99,10 @@ extern String lastDisplayedLog;
 extern MacWindow radioWindow;
 extern MacWindow stationWindow;
 extern MacWindow addStationWindow;
+extern MacWindow confirmDeleteWindow;
 extern DesktopIcon radioIcon;
 extern MacComponent* globalKeyboard;
+extern int stationToDeleteIndex;
 
 // Helper Functions
 MacComponent* findComponentById(const MacWindow& window, int id);
