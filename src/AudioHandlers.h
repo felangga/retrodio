@@ -13,7 +13,6 @@
 
 // Audio initialization and management
 void initializeAudio();
-void connectToWiFi();
 
 // Audio callback functions (ESP32-audioI2S v3.0.12+ API)
 void audio_showstation(const char* info);

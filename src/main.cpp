@@ -22,6 +22,7 @@
 #include "GlobalState.h"
 #include "WindowCallbacks.h"
 #include "AudioHandlers.h"
+#include "NetworkHandlers.h"
 #include "StationManager.h"
 #include "UIHelpers.h"
 
@@ -93,12 +94,12 @@ MacWindow radioWindow{20,  40,  420, 240, "Radio", true, false, true,
                       onWindowMinimize, onWindowClose, onWindowContentClick, onWindowMoved,
                       nullptr, 0, false, 0, 0};
 
-MacWindow stationWindow{20, 40, 420, 240, "Station List", true, false, true,
+MacWindow stationWindow{20, 40, 420, 240, "Station List", false, false, false,
                         onStationWindowMinimize, onStationWindowClose,
                         onStationWindowContentClick, onStationWindowMoved,
                         nullptr, 0, false, 0, 0};
 
-MacWindow addStationWindow{60, 40, 360, 160, "Add Station", true, false, true,
+MacWindow addStationWindow{60, 40, 360, 160, "Add Station", false, false, false,
                            onAddStationWindowMinimize, onAddStationWindowClose,
                            onAddStationWindowContentClick, onAddStationWindowMoved,
                            nullptr, 0, false, 0, 0};
@@ -169,7 +170,6 @@ void setup() {
   }
 
   if (!ConfigManager::begin()) {
-    displayStatus(lcd, "Config init failed!", 160);
     DEBUG_PRINTLN("ERROR: ConfigManager initialization failed!");
   } else {
     DEBUG_PRINTLN("ConfigManager initialized successfully");

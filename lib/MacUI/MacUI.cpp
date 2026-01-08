@@ -175,6 +175,21 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
         tx >= window.x && tx < window.x + window.w && ty >= window.y && ty < window.y + window.h;
 
     if (insideWindow) {
+      // If window is not active, only allow title bar interactions (minimize/close/drag)
+      // Block all content interactions for inactive windows
+      if (!window.active) {
+        if (!wasPressed) {
+          wasPressed = true;
+          // Only allow minimize button and title bar interactions
+          if (isInsideMinimizeButton(window, tx, ty) || isInsideTitleBar(window, tx, ty)) {
+            // Let it fall through to normal handling
+          } else {
+            // Block all other interactions for inactive windows
+            return;
+          }
+        }
+      }
+
       // Always update last touch coordinates while touching
       lastTouchX = tx;
       lastTouchY = ty;
@@ -539,21 +554,7 @@ void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, bool inset)
   }
 }
 
-/**
- * Display status message on screen
- * @param message The message to display
- * @param y Y coordinate for the message (default: 160)
- */
-void displayStatus(lgfx::LGFX_Device& lcd, const String& message, int y) {
-  // Clear the status area in the radio window (adjusted for landscape)
-  lcd.fillRect(45, y, 175, 15, MAC_WHITE);
 
-  // Display new message in classic Mac style
-  lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  lcd.setTextSize(1);
-  lcd.setCursor(45, y);
-  lcd.println(message);
-}
 
 // ===== DESKTOP ICON IMPLEMENTATION =====
 
@@ -822,7 +823,6 @@ void handleWindowClose(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* a
   if (associatedIcon) {
     associatedIcon->visible = false;  // Hide icon when window is closed
   }
-  displayStatus(lcd, "Window closed", 300);
 }
 
 void handleWindowMinimize(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon) {
@@ -831,7 +831,6 @@ void handleWindowMinimize(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon
   if (associatedIcon) {
     associatedIcon->visible = true;  // Show icon when window is minimized
   }
-  displayStatus(lcd, "Window minimized", 300);
 }
 
 void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window) {

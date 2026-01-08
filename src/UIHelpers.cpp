@@ -162,11 +162,21 @@ void uiTask(void* parameter) {
     }
 
     if (!keyboardActive) {
+      // Set active flag based on window priority (top window is active)
       if (addStationWindow.visible) {
+        addStationWindow.active = true;
+        stationWindow.active = false;
+        radioWindow.active = false;
         interactiveWindow(lcd, addStationWindow);
       } else if (stationWindow.visible) {
+        addStationWindow.active = false;
+        stationWindow.active = true;
+        radioWindow.active = false;
         interactiveWindow(lcd, stationWindow);
       } else if (radioWindow.visible) {
+        addStationWindow.active = false;
+        stationWindow.active = false;
+        radioWindow.active = true;
         interactiveWindow(lcd, radioWindow);
       }
 

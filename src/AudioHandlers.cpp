@@ -9,9 +9,6 @@
 #include "AudioHandlers.h"
 #include "GlobalState.h"
 #include "config.h"
-#include "MacUI.h"
-#include <WiFi.h>
-#include <time.h>
 
 #define ENABLE_SERIAL_DEBUG 0
 #define ENABLE_DEBUG 0
@@ -25,38 +22,6 @@
 #define DEBUG_PRINTLN(x)
 #define DEBUG_PRINTF(...)
 #endif
-
-extern LGFX lcd;
-
-void connectToWiFi() {
-  DEBUG_PRINTF("Attempting WiFi connection to SSID: %s\n", WIFI_SSID);
-  displayStatus(lcd, "Connecting to WiFi...", 160);
-
-  WiFi.mode(WIFI_STA);
-  delay(100);
-
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
-    displayStatus(lcd, "WiFi connecting... " + String(attempts + 1), 160);
-    DEBUG_PRINTF("WiFi attempt %d, status: %d\n", attempts + 1, WiFi.status());
-    delay(1000);
-    attempts++;
-  }
-
-  if (WiFi.status() == WL_CONNECTED) {
-    configTime(GMT_OFFSET_SEC, DST_OFFSET_SEC, NTP_SERVER);
-    displayStatus(lcd, "Connected!", 160);
-    DEBUG_PRINTLN("WiFi connected successfully!");
-    DEBUG_PRINTF("IP Address: %s\n", WiFi.localIP().toString().c_str());
-    DEBUG_PRINTF("Signal strength: %d dBm\n", WiFi.RSSI());
-  } else {
-    displayStatus(lcd, "WiFi Failed!", 160);
-    DEBUG_PRINTLN("ERROR: WiFi connection failed!");
-    DEBUG_PRINTF("Final status: %d\n", WiFi.status());
-  }
-}
 
 void audio_showstation(const char* info) {
   extern SemaphoreHandle_t metadataMutex;

@@ -35,13 +35,19 @@ void onWindowMoved() {
 
 void onStationWindowMinimize() {
   stationWindow.visible = false;
+  stationWindow.active = false;
   radioWindow.visible = true;
+  radioWindow.active = true;
+  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
   drawWindow(lcd, radioWindow);
 }
 
 void onStationWindowClose() {
   stationWindow.visible = false;
+  stationWindow.active = false;
   radioWindow.visible = true;
+  radioWindow.active = true;
+  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
   drawWindow(lcd, radioWindow);
 }
 
@@ -60,7 +66,10 @@ void onAddStationWindowMinimize() {
   }
 
   addStationWindow.visible = false;
+  addStationWindow.active = false;
   stationWindow.visible = true;
+  stationWindow.active = true;
+  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5, addStationWindow.h + 5);
   drawWindow(lcd, stationWindow);
 }
 
@@ -71,7 +80,10 @@ void onAddStationWindowClose() {
   }
 
   addStationWindow.visible = false;
+  addStationWindow.active = false;
   stationWindow.visible = true;
+  stationWindow.active = true;
+  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5, addStationWindow.h + 5);
   drawWindow(lcd, stationWindow);
 }
 
@@ -182,29 +194,7 @@ void onComponentClick(int componentId, void* data) {
   extern const int BTN_SAVE_STATION;
   extern const int BTN_CANCEL_ADD_STATION;
 
-  if (componentId == CMP_NOW_PLAYING_LABEL) {
-    displayStatus(lcd, "Label clicked", 160);
-  } else if (componentId == CMP_VOLUME_SLIDER) {
-    displayStatus(lcd, "Volume slider clicked", 160);
-  } else if (componentId == CMP_BUFFER_PROGRESS) {
-    displayStatus(lcd, "Progress bar clicked", 160);
-  } else if (componentId == CMP_AUTO_PLAY_CHECKBOX) {
-    MacComponent* component = findComponentById(radioWindow, componentId);
-    if (component && component->customData) {
-      MacCheckBox* checkbox = (MacCheckBox*)component->customData;
-      checkbox->checked = !checkbox->checked;
-      drawComponent(lcd, *component, radioWindow.x, radioWindow.y);
-      displayStatus(lcd, checkbox->checked ? "Auto Play ON" : "Auto Play OFF", 160);
-    }
-  } else if (componentId == CMP_VISUALS_CHECKBOX) {
-    MacComponent* component = findComponentById(radioWindow, componentId);
-    if (component && component->customData) {
-      MacCheckBox* checkbox = (MacCheckBox*)component->customData;
-      checkbox->checked = !checkbox->checked;
-      drawComponent(lcd, *component, radioWindow.x, radioWindow.y);
-      displayStatus(lcd, checkbox->checked ? "Visuals ON" : "Visuals OFF", 160);
-    }
-  } else if (componentId == BTN_PLAY) {
+  if (componentId == BTN_PLAY) {
     onPlay();
   } else if (componentId == BTN_STOP) {
     onStop();
@@ -217,9 +207,16 @@ void onComponentClick(int componentId, void* data) {
   } else if (componentId == BTN_VOL_DOWN) {
     onVolDown();
   } else if (componentId == BTN_STATION) {
-    showWindowOnTop(lcd, stationWindow);
+    radioWindow.visible = false;
+    radioWindow.active = false;
+    stationWindow.visible = true;
+    stationWindow.active = true;
+    stationWindow.minimized = false;
+    drawCheckeredPatternArea(lcd, radioWindow.x, radioWindow.y, radioWindow.w + 5, radioWindow.h + 5);
+    drawWindow(lcd, stationWindow);
   } else if (componentId == BTN_ADD_STATION) {
     stationWindow.visible = false;
+    stationWindow.active = false;
 
     {
       int tx, ty;
@@ -231,8 +228,10 @@ void onComponentClick(int componentId, void* data) {
     }
 
     addStationWindow.visible = true;
+    addStationWindow.active = true;
     addStationWindow.minimized = false;
 
+    drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
     drawWindow(lcd, addStationWindow);
   } else if (componentId == BTN_SAVE_STATION) {
     {
@@ -248,8 +247,6 @@ void onComponentClick(int componentId, void* data) {
 
         if (stationName.length() > 0 && stationURL.length() > 0) {
           if (ConfigManager::addStation(stationName, stationURL)) {
-            displayStatus(lcd, "Station Saved: " + stationName, 160);
-
             reloadStationList();
             initializeStationWindow();
 
@@ -258,13 +255,9 @@ void onComponentClick(int componentId, void* data) {
             urlInput->text = "";
             urlInput->cursorPos = 0;
           } else {
-            displayStatus(lcd, "Failed to save station", 160);
             return;
           }
-        } else {
-          displayStatus(lcd, "Please fill all fields", 160);
-          return;
-        }
+        } 
       }
     }
 
@@ -274,8 +267,11 @@ void onComponentClick(int componentId, void* data) {
     }
 
     addStationWindow.visible = false;
+    addStationWindow.active = false;
     stationWindow.visible = true;
+    stationWindow.active = true;
 
+    drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5, addStationWindow.h + 5);
     drawWindow(lcd, stationWindow);
   } else if (componentId == BTN_CANCEL_ADD_STATION) {
     if (globalKeyboard) {
@@ -284,8 +280,11 @@ void onComponentClick(int componentId, void* data) {
     }
 
     addStationWindow.visible = false;
+    addStationWindow.active = false;
     stationWindow.visible = true;
+    stationWindow.active = true;
 
+    drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5, addStationWindow.h + 5);
     drawWindow(lcd, stationWindow);
   }
 }
@@ -301,9 +300,7 @@ void onPlay() {
     xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
     isPlaying = false;
     updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
-    displayStatus(lcd, "Paused", 160);
   } else {
-    displayStatus(lcd, "Connecting...", 160);
     AudioCommandMsg msg = {CMD_CONNECT, ""};
     strncpy(msg.url, RadioURL.c_str(), sizeof(msg.url) - 1);
     xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
@@ -322,7 +319,6 @@ void onStop() {
 
   isPlaying = false;
   updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
-  displayStatus(lcd, "Stopped", 160);
 }
 
 void onVolUp() {
@@ -331,7 +327,6 @@ void onVolUp() {
   int newVol = min(21, audio.getVolume() + 1);
   audio.setVolume(newVol);
   ConfigManager::setVolume(newVol);
-  displayStatus(lcd, "Volume: " + String(newVol), 160);
 
   if (!radioWindow.minimized && radioWindow.visible) {
     draw3DFrame(lcd, radioWindow.x + 310, radioWindow.y + 35, 90, 25, true);
@@ -346,7 +341,6 @@ void onPrev() {
   int stationCount = ConfigManager::getStationCount();
 
   if (stationCount == 0) {
-    displayStatus(lcd, "No stations available", 160);
     return;
   }
 
@@ -365,7 +359,6 @@ void onNext() {
   int stationCount = ConfigManager::getStationCount();
 
   if (stationCount == 0) {
-    displayStatus(lcd, "No stations available", 160);
     return;
   }
 
@@ -386,7 +379,6 @@ void onVolDown() {
   int newVol = max(0, audio.getVolume() - 1);
   audio.setVolume(newVol);
   ConfigManager::setVolume(newVol);
-  displayStatus(lcd, "Volume: " + String(newVol), 160);
 
   if (!radioWindow.minimized && radioWindow.visible) {
     draw3DFrame(lcd, radioWindow.x + 310, radioWindow.y + 35, 90, 25, true);

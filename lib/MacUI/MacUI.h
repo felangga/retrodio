@@ -252,9 +252,6 @@ void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, bool inset 
 void drawDesktopIcon(lgfx::LGFX_Device& lcd, int x, int y, const String& name,
                      bool selected = false);
 
-// Utility functions
-void displayStatus(lgfx::LGFX_Device& lcd, const String& message, int y = 160);
-
 // ===== WINDOW HELPERS =====
 void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window);
 bool isInsideCloseButton(const MacWindow& window, int tx, int ty);
