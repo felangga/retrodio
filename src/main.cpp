@@ -25,6 +25,7 @@
 #include "NetworkHandlers.h"
 #include "StationManager.h"
 #include "UIHelpers.h"
+#include "OTAHandler.h"
 
 // ===== DEBUG CONFIGURATION =====
 #define ENABLE_SERIAL_DEBUG 0
@@ -192,6 +193,10 @@ void setup() {
   DEBUG_PRINTLN("\n=== Starting WiFi ===");
   connectToWiFi();
 
+  // Initialize OTA after WiFi connection
+  DEBUG_PRINTLN("=== Setting up OTA ===");
+  setupOTA();
+
   initializeAudio();
 
   audio.setVolume(ConfigManager::getVolume());
@@ -229,5 +234,8 @@ void setup() {
 }
 
 void loop() {
+  // Handle OTA updates
+  handleOTA();
+
   vTaskDelay(1);
 }
