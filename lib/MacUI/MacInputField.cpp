@@ -28,44 +28,47 @@ void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInput
 
   if (inputField.text.length() > 0) {
     // Calculate visible text (scroll if needed)
-    int maxVisibleWidth = w - 15;  // Leave space for cursor and padding
-    String displayText = inputField.text;
+    int maxVisibleWidth = w - 10;  // Leave space for padding
 
     // Measure text width
     lcd.setTextSize(1);
-    int textWidth = lcd.textWidth(displayText.c_str());
+
+    // Calculate cursor position
+    String textBeforeCursor = inputField.text.substring(0, inputField.cursorPos);
+    int cursorX = lcd.textWidth(textBeforeCursor.c_str());
+
+    // Calculate scroll offset to keep cursor visible
     int scrollOffset = 0;
-
-    // If text is wider than field, scroll to show cursor position
-    if (textWidth > maxVisibleWidth) {
-      // Calculate scroll to keep cursor visible
-      String textBeforeCursor = inputField.text.substring(0, inputField.cursorPos);
-      int cursorX = lcd.textWidth(textBeforeCursor.c_str());
-
-      if (cursorX > maxVisibleWidth) {
-        scrollOffset = cursorX - maxVisibleWidth + 10;
-      }
+    if (cursorX > maxVisibleWidth - 10) {
+      // Scroll so cursor is near the right edge with some padding
+      scrollOffset = cursorX - maxVisibleWidth + 20;
     }
 
-    // Set clipping region for text
-    lcd.setClipRect(x + 2, y + 2, w - 4, h - 4);
+    // Set clipping region for text to prevent overflow
+    lcd.setClipRect(x + 3, y + 3, w - 6, h - 6);
 
-    // Draw the text with explicit colors
+    // Draw the text without background (transparent text mode)
     lcd.setTextColor(MAC_BLACK);
     lcd.setTextSize(1);
-    lcd.setCursor(textX - scrollOffset, textY);
-    lcd.print(displayText);
+
+    // Calculate text start position with scroll offset
+    int textStartX = textX - scrollOffset;
+
+    // Draw each character individually to prevent wrapping
+    lcd.setCursor(textStartX, textY);
+    for (int i = 0; i < inputField.text.length(); i++) {
+      lcd.print(inputField.text[i]);
+    }
 
     lcd.clearClipRect();
 
     // Draw cursor if focused
     if (inputField.focused && inputField.cursorVisible) {
-      String textBeforeCursor = inputField.text.substring(0, inputField.cursorPos);
-      int cursorX = textX + lcd.textWidth(textBeforeCursor.c_str()) - scrollOffset;
+      int cursorScreenX = textX + cursorX - scrollOffset;
 
       // Only draw cursor if it's within visible area
-      if (cursorX >= x + 2 && cursorX < x + w - 2) {
-        lcd.drawLine(cursorX, y + 5, cursorX, y + h - 5, MAC_BLACK);
+      if (cursorScreenX >= x + 5 && cursorScreenX < x + w - 5) {
+        lcd.drawLine(cursorScreenX, y + 5, cursorScreenX, y + h - 5, MAC_BLACK);
       }
     }
   } else {

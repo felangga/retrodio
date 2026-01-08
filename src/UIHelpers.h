@@ -21,6 +21,10 @@ void updateCPUUsage();
 void drawInterface(lgfx::LGFX_Device& lcd);
 void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window);
 
+// Keyboard interaction handling
+void handleKeyboardInteraction();
+void adjustWindowForKeyboard(MacWindow& window, MacComponent* inputComponent, bool show);
+
 // UI task
 void uiTask(void* parameter);
 
