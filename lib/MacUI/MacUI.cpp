@@ -865,14 +865,18 @@ void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int rel
       // Brief delay for visual feedback
       delay(100);
 
+      // Release pressed state BEFORE calling callback to prevent button appearing pressed on new window
+      btnData->pressed = false;
+
       // Call the callback if it exists
       if (clickedComponent->onClick != nullptr) {
         clickedComponent->onClick(clickedComponent->id);
       }
 
-      // Release pressed state and redraw
-      btnData->pressed = false;
-      drawComponent(lcd, *clickedComponent, window.x, window.y);
+      // Redraw button only if window is still visible (avoid drawing on wrong window)
+      if (window.visible) {
+        drawComponent(lcd, *clickedComponent, window.x, window.y);
+      }
     } else if (clickedComponent->type == COMPONENT_LISTVIEW &&
                clickedComponent->customData != nullptr) {
       // Handle ListView - this is now just for tap detection, scrolling happens in
