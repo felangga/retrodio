@@ -29,6 +29,11 @@ extern lgfx::LGFX_Sprite* componentSprite;
 #define MAC_DARK_GRAY 0x4208
 #define MAC_BLUE 0x001F
 
+// ===== WINDOW LAYOUT CONSTANTS =====
+#define TITLE_BAR_HEIGHT 32
+#define TITLE_BAR_BORDER 2
+#define CONTENT_START_Y (TITLE_BAR_BORDER + TITLE_BAR_HEIGHT + 8)  // Start Y position for window content (border + title bar + margin)
+
 // ===== COMPONENT TYPES =====
 enum ComponentType {
   COMPONENT_BUTTON,
