@@ -83,22 +83,24 @@ void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
   lcd.drawRect(x, y, w, h, MAC_BLACK);
   lcd.drawRect(x + 1, y + 1, w - 2, h - 2, MAC_BLACK);
 
-  // Draw title bar (increased height for larger buttons)
+  // Draw title bar (increased height for touchscreen usability)
   uint16_t titleColor = active ? MAC_BLACK : MAC_GRAY;
-  lcd.fillRect(x + 2, y + 2, w - 4, 24, titleColor);
+  lcd.fillRect(x + TITLE_BAR_BORDER, y + TITLE_BAR_BORDER, w - 4, TITLE_BAR_HEIGHT, titleColor);
 
   // Draw title text (adjusted for larger title bar)
   lcd.setTextColor(MAC_WHITE, titleColor);
   lcd.setTextSize(1);
   int titleX = x + (w - title.length() * 6) / 2;
-  lcd.setCursor(titleX, y + 10);  // Moved down to center in larger title bar
+  lcd.setCursor(titleX, y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT - 8) / 2);  // Centered in title bar
   lcd.print(title);
 
-  lcd.fillRect(x + w - 24, y + 4, 18, 18, MAC_WHITE);
-  lcd.drawRect(x + w - 24, y + 4, 18, 18, MAC_BLACK);
+  // Calculate minimize button position (centered vertically in title bar)
+  int minBtnY = y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT - 18) / 2;
+  lcd.fillRect(x + w - 24, minBtnY, 18, 18, MAC_WHITE);
+  lcd.drawRect(x + w - 24, minBtnY, 18, 18, MAC_BLACK);
 
   // Draw minimize symbol (−)
-  lcd.drawFastHLine(x + w - 18, y + 12, 8, MAC_BLACK);
+  lcd.drawFastHLine(x + w - 18, minBtnY + 8, 8, MAC_BLACK);
 }
 
 /**
@@ -132,8 +134,8 @@ bool isInsideCloseButton(const MacWindow& window, int tx, int ty) {
 bool isInsideMinimizeButton(const MacWindow& window, int tx, int ty) {
   if (!window.visible)
     return false;
-  int buttonHeight = 18;  // Now consistent 16 pixels for both normal and minimized
-  int buttonY = window.y + 4;
+  int buttonHeight = 18;
+  int buttonY = window.y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT - buttonHeight) / 2;
   return tx >= window.x + window.w - 24 && tx < window.x + window.w - 6 && ty >= buttonY &&
          ty < buttonY + buttonHeight;
 }
@@ -141,11 +143,11 @@ bool isInsideMinimizeButton(const MacWindow& window, int tx, int ty) {
 bool isInsideTitleBar(const MacWindow& window, int tx, int ty) {
   if (!window.visible)
     return false;
-  int titleBarHeight = 24;
 
   // Check if in title bar but not in close or minimize buttons
-  bool inTitleBar = tx >= window.x + 2 && tx < window.x + window.w - 2 && ty >= window.y + 2 &&
-                    ty < window.y + 2 + titleBarHeight;
+  bool inTitleBar = tx >= window.x + TITLE_BAR_BORDER && tx < window.x + window.w - TITLE_BAR_BORDER &&
+                    ty >= window.y + TITLE_BAR_BORDER &&
+                    ty < window.y + TITLE_BAR_BORDER + TITLE_BAR_HEIGHT;
   bool inCloseButton = isInsideCloseButton(window, tx, ty);
   bool inMinimizeButton = isInsideMinimizeButton(window, tx, ty);
 

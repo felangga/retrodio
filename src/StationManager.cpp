@@ -171,29 +171,29 @@ void initializeRadioWindow() {
   btnNext->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(radioWindow, btnNext);
 
-  MacComponent* txtRadioName = createRunningTextComponent(20, 40, 380, 25, 200,
+  MacComponent* txtRadioName = createRunningTextComponent(20, 45, 380, 25, 200,
                                                           currentStationName, 2, MAC_BLACK, 3);
   txtRadioName->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(radioWindow, txtRadioName);
 
-  MacComponent* txtRadioDetails = createRunningTextComponent(20, 70, 200, 20, 201,
+  MacComponent* txtRadioDetails = createRunningTextComponent(20, 75, 200, 20, 201,
                                                              "Standby waiting for metadata ...", 2, MAC_BLACK, 1);
   txtRadioDetails->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(radioWindow, txtRadioDetails);
 
-  MacComponent* txtBitRate = createRunningTextComponent(20, 85, 200, 20, 203,
+  MacComponent* txtBitRate = createRunningTextComponent(20, 92, 200, 20, 203,
                                                         "Bitrate: N/A", 2, MAC_BLACK, 1);
   addChildComponent(radioWindow, txtBitRate);
 
-  MacComponent* txtID3 = createRunningTextComponent(20, 100, 200, 20, 204,
+  MacComponent* txtID3 = createRunningTextComponent(20, 109, 200, 20, 204,
                                                     "ID3: N/A", 2, MAC_BLACK, 1);
   addChildComponent(radioWindow, txtID3);
 
-  MacComponent* txtInfo = createRunningTextComponent(20, 115, 200, 20, 205,
+  MacComponent* txtInfo = createRunningTextComponent(20, 126, 200, 20, 205,
                                                      "", 2, MAC_BLACK, 1);
   addChildComponent(radioWindow, txtInfo);
 
-  MacComponent* txtDescription = createRunningTextComponent(20, 130, 200, 20, 206,
+  MacComponent* txtDescription = createRunningTextComponent(20, 143, 200, 20, 206,
                                                             "", 2, MAC_BLACK, 1);
   addChildComponent(radioWindow, txtDescription);
 
@@ -217,11 +217,11 @@ void initializeStationWindow() {
 
   clearChildComponents(stationWindow);
 
-  MacComponent* btnAddStation = createButtonComponent(310, 35, 90, 30, BTN_ADD_STATION, "Add +");
+  MacComponent* btnAddStation = createButtonComponent(310, 42, 90, 30, BTN_ADD_STATION, "Add +");
   btnAddStation->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(stationWindow, btnAddStation);
 
-  MacComponent* stationList = createListViewComponent(10, 35, 290, 195, 300,
+  MacComponent* stationList = createListViewComponent(10, 42, 290, 188, 300,
                                                       stationItems, stationItemCount, 30);
 
   if (stationList && stationList->customData) {
@@ -239,25 +239,25 @@ void initializeAddStationWindow() {
 
   clearChildComponents(addStationWindow);
 
-  MacComponent* lblStationName = createLabelComponent(20, 40, 120, 20, 400, "Station Name:");
+  MacComponent* lblStationName = createLabelComponent(20, 45, 120, 20, 400, "Station Name:");
   addChildComponent(addStationWindow, lblStationName);
 
-  MacComponent* txtStationName = createInputFieldComponent(150, 40, 190, 25, 401, "Enter station name", 50);
+  MacComponent* txtStationName = createInputFieldComponent(150, 45, 190, 25, 401, "Enter station name", 50);
   txtStationName->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(addStationWindow, txtStationName);
 
-  MacComponent* lblStationURL = createLabelComponent(20, 75, 120, 20, 402, "Station URL:");
+  MacComponent* lblStationURL = createLabelComponent(20, 80, 120, 20, 402, "Station URL:");
   addChildComponent(addStationWindow, lblStationURL);
 
-  MacComponent* txtStationURL = createInputFieldComponent(150, 75, 190, 25, 403, "https://...", 200);
+  MacComponent* txtStationURL = createInputFieldComponent(150, 80, 190, 25, 403, "https://...", 200);
   txtStationURL->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(addStationWindow, txtStationURL);
 
-  MacComponent* btnSave = createButtonComponent(80, 115, 80, 30, BTN_SAVE_STATION, "Save");
+  MacComponent* btnSave = createButtonComponent(80, 120, 80, 30, BTN_SAVE_STATION, "Save");
   btnSave->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(addStationWindow, btnSave);
 
-  MacComponent* btnCancel = createButtonComponent(180, 115, 80, 30, BTN_CANCEL_ADD_STATION, "Cancel");
+  MacComponent* btnCancel = createButtonComponent(180, 120, 80, 30, BTN_CANCEL_ADD_STATION, "Cancel");
   btnCancel->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(addStationWindow, btnCancel);
 }
