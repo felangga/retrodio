@@ -158,9 +158,7 @@ ConfigManager handles errors gracefully:
 ```cpp
 void setup() {
   // Initialize ConfigManager
-  if (!ConfigManager::begin()) {
-    displayStatus(lcd, "Config init failed!", 160);
-  } else {
+  if (ConfigManager::begin()) {
     // Load station list
     reloadStationList();
 
