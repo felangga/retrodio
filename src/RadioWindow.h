@@ -13,4 +13,12 @@
 
 void initializeRadioWindow();
 
+// Radio button handlers
+void onPlay();
+void onStop();
+void onVolUp();
+void onVolDown();
+void onPrev();
+void onNext();
+
 #endif

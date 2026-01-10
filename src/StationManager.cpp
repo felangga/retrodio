@@ -6,13 +6,15 @@
  * This file implements station management functions
  */
 
+#include "ConfirmDeleteWindow.h"
 #include "StationManager.h"
 #include "GlobalState.h"
 #include "UIHelpers.h"
 #include "ConfigManager.h"
+#include "WindowCallbacks.h"
 #include <WiFi.h>
 
-void onComponentClick(int id, void* data);
+void initializeConfirmDeleteWindow();
 
 MacListViewItem* stationItems = nullptr;
 int stationItemCount = 0;
@@ -151,11 +153,11 @@ void initializeStationWindow() {
   clearChildComponents(stationWindow);
 
   MacComponent* btnAddStation = createButtonComponent(310, 42, 90, 30, BTN_ADD_STATION, "Add");
-  btnAddStation->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
+  btnAddStation->onClick = [](int componentId) { onAddStationButtonClick(); };
   addChildComponent(stationWindow, btnAddStation);
 
   MacComponent* btnDeleteStation = createButtonComponent(310, 77, 90, 30, BTN_DELETE_STATION, "Delete");
-  btnDeleteStation->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
+  btnDeleteStation->onClick = [](int componentId) { onDeleteStationButtonClick(); };
   addChildComponent(stationWindow, btnDeleteStation);
 
   MacComponent* stationList = createListViewComponent(10, 42, 290, 188, 300,
@@ -167,6 +169,105 @@ void initializeStationWindow() {
     listViewData->font = FONT_CHICAGO_9PT;  // Set Chicago font
   }
 
-  stationList->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(stationWindow, stationList);
+}
+
+
+void onAddStationButtonClick() {
+  stationWindow.visible = false;
+  stationWindow.active = false;
+  addStationWindow.visible = true;
+  addStationWindow.active = true;
+  addStationWindow.minimized = false;
+
+  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
+  drawWindow(lcd, addStationWindow);
+}
+
+void onSaveStationButtonClick() {
+  extern const int INPUT_STATION_NAME;
+  extern const int INPUT_STATION_URL;
+  MacComponent* nameInputComp = findComponentById(addStationWindow, INPUT_STATION_NAME);
+  MacComponent* urlInputComp = findComponentById(addStationWindow, INPUT_STATION_URL);
+
+  if (nameInputComp && urlInputComp) {
+    MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
+    MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+
+    String stationName = nameInput->text;
+    String stationURL = urlInput->text;
+
+    if (stationName.length() > 0 && stationURL.length() > 0) {
+      if (ConfigManager::addStation(stationName, stationURL)) {
+        reloadStationList();
+        initializeStationWindow();
+
+        nameInput->text = "";
+        nameInput->cursorPos = 0;
+        urlInput->text = "";
+        urlInput->cursorPos = 0;
+      } else {
+        return;
+      }
+    }
+  }
+
+  if (globalKeyboard) {
+    MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+    keyboard->visible = false;
+  }
+
+  // Restore window position before hiding
+  adjustWindowForKeyboard(addStationWindow, nullptr, false);
+
+  addStationWindow.visible = false;
+  addStationWindow.active = false;
+  stationWindow.visible = true;
+  stationWindow.active = true;
+
+  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5, addStationWindow.h + 5);
+  drawWindow(lcd, stationWindow);
+}
+
+void onCancelAddStationButtonClick() {
+  if (globalKeyboard) {
+    MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+    keyboard->visible = false;
+  }
+
+  // Restore window position before hiding
+  adjustWindowForKeyboard(addStationWindow, nullptr, false);
+
+  addStationWindow.visible = false;
+  addStationWindow.active = false;
+  stationWindow.visible = true;
+  stationWindow.active = true;
+
+  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5, addStationWindow.h + 5);
+  drawWindow(lcd, stationWindow);
+}
+
+void onDeleteStationButtonClick() {
+  // Find the station list component to get selected index
+  MacComponent* stationListComp = findComponentById(stationWindow, 300);
+
+  if (stationListComp && stationListComp->customData) {
+    MacListView* listViewData = (MacListView*)stationListComp->customData;
+
+    if (listViewData->selectedIndex >= 0 && listViewData->selectedIndex < ConfigManager::getStationCount()) {
+      // Store the station index to delete
+      stationToDeleteIndex = listViewData->selectedIndex;
+
+      // Show confirmation dialog
+      stationWindow.visible = false;
+      stationWindow.active = false;
+
+      initializeConfirmDeleteWindow();
+      confirmDeleteWindow.visible = true;
+      confirmDeleteWindow.active = true;
+
+      drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
+      drawWindow(lcd, confirmDeleteWindow);
+    }
+  }
 }

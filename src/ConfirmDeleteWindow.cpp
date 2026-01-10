@@ -3,13 +3,12 @@
  *
  * Copyright (c) 2025 felangga
  *
- * This file implements confirm delete window initialization functions
  */
 
-#include "ConfirmDeleteWindow.h"
 #include "GlobalState.h"
-
-void onComponentClick(int id, void* data);
+#include "WindowCallbacks.h"
+#include "ConfigManager.h"
+#include "StationManager.h"
 
 void initializeConfirmDeleteWindow() {
   extern const int BTN_CONFIRM_YES;
@@ -25,10 +24,48 @@ void initializeConfirmDeleteWindow() {
   addChildComponent(confirmDeleteWindow, lblMessage);
 
   MacComponent* btnYes = createButtonComponent(50, 75, 80, 30, BTN_CONFIRM_YES, "Yes");
-  btnYes->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
+  btnYes->onClick = [](int componentId) { onConfirmYesButtonClick(); };
   addChildComponent(confirmDeleteWindow, btnYes);
 
   MacComponent* btnNo = createButtonComponent(150, 75, 80, 30, BTN_CONFIRM_NO, "No");
-  btnNo->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
+  btnNo->onClick = [](int componentId) { onConfirmNoButtonClick(); };
   addChildComponent(confirmDeleteWindow, btnNo);
 }
+
+void onConfirmYesButtonClick() {
+  // User confirmed deletion
+  if (stationToDeleteIndex >= 0 && stationToDeleteIndex < ConfigManager::getStationCount()) {
+    // Delete the station
+    if (ConfigManager::removeStation(stationToDeleteIndex)) {
+      reloadStationList();
+      initializeStationWindow();
+    }
+  }
+
+  // Reset the deletion index
+  stationToDeleteIndex = -1;
+
+  // Hide confirmation dialog and show station window
+  confirmDeleteWindow.visible = false;
+  confirmDeleteWindow.active = false;
+  stationWindow.visible = true;
+  stationWindow.active = true;
+
+  drawCheckeredPatternArea(lcd, confirmDeleteWindow.x, confirmDeleteWindow.y, confirmDeleteWindow.w + 5, confirmDeleteWindow.h + 5);
+  drawWindow(lcd, stationWindow);
+}
+
+void onConfirmNoButtonClick() {
+  // User cancelled deletion
+  stationToDeleteIndex = -1;
+
+  // Hide confirmation dialog and show station window
+  confirmDeleteWindow.visible = false;
+  confirmDeleteWindow.active = false;
+  stationWindow.visible = true;
+  stationWindow.active = true;
+
+  drawCheckeredPatternArea(lcd, confirmDeleteWindow.x, confirmDeleteWindow.y, confirmDeleteWindow.w + 5, confirmDeleteWindow.h + 5);
+  drawWindow(lcd, stationWindow);
+}
+

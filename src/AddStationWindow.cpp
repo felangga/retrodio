@@ -8,8 +8,7 @@
 
 #include "AddStationWindow.h"
 #include "GlobalState.h"
-
-void onComponentClick(int id, void* data);
+#include "WindowCallbacks.h"
 
 void initializeAddStationWindow() {
   extern const int BTN_SAVE_STATION;
@@ -28,7 +27,6 @@ void initializeAddStationWindow() {
   addChildComponent(addStationWindow, lblStationName);
 
   MacComponent* txtStationName = createInputFieldComponent(150, 45, 190, 25, INPUT_STATION_NAME, "Enter station name", 50);
-  txtStationName->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(addStationWindow, txtStationName);
 
   MacComponent* lblStationURL = createLabelComponent(20, 90, 120, 20, LBL_STATION_URL, "Station URL:");
@@ -37,14 +35,13 @@ void initializeAddStationWindow() {
   addChildComponent(addStationWindow, lblStationURL);
 
   MacComponent* txtStationURL = createInputFieldComponent(150, 80, 190, 25, INPUT_STATION_URL, "https://...", 200);
-  txtStationURL->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(addStationWindow, txtStationURL);
 
   MacComponent* btnSave = createButtonComponent(180, 120, 80, 30, BTN_SAVE_STATION, "Save");
-  btnSave->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
+  btnSave->onClick = [](int componentId) { onSaveStationButtonClick(); };
   addChildComponent(addStationWindow, btnSave);
 
   MacComponent* btnCancel = createButtonComponent(270, 120, 80, 30, BTN_CANCEL_ADD_STATION, "Cancel");
-  btnCancel->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
+  btnCancel->onClick = [](int componentId) { onCancelAddStationButtonClick(); };
   addChildComponent(addStationWindow, btnCancel);
 }

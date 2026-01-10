@@ -36,15 +36,14 @@ void onConfirmDeleteWindowClose();
 void onConfirmDeleteWindowContentClick(int relativeX, int relativeY);
 void onConfirmDeleteWindowMoved();
 
-// Component interaction callbacks
-void onComponentClick(int componentId);
 
-// Button callbacks
-void onPlay();
-void onStop();
-void onVolUp();
-void onVolDown();
-void onPrev();
-void onNext();
+// Station window button callbacks
+void onStationButtonClick();
+void onAddStationButtonClick();
+void onSaveStationButtonClick();
+void onCancelAddStationButtonClick();
+void onDeleteStationButtonClick();
+void onConfirmYesButtonClick();
+void onConfirmNoButtonClick();
 
 #endif
