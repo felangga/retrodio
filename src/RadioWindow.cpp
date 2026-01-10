@@ -31,7 +31,7 @@ void initializeRadioWindow() {
 
   clearChildComponents(radioWindow);
 
-  MacComponent* btnPrev = createButtonComponent(30, 165, 50, 50, 4, "", SYMBOL_PREV);
+  MacComponent* btnPrev = createButtonComponent(28, 165, 50, 50, 4, "", SYMBOL_PREV);
   btnPrev->onClick = [](int componentId) { onPrev(); };
   addChildComponent(radioWindow, btnPrev);
 
@@ -43,7 +43,7 @@ void initializeRadioWindow() {
   btnStation->onClick = [](int componentId) { onStationButtonClick(); };
   addChildComponent(radioWindow, btnStation);
 
-  MacComponent* btnNext = createButtonComponent(140, 165, 50, 50, 5, "", SYMBOL_NEXT);
+  MacComponent* btnNext = createButtonComponent(142, 165, 50, 50, 5, "", SYMBOL_NEXT);
   btnNext->onClick = [](int componentId) { onNext(); };
   addChildComponent(radioWindow, btnNext);
 

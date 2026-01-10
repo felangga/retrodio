@@ -35,17 +35,6 @@ extern lgfx::LGFX_Sprite* componentSprite;
 #define CHICAGO11_FONT &Chicago11pt
 #define CHICAGO9_FONT  &Chicago9pt
 
-// ===== FONT TYPE ENUMERATION =====
-// Use these font types to specify fonts for UI components
-// Example usage:
-//   MacRunningText runningText;
-//   runningText.font = FONT_CHICAGO_11PT;
-//
-//   MacLabel label;
-//   label.font = FONT_CHICAGO_9PT;
-//
-//   FontType newFont = FONT_CHICAGO_14PT;
-//   updateRunningTextProperties(component, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &newFont);
 enum FontType {
   FONT_CHICAGO_9PT,
   FONT_CHICAGO_11PT,
@@ -101,6 +90,7 @@ struct MacComponent {
   int w;
   int h;
   int id;
+  int radius;
   bool visible;
   bool enabled;
   void (*onClick)(int componentId);  // Generic callback with component ID
@@ -108,10 +98,13 @@ struct MacComponent {
 };
 
 // ===== BUTTON STRUCT =====
+#define BUTTON_DEFAULT_RADIUS 10
+
 struct MacButton {
   String text;
   SymbolType symbol;  // symbol to draw instead of text (SYMBOL_NONE for text buttons)
   bool pressed;       // current pressed state
+  int radius; 
   FontType font;
 };
 
@@ -280,9 +273,9 @@ void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
                 bool active = true);
 void drawWindow(lgfx::LGFX_Device& lcd,
                 const MacWindow& window);  // overloaded version for MacWindow struct
-void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& text,
+void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, const String& text,
                 bool pressed = false, FontType font = FONT_DEFAULT);
-void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, SymbolType symbol,
+void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, SymbolType symbol,
                       bool pressed = false);
 void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbol,
                 uint16_t color = MAC_BLACK);

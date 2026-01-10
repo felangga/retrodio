@@ -21,8 +21,8 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
     case SYMBOL_PAUSE: {
       int barWidth = size / 4;
       int spacing = size / 3;
-      lcd.fillRect(x, y, barWidth, size, color);
-      lcd.fillRect(x + barWidth + spacing, y, barWidth, size, color);
+      lcd.fillRect(x+2, y, barWidth, size, color);
+      lcd.fillRect(x+2  + barWidth + spacing, y, barWidth, size, color);
     } break;
 
     case SYMBOL_STOP:
@@ -81,34 +81,15 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
   }
 }
 
-void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& text,
+void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, const String& text, 
                 bool pressed, FontType font) {
   // Choose colors based on pressed state - inverted when pressed
   uint16_t bgColor = pressed ? MAC_BLACK : MAC_WHITE;
   uint16_t textColor = pressed ? MAC_WHITE : MAC_BLACK;
   uint16_t borderColor = MAC_BLACK;
 
-  // Draw button background with rounded corners effect
-  lcd.fillRect(x + 1, y, w - 2, h, bgColor);
-  lcd.fillRect(x, y + 1, w, h - 2, bgColor);
-
-  // Draw rounded corners (simple 1-pixel corner cuts)
-  lcd.drawPixel(x + 1, y + 1, bgColor);
-  lcd.drawPixel(x + w - 2, y + 1, bgColor);
-  lcd.drawPixel(x + 1, y + h - 2, bgColor);
-  lcd.drawPixel(x + w - 2, y + h - 2, bgColor);
-
-  // Draw border with rounded corners
-  lcd.drawFastHLine(x + 2, y, w - 4, borderColor);
-  lcd.drawFastHLine(x + 2, y + h - 1, w - 4, borderColor);
-  lcd.drawFastVLine(x, y + 2, h - 4, borderColor);
-  lcd.drawFastVLine(x + w - 1, y + 2, h - 4, borderColor);
-
-  // Corner pixels for rounded effect
-  lcd.drawPixel(x + 1, y + 1, borderColor);
-  lcd.drawPixel(x + w - 2, y + 1, borderColor);
-  lcd.drawPixel(x + 1, y + h - 2, borderColor);
-  lcd.drawPixel(x + w - 2, y + h - 2, borderColor);
+  lcd.fillRoundRect(x, y, w, h, radius, bgColor);
+  lcd.drawRoundRect(x, y, w, h, radius, borderColor);
 
   // Set font
   lcd.setFont(getFontFromType(font));
@@ -119,25 +100,8 @@ void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
   // Calculate text bounds for proper centering
   int16_t textWidth = lcd.textWidth(text);
 
-  // Get font-specific height based on FontType (from ChicagoFont.h definitions)
-  int16_t textHeight;
-  switch (font) {
-    case FONT_CHICAGO_9PT:
-      textHeight = 21;  
-      break;
-    case FONT_CHICAGO_11PT:
-      textHeight = 1;
-      break;
-    case FONT_CHICAGO_14PT:
-      textHeight = 33; 
-      break;
-    default:
-      textHeight = 8;  
-      break;
-  }
-
   int textX = x + (w - textWidth) / 2;
-  int textY = y + (h + textHeight) / 2;
+  int textY = y + h  / 2;
 
   lcd.setCursor(textX, textY);
   lcd.print(text);
@@ -149,36 +113,15 @@ void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
 /**
  * Draw a button with a symbol instead of text
  */
-void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, SymbolType symbol,
+void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, SymbolType symbol,
                       bool pressed) {
   // Inverted colors when pressed
   uint16_t bgColor = pressed ? MAC_BLACK : MAC_WHITE;
   uint16_t borderColor = MAC_BLACK;
   uint16_t symbolColor = pressed ? MAC_WHITE : MAC_BLACK;
 
-  lcd.fillRect(x + 1, y + 1, w - 2, h - 2, bgColor);
-
-  // Clear corner pixels for rounded effect
-  lcd.drawPixel(x, y, MAC_WHITE);
-  lcd.drawPixel(x + w - 1, y, MAC_WHITE);
-  lcd.drawPixel(x, y + h - 1, MAC_WHITE);
-  lcd.drawPixel(x + w - 1, y + h - 1, MAC_WHITE);
-  lcd.drawPixel(x + 1, y + 1, bgColor);
-  lcd.drawPixel(x + w - 2, y + 1, bgColor);
-  lcd.drawPixel(x + 1, y + h - 2, bgColor);
-  lcd.drawPixel(x + w - 2, y + h - 2, bgColor);
-
-  // Draw border with rounded corners
-  lcd.drawFastHLine(x + 2, y, w - 4, borderColor);
-  lcd.drawFastHLine(x + 2, y + h - 1, w - 4, borderColor);
-  lcd.drawFastVLine(x, y + 2, h - 4, borderColor);
-  lcd.drawFastVLine(x + w - 1, y + 2, h - 4, borderColor);
-
-  // Corner pixels for rounded effect
-  lcd.drawPixel(x + 1, y + 1, borderColor);
-  lcd.drawPixel(x + w - 2, y + 1, borderColor);
-  lcd.drawPixel(x + 1, y + h - 2, borderColor);
-  lcd.drawPixel(x + w - 2, y + h - 2, borderColor);
+  lcd.fillRoundRect(x, y, w, h, radius, bgColor);
+  lcd.drawRoundRect(x, y, w, h, radius, borderColor);
 
   // Draw the symbol centered in the button
   int symbolSize = min(w, h) - 32;
@@ -197,8 +140,9 @@ MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const St
   buttonData->text = text;
   buttonData->symbol = symbol;
   buttonData->pressed = false;
-  buttonData->font = FONT_CHICAGO_11PT;  // Chicago font
-
+  buttonData->radius = BUTTON_DEFAULT_RADIUS;
+  buttonData->font = FONT_CHICAGO_11PT;
+  
   component->customData = buttonData;
   return component;
 }

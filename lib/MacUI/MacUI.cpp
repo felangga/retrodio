@@ -739,10 +739,10 @@ void drawComponent(lgfx::LGFX_Device& lcd, const MacComponent& component, int wi
       if (component.customData != nullptr) {
         MacButton* btnData = (MacButton*)component.customData;
         if (btnData->symbol != SYMBOL_NONE) {
-          drawSymbolButton(lcd, absoluteX, absoluteY, component.w, component.h, btnData->symbol,
+          drawSymbolButton(lcd, absoluteX, absoluteY, component.w, component.h, btnData->radius, btnData->symbol,
                            btnData->pressed);
         } else {
-          drawButton(lcd, absoluteX, absoluteY, component.w, component.h, btnData->text,
+          drawButton(lcd, absoluteX, absoluteY, component.w, component.h, btnData->radius, btnData->text,
                      btnData->pressed, btnData->font);
         }
       }
