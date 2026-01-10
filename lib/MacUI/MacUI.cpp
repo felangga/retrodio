@@ -102,11 +102,11 @@ void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
   uint16_t titleColor = active ? MAC_BLACK : MAC_GRAY;
   lcd.fillRect(x + TITLE_BAR_BORDER, y + TITLE_BAR_BORDER, w - 4, TITLE_BAR_HEIGHT, titleColor);
 
-  // Draw title text with Chicago font (adjusted for larger title bar)
   lcd.setTextColor(MAC_WHITE, titleColor);
   lcd.setTextSize(1);
-  int titleX = x + (w - title.length() * 6) / 2;
-  lcd.setCursor(titleX, y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT - 8) / 2);  // Centered in title bar
+  int titleX = x + (w - title.length()*10) / 2;
+  lcd.setCursor(titleX, y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT) / 2);  
+  lcd.setFont(getFontFromType(FONT_CHICAGO_11PT));
   lcd.print(title);
 
   // Calculate minimize button position (centered vertically in title bar)
@@ -114,7 +114,6 @@ void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
   lcd.fillRect(x + w - 24, minBtnY, 18, 18, MAC_WHITE);
   lcd.drawRect(x + w - 24, minBtnY, 18, 18, MAC_BLACK);
 
-  // Draw minimize symbol (−)
   lcd.drawFastHLine(x + w - 18, minBtnY + 8, 8, MAC_BLACK);
 }
 
@@ -749,7 +748,7 @@ void drawComponent(lgfx::LGFX_Device& lcd, const MacComponent& component, int wi
                            btnData->pressed);
         } else {
           drawButton(lcd, absoluteX, absoluteY, component.w, component.h, btnData->text,
-                     btnData->pressed);
+                     btnData->pressed, btnData->font);
         }
       }
       break;

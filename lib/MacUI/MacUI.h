@@ -277,7 +277,7 @@ void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
 void drawWindow(lgfx::LGFX_Device& lcd,
                 const MacWindow& window);  // overloaded version for MacWindow struct
 void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& text,
-                bool pressed = false);
+                bool pressed = false, FontType font = FONT_DEFAULT);
 void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, SymbolType symbol,
                       bool pressed = false);
 void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbol,

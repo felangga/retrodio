@@ -14,7 +14,6 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
   }
 
   if (listView.items == nullptr || listView.itemCount == 0) {
-    // Draw "No items" message
     lcd.fillRect(x + 2, y + 2, w - 4, h - 4, listView.backgroundColor);
     lcd.setTextColor(MAC_GRAY, listView.backgroundColor);
     lcd.setTextSize(1);

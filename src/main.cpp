@@ -234,8 +234,6 @@ void setup() {
 }
 
 void loop() {
-  // Handle OTA updates
   handleOTA();
-
   vTaskDelay(1);
 }

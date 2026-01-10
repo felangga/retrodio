@@ -12,7 +12,6 @@
 #include "ConfigManager.h"
 #include <WiFi.h>
 
-// Forward declaration
 void onComponentClick(int id, void* data);
 
 MacListViewItem* stationItems = nullptr;
@@ -142,9 +141,6 @@ void switchToStation(int index) {
 
 void onStationItemClick(int index, void* itemData) {
   switchToStation(index);
-
-  // Keep the station window open, don't switch back to radio window
-  // User can select stations and delete them without closing the window
 }
 
 void initializeRadioWindow() {
@@ -216,7 +212,7 @@ void initializeStationWindow() {
 
   clearChildComponents(stationWindow);
 
-  MacComponent* btnAddStation = createButtonComponent(310, 42, 90, 30, BTN_ADD_STATION, "Add +");
+  MacComponent* btnAddStation = createButtonComponent(310, 42, 90, 30, BTN_ADD_STATION, "Add");
   btnAddStation->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(stationWindow, btnAddStation);
 
@@ -230,6 +226,7 @@ void initializeStationWindow() {
   if (stationList && stationList->customData) {
     MacListView* listViewData = (MacListView*)stationList->customData;
     listViewData->onItemClick = onStationItemClick;
+    listViewData->font = FONT_CHICAGO_9PT;  // Set Chicago font
   }
 
   stationList->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
@@ -272,6 +269,10 @@ void initializeConfirmDeleteWindow() {
   clearChildComponents(confirmDeleteWindow);
 
   MacComponent* lblMessage = createLabelComponent(20, 45, 240, 20, 500, "Delete this station?");
+  if (lblMessage && lblMessage->customData) {
+    MacLabel* labelData = (MacLabel*)lblMessage->customData;
+    labelData->font = FONT_CHICAGO_9PT;
+  }
   addChildComponent(confirmDeleteWindow, lblMessage);
 
   MacComponent* btnYes = createButtonComponent(50, 75, 80, 30, BTN_CONFIRM_YES, "Yes");

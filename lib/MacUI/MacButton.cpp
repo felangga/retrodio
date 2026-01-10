@@ -82,7 +82,7 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
 }
 
 void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& text,
-                bool pressed) {
+                bool pressed, FontType font) {
   // Choose colors based on pressed state - inverted when pressed
   uint16_t bgColor = pressed ? MAC_BLACK : MAC_WHITE;
   uint16_t textColor = pressed ? MAC_WHITE : MAC_BLACK;
@@ -110,11 +110,35 @@ void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
   lcd.drawPixel(x + 1, y + h - 2, borderColor);
   lcd.drawPixel(x + w - 2, y + h - 2, borderColor);
 
-  // Draw button text (larger text for bigger buttons)
+  // Set font
+  lcd.setFont(getFontFromType(font));
+
+  // Draw button text
   lcd.setTextColor(textColor, bgColor);
-  lcd.setTextSize(2);
-  int textX = x + (w - text.length() * 12) / 2;
-  int textY = y + (h - 16) / 2;
+
+  // Calculate text bounds for proper centering
+  int16_t textWidth = lcd.textWidth(text);
+
+  // Get font-specific height based on FontType (from ChicagoFont.h definitions)
+  int16_t textHeight;
+  switch (font) {
+    case FONT_CHICAGO_9PT:
+      textHeight = 21;  
+      break;
+    case FONT_CHICAGO_11PT:
+      textHeight = 1;
+      break;
+    case FONT_CHICAGO_14PT:
+      textHeight = 33; 
+      break;
+    default:
+      textHeight = 8;  
+      break;
+  }
+
+  int textX = x + (w - textWidth) / 2;
+  int textY = y + (h + textHeight) / 2;
+
   lcd.setCursor(textX, textY);
   lcd.print(text);
 
@@ -173,7 +197,7 @@ MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const St
   buttonData->text = text;
   buttonData->symbol = symbol;
   buttonData->pressed = false;
-  buttonData->font = FONT_DEFAULT;  // Default font
+  buttonData->font = FONT_CHICAGO_11PT;  // Chicago font
 
   component->customData = buttonData;
   return component;
