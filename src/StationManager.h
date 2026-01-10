@@ -20,9 +20,6 @@ void switchToStation(int index);
 void onStationItemClick(int index, void* itemData);
 
 // Window initialization
-void initializeRadioWindow();
 void initializeStationWindow();
-void initializeAddStationWindow();
-void initializeConfirmDeleteWindow();
 
 #endif

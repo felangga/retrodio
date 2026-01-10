@@ -77,9 +77,11 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
   lgfx::LGFX_Device* drawTarget = useSprite ? (lgfx::LGFX_Device*)componentSprite : &lcd;
 
   // Set text properties
-  drawTarget->setTextColor(runningText.textColor, runningText.backgroundColor);
+  drawTarget->setTextColor(runningText.textColor, runningText.backgroundColor);  
+  drawTarget->setFont(getFontFromType(runningText.font));
   drawTarget->setTextSize(runningText.textSize);
-  drawTarget->setTextWrap(false);  // Disable text wrapping to prevent multi-line text
+  drawTarget->setTextWrap(false);  
+  drawTarget->setTextDatum(lgfx::textdatum_t::middle_left);
 
   // Calculate text position
   int textX = contentX + (runningText.scrollEnabled ? -runningText.scrollOffset : 0);
@@ -109,6 +111,9 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
   // Clear clipping
   drawTarget->clearClipRect();
 
+  // Reset font to default
+  drawTarget->setFont(nullptr);
+
   // Push sprite buffer to screen if used
   if (useSprite) {
     // Set clipping on the main lcd to prevent overflow
@@ -136,6 +141,7 @@ MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, con
   runningTextData->isPaused = true;
   runningTextData->pauseStartTime = millis();
   runningTextData->pauseDuration = 2000;
+  runningTextData->font = FONT_DEFAULT;  // Default font
 
   component->customData = runningTextData;
   return component;
@@ -147,7 +153,7 @@ MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, con
  */
 void updateRunningTextProperties(MacComponent* component, const String* newText, int* newTextSize,
                                  uint16_t* newTextColor, uint16_t* newBgColor, int* newScrollSpeed,
-                                 int* newPauseDuration) {
+                                 int* newPauseDuration, FontType* newFont) {
   if (component == nullptr || component->type != COMPONENT_RUNNING_TEXT ||
       component->customData == nullptr) {
     return;
@@ -180,6 +186,10 @@ void updateRunningTextProperties(MacComponent* component, const String* newText,
 
   if (newPauseDuration != nullptr) {
     runningTextData->pauseDuration = *newPauseDuration;
+  }
+
+  if (newFont != nullptr) {
+    runningTextData->font = *newFont;
   }
 }
 

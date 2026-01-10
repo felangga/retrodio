@@ -9,6 +9,7 @@
 #include "WindowCallbacks.h"
 #include "GlobalState.h"
 #include "StationManager.h"
+#include "ConfirmDeleteWindow.h"
 #include "AudioHandlers.h"
 #include "RadioWindow.h"
 #include "wt32_sc01_plus.h"
@@ -96,14 +97,16 @@ void onAddStationWindowClose() {
 }
 
 void onAddStationWindowContentClick(int relativeX, int relativeY) {
+  extern const int INPUT_STATION_NAME;
+  extern const int INPUT_STATION_URL;
   MacComponent* nameInputComp = nullptr;
   MacComponent* urlInputComp = nullptr;
 
   for (int i = 0; i < addStationWindow.childComponentCount; i++) {
     MacComponent* comp = addStationWindow.childComponents[i];
-    if (comp->id == 401) {
+    if (comp->id == INPUT_STATION_NAME) {
       nameInputComp = comp;
-    } else if (comp->id == 403) {
+    } else if (comp->id == INPUT_STATION_URL) {
       urlInputComp = comp;
     }
   }
@@ -118,7 +121,7 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
 
       nameInput->focused = true;
       urlInput->focused = false;
-      keyboard->targetInputId = 401;
+      keyboard->targetInputId = INPUT_STATION_NAME;
       keyboard->visible = true;
 
       // Adjust window position to reveal input field
@@ -143,7 +146,7 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
 
       nameInput->focused = false;
       urlInput->focused = true;
-      keyboard->targetInputId = 403;
+      keyboard->targetInputId = INPUT_STATION_URL;
       keyboard->visible = true;
 
       // Adjust window position to reveal input field

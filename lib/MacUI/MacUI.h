@@ -13,6 +13,7 @@
 #include <LovyanGFX.hpp>
 #include "Arduino.h"
 #include "wt32_sc01_plus.h"
+#include "ChicagoFont.h"
 
 // Forward declarations for screen dimensions (defined in wt32_sc01_plus.h)
 extern const uint32_t screenWidth;
@@ -29,6 +30,32 @@ extern lgfx::LGFX_Sprite* componentSprite;
 #define MAC_DARK_GRAY 0x4208
 #define MAC_BLUE 0x001F
 
+// ===== CHICAGO FONT =====
+#define CHICAGO14_FONT &Chicago14pt
+#define CHICAGO11_FONT &Chicago11pt
+#define CHICAGO9_FONT  &Chicago9pt
+
+// ===== FONT TYPE ENUMERATION =====
+// Use these font types to specify fonts for UI components
+// Example usage:
+//   MacRunningText runningText;
+//   runningText.font = FONT_CHICAGO_11PT;
+//
+//   MacLabel label;
+//   label.font = FONT_CHICAGO_9PT;
+//
+//   FontType newFont = FONT_CHICAGO_14PT;
+//   updateRunningTextProperties(component, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &newFont);
+enum FontType {
+  FONT_CHICAGO_9PT,
+  FONT_CHICAGO_11PT,
+  FONT_CHICAGO_14PT,
+  FONT_DEFAULT  // System default font (nullptr)
+};
+
+// Helper function to convert FontType enum to GFXfont pointer
+// This is used internally by MacUI to convert the enum to the actual font pointer
+const GFXfont* getFontFromType(FontType fontType);
 // ===== WINDOW LAYOUT CONSTANTS =====
 #define TITLE_BAR_HEIGHT 32
 #define TITLE_BAR_BORDER 2
@@ -82,6 +109,7 @@ struct MacButton {
   String text;
   SymbolType symbol;  // symbol to draw instead of text (SYMBOL_NONE for text buttons)
   bool pressed;       // current pressed state
+  FontType font;
 };
 
 // ===== LABEL STRUCT =====
@@ -91,6 +119,7 @@ struct MacLabel {
   uint16_t backgroundColor;
   int textSize;
   bool centerAlign;
+  FontType font;
 };
 
 // ===== TEXTBOX STRUCT =====
@@ -113,7 +142,8 @@ struct MacInputField {
   int maxLength;
   unsigned long lastCursorBlink;
   bool cursorVisible;
-  void (*onTextChanged)(int componentId, const String& text);  // Callback when text changes
+  FontType font;
+  void (*onTextChanged)(int componentId, const String& text);  
 };
 
 // ===== KEYBOARD STRUCT =====
@@ -165,6 +195,7 @@ struct MacRunningText {
   bool isPaused;                 // Pause state when text is fully visible
   unsigned long pauseStartTime;  // Time when pause started
   int pauseDuration;             // How long to pause in milliseconds (default: 2000ms)
+  FontType font;
 };
 
 // ===== LISTVIEW STRUCT =====
@@ -184,6 +215,7 @@ struct MacListView {
   uint16_t backgroundColor;
   uint16_t selectedColor;                          // Background color for selected item
   int textSize;
+  FontType font;
   void (*onItemClick)(int index, void* itemData);  // Callback when item is clicked
   // Touch/swipe tracking
   bool isTouching;               // Currently being touched
@@ -246,12 +278,12 @@ void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
 void drawWindow(lgfx::LGFX_Device& lcd,
                 const MacWindow& window);  // overloaded version for MacWindow struct
 void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& text,
-                bool pressed = false);
+                bool pressed = false, FontType font = FONT_DEFAULT);
 void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, SymbolType symbol,
                       bool pressed = false);
 void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbol,
                 uint16_t color = MAC_BLACK);
-void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, bool inset = false);
+void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h);
 
 // Desktop elements
 void drawDesktopIcon(lgfx::LGFX_Device& lcd, int x, int y, const String& name,
@@ -306,7 +338,7 @@ MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int ta
 void updateRunningTextProperties(MacComponent* component, const String* newText = nullptr,
                                  int* newTextSize = nullptr, uint16_t* newTextColor = nullptr,
                                  uint16_t* newBgColor = nullptr, int* newScrollSpeed = nullptr,
-                                 int* newPauseDuration = nullptr);
+                                 int* newPauseDuration = nullptr, FontType* newFont = nullptr);
 
 // Helper to update input field components (cursor blinking)
 void updateInputFieldComponents(lgfx::LGFX_Device& lcd, MacWindow& window);

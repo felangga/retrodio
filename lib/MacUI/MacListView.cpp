@@ -9,12 +9,11 @@
 void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListView& listView) {
   // Only draw frame on full redraw (not during scrolling)
   if (listView.needsFullRedraw) {
-    draw3DFrame(lcd, x, y, w, h, true);
+    draw3DFrame(lcd, x, y, w, h);
     listView.needsFullRedraw = false;
   }
 
   if (listView.items == nullptr || listView.itemCount == 0) {
-    // Draw "No items" message
     lcd.fillRect(x + 2, y + 2, w - 4, h - 4, listView.backgroundColor);
     lcd.setTextColor(MAC_GRAY, listView.backgroundColor);
     lcd.setTextSize(1);
@@ -55,6 +54,7 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
 
     // Draw item text
     lcd.setTextColor(txtColor, bgColor);
+    lcd.setFont(getFontFromType(listView.font));
     lcd.setTextSize(listView.textSize);
     lcd.setCursor(x + 8, itemY + (listView.itemHeight - 8 * listView.textSize) / 2);
 
@@ -65,6 +65,9 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
       displayText = displayText.substring(0, maxChars - 3) + "...";
     }
     lcd.print(displayText);
+
+    // Reset font to default
+    lcd.setFont(nullptr);
 
     // Draw separator line between items (except last visible item)
     if (i < listView.itemCount - 1) {
@@ -128,6 +131,7 @@ MacComponent* createListViewComponent(int x, int y, int w, int h, int id, MacLis
   listViewData->backgroundColor = MAC_WHITE;
   listViewData->selectedColor = MAC_BLUE;
   listViewData->textSize = 1;
+  listViewData->font = FONT_DEFAULT;  // Default font
   listViewData->onItemClick = nullptr;
   // Initialize touch tracking
   listViewData->isTouching = false;

@@ -21,6 +21,24 @@ extern const int CMP_BUFFER_PROGRESS;
 extern const int CMP_AUTO_PLAY_CHECKBOX;
 extern const int CMP_VISUALS_CHECKBOX;
 
+// Radio Window Text Components
+extern const int TXT_RADIO_NAME;
+extern const int TXT_RADIO_DETAILS;
+extern const int TXT_CPU_LABEL;
+extern const int TXT_BITRATE;
+extern const int TXT_ID3;
+extern const int TXT_INFO;
+extern const int TXT_DESCRIPTION;
+extern const int TXT_LYRICS;
+extern const int TXT_LOG;
+
+// Add Station Window Components
+extern const int LBL_STATION_NAME;
+extern const int INPUT_STATION_NAME;
+extern const int LBL_STATION_URL;
+extern const int INPUT_STATION_URL;
+extern const int KEYBOARD_COMPONENT;
+
 extern const int BTN_PLAY;
 extern const int BTN_STOP;
 extern const int BTN_VOL_UP;

@@ -98,7 +98,8 @@ void switchToStation(int index) {
   lastDisplayedLyrics = "";
   lastDisplayedLog = "";
 
-  MacComponent* txtRadioName = findComponentById(radioWindow, 200);
+  extern const int TXT_RADIO_NAME;
+  MacComponent* txtRadioName = findComponentById(radioWindow, TXT_RADIO_NAME);
   if (txtRadioName && txtRadioName->customData) {
     MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
     if (runningText) {
@@ -162,6 +163,7 @@ void initializeStationWindow() {
   if (stationList && stationList->customData) {
     MacListView* listViewData = (MacListView*)stationList->customData;
     listViewData->onItemClick = onStationItemClick;
+    listViewData->font = FONT_CHICAGO_9PT;  // Set Chicago font
   }
 
   addChildComponent(stationWindow, stationList);
