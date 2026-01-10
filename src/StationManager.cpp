@@ -6,12 +6,15 @@
  * This file implements station management functions
  */
 
+#include "ConfirmDeleteWindow.h"
 #include "StationManager.h"
 #include "GlobalState.h"
 #include "UIHelpers.h"
 #include "ConfigManager.h"
 #include "WindowCallbacks.h"
 #include <WiFi.h>
+
+void initializeConfirmDeleteWindow();
 
 MacListViewItem* stationItems = nullptr;
 int stationItemCount = 0;
