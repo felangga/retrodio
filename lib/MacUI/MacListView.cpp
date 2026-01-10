@@ -56,7 +56,7 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
     lcd.setTextColor(txtColor, bgColor);
     lcd.setFont(getFontFromType(listView.font));
     lcd.setTextSize(listView.textSize);
-    lcd.setCursor(x + 8, itemY + (listView.itemHeight - 8 * listView.textSize) / 2);
+    lcd.setCursor(x + 8, itemY + (listView.itemHeight  * listView.textSize) / 2);
 
     // Truncate text if too long
     String displayText = listView.items[i].text;
@@ -71,7 +71,7 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
 
     // Draw separator line between items (except last visible item)
     if (i < listView.itemCount - 1) {
-      lcd.drawFastHLine(x + 4, itemY + listView.itemHeight - 1, w - 8, MAC_GRAY);
+      lcd.drawFastHLine(x + 4, itemY + listView.itemHeight - 1, w , MAC_GRAY);
     }
   }
 
