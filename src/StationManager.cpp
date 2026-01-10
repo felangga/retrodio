@@ -99,7 +99,8 @@ void switchToStation(int index) {
   lastDisplayedLyrics = "";
   lastDisplayedLog = "";
 
-  MacComponent* txtRadioName = findComponentById(radioWindow, 200);
+  extern const int TXT_RADIO_NAME;
+  MacComponent* txtRadioName = findComponentById(radioWindow, TXT_RADIO_NAME);
   if (txtRadioName && txtRadioName->customData) {
     MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
     if (runningText) {
@@ -165,34 +166,42 @@ void initializeRadioWindow() {
   btnNext->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(radioWindow, btnNext);
 
-  MacComponent* txtRadioName = createRunningTextComponent(20, 45, 380, 25, 200,
+  extern const int TXT_RADIO_NAME;
+  extern const int TXT_RADIO_DETAILS;
+  extern const int TXT_BITRATE;
+  extern const int TXT_ID3;
+  extern const int TXT_INFO;
+  extern const int TXT_DESCRIPTION;
+  extern const int TXT_CPU_LABEL;
+
+  MacComponent* txtRadioName = createRunningTextComponent(20, 45, 380, 25, TXT_RADIO_NAME,
                                                           currentStationName, 2, MAC_BLACK, 3);
   txtRadioName->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(radioWindow, txtRadioName);
 
-  MacComponent* txtRadioDetails = createRunningTextComponent(20, 75, 200, 20, 201,
+  MacComponent* txtRadioDetails = createRunningTextComponent(20, 75, 200, 20, TXT_RADIO_DETAILS,
                                                              "Standby waiting for metadata ...", 2, MAC_BLACK, 1);
   txtRadioDetails->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(radioWindow, txtRadioDetails);
 
-  MacComponent* txtBitRate = createRunningTextComponent(20, 92, 200, 20, 203,
+  MacComponent* txtBitRate = createRunningTextComponent(20, 92, 200, 20, TXT_BITRATE,
                                                         "Bitrate: N/A", 2, MAC_BLACK, 1);
   addChildComponent(radioWindow, txtBitRate);
 
-  MacComponent* txtID3 = createRunningTextComponent(20, 109, 200, 20, 204,
+  MacComponent* txtID3 = createRunningTextComponent(20, 109, 200, 20, TXT_ID3,
                                                     "ID3: N/A", 2, MAC_BLACK, 1);
   addChildComponent(radioWindow, txtID3);
 
-  MacComponent* txtInfo = createRunningTextComponent(20, 126, 200, 20, 205,
+  MacComponent* txtInfo = createRunningTextComponent(20, 126, 200, 20, TXT_INFO,
                                                      "", 2, MAC_BLACK, 1);
   addChildComponent(radioWindow, txtInfo);
 
-  MacComponent* txtDescription = createRunningTextComponent(20, 143, 200, 20, 206,
+  MacComponent* txtDescription = createRunningTextComponent(20, 143, 200, 20, TXT_DESCRIPTION,
                                                             "", 2, MAC_BLACK, 1);
   addChildComponent(radioWindow, txtDescription);
 
   #if ENABLE_DEBUG
-  MacComponent* cpuLabel = createLabelComponent(0, 6, 200, 15, 202, "CPU0: 0% CPU1: 0%", MAC_BLACK);
+  MacComponent* cpuLabel = createLabelComponent(0, 6, 200, 15, TXT_CPU_LABEL, "CPU0: 0% CPU1: 0%", MAC_BLACK);
   cpuLabel->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(radioWindow, cpuLabel);
   #endif
@@ -236,20 +245,24 @@ void initializeStationWindow() {
 void initializeAddStationWindow() {
   extern const int BTN_SAVE_STATION;
   extern const int BTN_CANCEL_ADD_STATION;
+  extern const int LBL_STATION_NAME;
+  extern const int INPUT_STATION_NAME;
+  extern const int LBL_STATION_URL;
+  extern const int INPUT_STATION_URL;
 
   clearChildComponents(addStationWindow);
 
-  MacComponent* lblStationName = createLabelComponent(20, 45, 120, 20, 400, "Station Name:");
+  MacComponent* lblStationName = createLabelComponent(20, 45, 120, 20, LBL_STATION_NAME, "Station Name:");
   addChildComponent(addStationWindow, lblStationName);
 
-  MacComponent* txtStationName = createInputFieldComponent(150, 45, 190, 25, 401, "Enter station name", 50);
+  MacComponent* txtStationName = createInputFieldComponent(150, 45, 190, 25, INPUT_STATION_NAME, "Enter station name", 50);
   txtStationName->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(addStationWindow, txtStationName);
 
-  MacComponent* lblStationURL = createLabelComponent(20, 80, 120, 20, 402, "Station URL:");
+  MacComponent* lblStationURL = createLabelComponent(20, 80, 120, 20, LBL_STATION_URL, "Station URL:");
   addChildComponent(addStationWindow, lblStationURL);
 
-  MacComponent* txtStationURL = createInputFieldComponent(150, 80, 190, 25, 403, "https://...", 200);
+  MacComponent* txtStationURL = createInputFieldComponent(150, 80, 190, 25, INPUT_STATION_URL, "https://...", 200);
   txtStationURL->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(addStationWindow, txtStationURL);
 

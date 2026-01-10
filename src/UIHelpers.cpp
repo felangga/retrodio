@@ -22,14 +22,17 @@ extern DesktopIcon radioIcon;
 extern MacComponent* globalKeyboard;
 
 void updateStationMetadata(const String& stationName, const String& trackInfo) {
-  MacComponent* txtRadioName = findComponentById(radioWindow, 200);
+  extern const int TXT_RADIO_NAME;
+  extern const int TXT_RADIO_DETAILS;
+
+  MacComponent* txtRadioName = findComponentById(radioWindow, TXT_RADIO_NAME);
   if (txtRadioName && txtRadioName->customData) {
     MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
     runningText->text = stationName;
     runningText->scrollOffset = 0;
   }
 
-  MacComponent* txtRadioDetails = findComponentById(radioWindow, 201);
+  MacComponent* txtRadioDetails = findComponentById(radioWindow, TXT_RADIO_DETAILS);
   if (txtRadioDetails && txtRadioDetails->customData) {
     MacRunningText* runningText = (MacRunningText*)txtRadioDetails->customData;
     runningText->text = trackInfo;
@@ -94,7 +97,8 @@ void updateCPUUsage() {
   uint32_t usedPsram = totalPsram - freePsram;
 
   if (radioWindow.visible && !radioWindow.minimized) {
-    MacComponent* cpuLabel = findComponentById(radioWindow, 202);
+    extern const int TXT_CPU_LABEL;
+    MacComponent* cpuLabel = findComponentById(radioWindow, TXT_CPU_LABEL);
     if (cpuLabel && cpuLabel->customData) {
       MacLabel* label = (MacLabel*)cpuLabel->customData;
       char cpuText[128];
@@ -118,9 +122,11 @@ void drawInterface(lgfx::LGFX_Device& lcd) {
   initializeAddStationWindow();
 
   if (globalKeyboard == nullptr) {
+    extern const int KEYBOARD_COMPONENT;
+    extern const int INPUT_STATION_NAME;
     int keyboardHeight = screenHeight / 2;
     int keyboardY = screenHeight - keyboardHeight;
-    globalKeyboard = createKeyboardComponent(0, keyboardY, screenWidth, keyboardHeight, 404, 401);
+    globalKeyboard = createKeyboardComponent(0, keyboardY, screenWidth, keyboardHeight, KEYBOARD_COMPONENT, INPUT_STATION_NAME);
     MacKeyboard* kb = (MacKeyboard*)globalKeyboard->customData;
     kb->visible = false;
   }
@@ -266,15 +272,17 @@ void handleKeyboardInteraction() {
     int relativeY = ty - addStationWindow.y;
 
     // Find all input field components
+    extern const int INPUT_STATION_NAME;
+    extern const int INPUT_STATION_URL;
     MacComponent* nameInputComp = nullptr;
     MacComponent* urlInputComp = nullptr;
 
     for (int i = 0; i < addStationWindow.childComponentCount; i++) {
       MacComponent* comp = addStationWindow.childComponents[i];
       if (comp && comp->type == COMPONENT_INPUT_FIELD) {
-        if (comp->id == 401) {
+        if (comp->id == INPUT_STATION_NAME) {
           nameInputComp = comp;
-        } else if (comp->id == 403) {
+        } else if (comp->id == INPUT_STATION_URL) {
           urlInputComp = comp;
         }
       }
@@ -293,14 +301,14 @@ void handleKeyboardInteraction() {
                            relativeY >= urlInputComp->y &&
                            relativeY <= urlInputComp->y + urlInputComp->h;
 
-    if (clickedNameInput && keyboard->targetInputId != 401) {
+    if (clickedNameInput && keyboard->targetInputId != INPUT_STATION_NAME) {
       // Switch focus to name input
       MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
       MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
 
       nameInput->focused = true;
       urlInput->focused = false;
-      keyboard->targetInputId = 401;
+      keyboard->targetInputId = INPUT_STATION_NAME;
 
       // Adjust window position for the new focused input field
       adjustWindowForKeyboard(addStationWindow, nameInputComp, true);
@@ -312,14 +320,14 @@ void handleKeyboardInteraction() {
       while (lcd.getTouch(&tx, &ty)) {
         delay(10);
       }
-    } else if (clickedUrlInput && keyboard->targetInputId != 403) {
+    } else if (clickedUrlInput && keyboard->targetInputId != INPUT_STATION_URL) {
       // Switch focus to URL input
       MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
       MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
 
       nameInput->focused = false;
       urlInput->focused = true;
-      keyboard->targetInputId = 403;
+      keyboard->targetInputId = INPUT_STATION_URL;
 
       // Adjust window position for the new focused input field
       adjustWindowForKeyboard(addStationWindow, urlInputComp, true);
@@ -364,15 +372,17 @@ void handleKeyboardInteraction() {
     keyboard->visible = false;
 
     // Clear focus from all input fields
+    extern const int INPUT_STATION_NAME;
+    extern const int INPUT_STATION_URL;
     MacComponent* nameInputComp = nullptr;
     MacComponent* urlInputComp = nullptr;
 
     for (int i = 0; i < addStationWindow.childComponentCount; i++) {
       MacComponent* comp = addStationWindow.childComponents[i];
       if (comp && comp->type == COMPONENT_INPUT_FIELD) {
-        if (comp->id == 401) {
+        if (comp->id == INPUT_STATION_NAME) {
           nameInputComp = comp;
-        } else if (comp->id == 403) {
+        } else if (comp->id == INPUT_STATION_URL) {
           urlInputComp = comp;
         }
       }
@@ -483,6 +493,13 @@ void uiTask(void* parameter) {
 
       if (radioWindow.visible && !stationWindow.visible && !addStationWindow.visible &&
           metadataMutex) {
+        extern const int TXT_BITRATE;
+        extern const int TXT_ID3;
+        extern const int TXT_INFO;
+        extern const int TXT_DESCRIPTION;
+        extern const int TXT_LYRICS;
+        extern const int TXT_LOG;
+
         if (xSemaphoreTake(metadataMutex, pdMS_TO_TICKS(2)) == pdTRUE) {
           String serverStationName = String(streamMetadata.stationName);
           String currentTrackInfo = String(streamMetadata.trackInfo);
@@ -504,7 +521,7 @@ void uiTask(void* parameter) {
           }
 
           if (bitRate.length() > 0 && bitRate != lastDisplayedBitRate) {
-            MacComponent* txtBitRate = findComponentById(radioWindow, 203);
+            MacComponent* txtBitRate = findComponentById(radioWindow, TXT_BITRATE);
             if (txtBitRate && txtBitRate->customData) {
               MacRunningText* runningText = (MacRunningText*)txtBitRate->customData;
               runningText->text = "Bitrate: " + bitRate;
@@ -514,7 +531,7 @@ void uiTask(void* parameter) {
           }
 
           if (id3Data.length() > 0 && id3Data != lastDisplayedID3) {
-            MacComponent* txtID3 = findComponentById(radioWindow, 204);
+            MacComponent* txtID3 = findComponentById(radioWindow, TXT_ID3);
             if (txtID3 && txtID3->customData) {
               MacRunningText* runningText = (MacRunningText*)txtID3->customData;
               runningText->text = "ID3: " + id3Data;
@@ -524,7 +541,7 @@ void uiTask(void* parameter) {
           }
 
           if (info.length() > 0 && info != lastDisplayedInfo) {
-            MacComponent* txtInfo = findComponentById(radioWindow, 205);
+            MacComponent* txtInfo = findComponentById(radioWindow, TXT_INFO);
             if (txtInfo && txtInfo->customData) {
               MacRunningText* runningText = (MacRunningText*)txtInfo->customData;
               runningText->text = info;
@@ -534,7 +551,7 @@ void uiTask(void* parameter) {
           }
 
           if (description.length() > 0 && description != lastDisplayedDescription) {
-            MacComponent* txtDescription = findComponentById(radioWindow, 206);
+            MacComponent* txtDescription = findComponentById(radioWindow, TXT_DESCRIPTION);
             if (txtDescription && txtDescription->customData) {
               MacRunningText* runningText = (MacRunningText*)txtDescription->customData;
               runningText->text = "Description: " + description;
@@ -544,7 +561,7 @@ void uiTask(void* parameter) {
           }
 
           if (lyrics.length() > 0 && lyrics != lastDisplayedLyrics) {
-            MacComponent* txtLyrics = findComponentById(radioWindow, 207);
+            MacComponent* txtLyrics = findComponentById(radioWindow, TXT_LYRICS);
             if (txtLyrics && txtLyrics->customData) {
               MacRunningText* runningText = (MacRunningText*)txtLyrics->customData;
               runningText->text = "Lyrics: " + lyrics;
@@ -554,7 +571,7 @@ void uiTask(void* parameter) {
           }
 
           if (log.length() > 0 && log != lastDisplayedLog) {
-            MacComponent* txtLog = findComponentById(radioWindow, 208);
+            MacComponent* txtLog = findComponentById(radioWindow, TXT_LOG);
             if (txtLog && txtLog->customData) {
               MacRunningText* runningText = (MacRunningText*)txtLog->customData;
               runningText->text = "Log: " + log;
