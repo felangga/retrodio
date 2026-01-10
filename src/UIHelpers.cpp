@@ -552,11 +552,11 @@ void uiTask(void* parameter) {
             }
           }
 
-          if (description.length() > 0 && description != lastDisplayedDescription) {
+          if (description != lastDisplayedDescription) {
             MacComponent* txtDescription = findComponentById(radioWindow, TXT_DESCRIPTION);
             if (txtDescription && txtDescription->customData) {
               MacRunningText* runningText = (MacRunningText*)txtDescription->customData;
-              runningText->text = "Description: " + description;
+              runningText->text = description;
               runningText->scrollOffset = 0;
               lastDisplayedDescription = description;
             }

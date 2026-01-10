@@ -111,6 +111,14 @@ void switchToStation(int index) {
     }
   }
 
+  MacComponent* txtDescription = findComponentById(radioWindow, TXT_DESCRIPTION);
+  if (txtDescription && txtDescription->customData) {
+    MacRunningText* runningText = (MacRunningText*)txtDescription->customData;
+    runningText->text = "";
+    runningText->scrollOffset = 0;
+    lastDisplayedDescription = "";
+  }
+
   updateStationMetadata(currentStationName, "Connecting...");
 
   if (isPlaying && audio.isRunning()) {
