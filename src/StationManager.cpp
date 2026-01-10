@@ -10,10 +10,8 @@
 #include "GlobalState.h"
 #include "UIHelpers.h"
 #include "ConfigManager.h"
+#include "WindowCallbacks.h"
 #include <WiFi.h>
-
-// Forward declaration
-void onComponentClick(int id, void* data);
 
 MacListViewItem* stationItems = nullptr;
 int stationItemCount = 0;
@@ -142,72 +140,6 @@ void switchToStation(int index) {
 
 void onStationItemClick(int index, void* itemData) {
   switchToStation(index);
-
-  // Keep the station window open, don't switch back to radio window
-  // User can select stations and delete them without closing the window
-}
-
-void initializeRadioWindow() {
-  extern String currentStationName;
-  extern const int BTN_STATION;
-
-  clearChildComponents(radioWindow);
-
-  MacComponent* btnPrev = createButtonComponent(30, 165, 50, 50, 4, "", SYMBOL_PREV);
-  btnPrev->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(radioWindow, btnPrev);
-
-  MacComponent* btnPlay = createButtonComponent(80, 160, 60, 60, 1, "", SYMBOL_PLAY);
-  btnPlay->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(radioWindow, btnPlay);
-
-  MacComponent* btnStation = createButtonComponent(350, 165, 50, 50, BTN_STATION, "", SYMBOL_LIST);
-  btnStation->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(radioWindow, btnStation);
-
-  MacComponent* btnNext = createButtonComponent(140, 165, 50, 50, 5, "", SYMBOL_NEXT);
-  btnNext->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(radioWindow, btnNext);
-
-  MacComponent* txtRadioName = createRunningTextComponent(20, 45, 380, 25, 200,
-                                                          currentStationName, 2, MAC_BLACK, 3);
-  txtRadioName->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(radioWindow, txtRadioName);
-
-  MacComponent* txtRadioDetails = createRunningTextComponent(20, 75, 200, 20, 201,
-                                                             "Standby waiting for metadata ...", 2, MAC_BLACK, 1);
-  txtRadioDetails->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(radioWindow, txtRadioDetails);
-
-  MacComponent* txtBitRate = createRunningTextComponent(20, 92, 200, 20, 203,
-                                                        "Bitrate: N/A", 2, MAC_BLACK, 1);
-  addChildComponent(radioWindow, txtBitRate);
-
-  MacComponent* txtID3 = createRunningTextComponent(20, 109, 200, 20, 204,
-                                                    "ID3: N/A", 2, MAC_BLACK, 1);
-  addChildComponent(radioWindow, txtID3);
-
-  MacComponent* txtInfo = createRunningTextComponent(20, 126, 200, 20, 205,
-                                                     "", 2, MAC_BLACK, 1);
-  addChildComponent(radioWindow, txtInfo);
-
-  MacComponent* txtDescription = createRunningTextComponent(20, 143, 200, 20, 206,
-                                                            "", 2, MAC_BLACK, 1);
-  addChildComponent(radioWindow, txtDescription);
-
-  #if ENABLE_DEBUG
-  MacComponent* cpuLabel = createLabelComponent(0, 6, 200, 15, 202, "CPU0: 0% CPU1: 0%", MAC_BLACK);
-  cpuLabel->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(radioWindow, cpuLabel);
-  #endif
-
-  MacComponent* btnVolUp = createButtonComponent(200, 165, 50, 50, 3, "", SYMBOL_VOL_UP);
-  btnVolUp->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(radioWindow, btnVolUp);
-
-  MacComponent* btnVolDn = createButtonComponent(250, 165, 50, 50, 6, "", SYMBOL_VOL_DOWN);
-  btnVolDn->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(radioWindow, btnVolDn);
 }
 
 void initializeStationWindow() {
@@ -216,12 +148,12 @@ void initializeStationWindow() {
 
   clearChildComponents(stationWindow);
 
-  MacComponent* btnAddStation = createButtonComponent(310, 42, 90, 30, BTN_ADD_STATION, "Add +");
-  btnAddStation->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
+  MacComponent* btnAddStation = createButtonComponent(310, 42, 90, 30, BTN_ADD_STATION, "Add");
+  btnAddStation->onClick = [](int componentId) { onAddStationButtonClick(); };
   addChildComponent(stationWindow, btnAddStation);
 
   MacComponent* btnDeleteStation = createButtonComponent(310, 77, 90, 30, BTN_DELETE_STATION, "Delete");
-  btnDeleteStation->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
+  btnDeleteStation->onClick = [](int componentId) { onDeleteStationButtonClick(); };
   addChildComponent(stationWindow, btnDeleteStation);
 
   MacComponent* stationList = createListViewComponent(10, 42, 290, 188, 300,
@@ -232,53 +164,105 @@ void initializeStationWindow() {
     listViewData->onItemClick = onStationItemClick;
   }
 
-  stationList->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
   addChildComponent(stationWindow, stationList);
 }
 
-void initializeAddStationWindow() {
-  extern const int BTN_SAVE_STATION;
-  extern const int BTN_CANCEL_ADD_STATION;
 
-  clearChildComponents(addStationWindow);
+void onAddStationButtonClick() {
+  stationWindow.visible = false;
+  stationWindow.active = false;
+  addStationWindow.visible = true;
+  addStationWindow.active = true;
+  addStationWindow.minimized = false;
 
-  MacComponent* lblStationName = createLabelComponent(20, 45, 120, 20, 400, "Station Name:");
-  addChildComponent(addStationWindow, lblStationName);
-
-  MacComponent* txtStationName = createInputFieldComponent(150, 45, 190, 25, 401, "Enter station name", 50);
-  txtStationName->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(addStationWindow, txtStationName);
-
-  MacComponent* lblStationURL = createLabelComponent(20, 80, 120, 20, 402, "Station URL:");
-  addChildComponent(addStationWindow, lblStationURL);
-
-  MacComponent* txtStationURL = createInputFieldComponent(150, 80, 190, 25, 403, "https://...", 200);
-  txtStationURL->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(addStationWindow, txtStationURL);
-
-  MacComponent* btnSave = createButtonComponent(80, 120, 80, 30, BTN_SAVE_STATION, "Save");
-  btnSave->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(addStationWindow, btnSave);
-
-  MacComponent* btnCancel = createButtonComponent(180, 120, 80, 30, BTN_CANCEL_ADD_STATION, "Cancel");
-  btnCancel->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(addStationWindow, btnCancel);
+  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
+  drawWindow(lcd, addStationWindow);
 }
 
-void initializeConfirmDeleteWindow() {
-  extern const int BTN_CONFIRM_YES;
-  extern const int BTN_CONFIRM_NO;
+void onSaveStationButtonClick() {
+  extern const int INPUT_STATION_NAME;
+  extern const int INPUT_STATION_URL;
+  MacComponent* nameInputComp = findComponentById(addStationWindow, INPUT_STATION_NAME);
+  MacComponent* urlInputComp = findComponentById(addStationWindow, INPUT_STATION_URL);
 
-  clearChildComponents(confirmDeleteWindow);
+  if (nameInputComp && urlInputComp) {
+    MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
+    MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
 
-  MacComponent* lblMessage = createLabelComponent(20, 45, 240, 20, 500, "Delete this station?");
-  addChildComponent(confirmDeleteWindow, lblMessage);
+    String stationName = nameInput->text;
+    String stationURL = urlInput->text;
 
-  MacComponent* btnYes = createButtonComponent(50, 75, 80, 30, BTN_CONFIRM_YES, "Yes");
-  btnYes->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(confirmDeleteWindow, btnYes);
+    if (stationName.length() > 0 && stationURL.length() > 0) {
+      if (ConfigManager::addStation(stationName, stationURL)) {
+        reloadStationList();
+        initializeStationWindow();
 
-  MacComponent* btnNo = createButtonComponent(150, 75, 80, 30, BTN_CONFIRM_NO, "No");
-  btnNo->onClick = [](int componentId) { onComponentClick(componentId, nullptr); };
-  addChildComponent(confirmDeleteWindow, btnNo);
+        nameInput->text = "";
+        nameInput->cursorPos = 0;
+        urlInput->text = "";
+        urlInput->cursorPos = 0;
+      } else {
+        return;
+      }
+    }
+  }
+
+  if (globalKeyboard) {
+    MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+    keyboard->visible = false;
+  }
+
+  // Restore window position before hiding
+  adjustWindowForKeyboard(addStationWindow, nullptr, false);
+
+  addStationWindow.visible = false;
+  addStationWindow.active = false;
+  stationWindow.visible = true;
+  stationWindow.active = true;
+
+  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5, addStationWindow.h + 5);
+  drawWindow(lcd, stationWindow);
+}
+
+void onCancelAddStationButtonClick() {
+  if (globalKeyboard) {
+    MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+    keyboard->visible = false;
+  }
+
+  // Restore window position before hiding
+  adjustWindowForKeyboard(addStationWindow, nullptr, false);
+
+  addStationWindow.visible = false;
+  addStationWindow.active = false;
+  stationWindow.visible = true;
+  stationWindow.active = true;
+
+  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5, addStationWindow.h + 5);
+  drawWindow(lcd, stationWindow);
+}
+
+void onDeleteStationButtonClick() {
+  // Find the station list component to get selected index
+  MacComponent* stationListComp = findComponentById(stationWindow, 300);
+
+  if (stationListComp && stationListComp->customData) {
+    MacListView* listViewData = (MacListView*)stationListComp->customData;
+
+    if (listViewData->selectedIndex >= 0 && listViewData->selectedIndex < ConfigManager::getStationCount()) {
+      // Store the station index to delete
+      stationToDeleteIndex = listViewData->selectedIndex;
+
+      // Show confirmation dialog
+      stationWindow.visible = false;
+      stationWindow.active = false;
+
+      initializeConfirmDeleteWindow();
+      confirmDeleteWindow.visible = true;
+      confirmDeleteWindow.active = true;
+
+      drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
+      drawWindow(lcd, confirmDeleteWindow);
+    }
+  }
 }
