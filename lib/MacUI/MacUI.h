@@ -50,6 +50,9 @@ enum FontType {
   FONT_CHICAGO_9PT,
   FONT_CHICAGO_11PT,
   FONT_CHICAGO_14PT,
+  FONT_DEJAVU_12PT,
+  FONT_TOM_THUMB,
+  FONT_FREE_MONO_12PT,
   FONT_DEFAULT  // System default font (nullptr)
 };
 
@@ -327,7 +330,7 @@ MacComponent* createLabelComponent(int x, int y, int w, int h, int id, const Str
                                    uint16_t textColor = MAC_BLACK);
 MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, const String& text,
                                          int scrollSpeed = 2, uint16_t textColor = MAC_BLACK,
-                                         int textSize = 1);
+                                         int textSize = 1, FontType font = FONT_DEFAULT);
 MacComponent* createListViewComponent(int x, int y, int w, int h, int id, MacListViewItem* items,
                                       int itemCount, int itemHeight = 30);
 MacComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
