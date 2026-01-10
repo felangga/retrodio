@@ -7,17 +7,14 @@
 
 void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInputField& inputField) {
   // Draw 3D inset frame for input field
-  draw3DFrame(lcd, x, y, w, h, true);
-
-  // Fill background
+  draw3DFrame(lcd, x, y, w, h);
   lcd.fillRect(x + 2, y + 2, w - 4, h - 4, MAC_WHITE);
-
-  // Set text properties
   lcd.setTextSize(1);
+  lcd.setFont(getFontFromType(inputField.font));
 
   // Calculate text position
   int textX = x + 5;
-  int textY = y + (h - 8) / 2;  // 8 is approximate text height for size 1
+  int textY = y + (h - 1) / 2; 
 
   // Handle cursor blinking (500ms interval)
   unsigned long currentTime = millis();
@@ -77,7 +74,7 @@ void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInput
     lcd.setTextSize(1);
     lcd.setCursor(textX, textY);
     lcd.print(inputField.placeholder);
-
+    
     // Draw cursor at start if focused
     if (inputField.focused && inputField.cursorVisible) {
       lcd.drawLine(textX, y + 5, textX, y + h - 5, MAC_BLACK);
@@ -88,6 +85,9 @@ void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInput
   if (inputField.focused) {
     lcd.drawRect(x, y, w, h, MAC_BLUE);
   }
+
+  // Reset font to default
+  lcd.setFont(nullptr);
 }
 
 MacComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
@@ -103,6 +103,7 @@ MacComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
   inputField->lastCursorBlink = millis();
   inputField->cursorVisible = true;
   inputField->onTextChanged = nullptr;
+  inputField->font = FONT_CHICAGO_9PT;
 
   component->customData = inputField;
   return component;

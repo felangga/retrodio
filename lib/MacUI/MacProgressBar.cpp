@@ -10,7 +10,7 @@ void drawProgressBar(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
                      const MacProgressBar& progressBar) {
   // Draw background
   lcd.fillRect(x, y, w, h, MAC_WHITE);
-  draw3DFrame(lcd, x, y, w, h, true);
+  draw3DFrame(lcd, x, y, w, h);
 
   // Calculate fill width
   int range = progressBar.maxValue - progressBar.minValue;

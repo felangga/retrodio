@@ -24,6 +24,9 @@
 #include "AudioHandlers.h"
 #include "NetworkHandlers.h"
 #include "StationManager.h"
+#include "RadioWindow.h"
+#include "AddStationWindow.h"
+#include "ConfirmDeleteWindow.h"
 #include "UIHelpers.h"
 #include "OTAHandler.h"
 
@@ -48,6 +51,24 @@ const int CMP_VOLUME_SLIDER = 101;
 const int CMP_BUFFER_PROGRESS = 102;
 const int CMP_AUTO_PLAY_CHECKBOX = 103;
 const int CMP_VISUALS_CHECKBOX = 104;
+
+// Radio Window Text Components
+const int TXT_RADIO_NAME = 200;
+const int TXT_RADIO_DETAILS = 201;
+const int TXT_CPU_LABEL = 202;
+const int TXT_BITRATE = 203;
+const int TXT_ID3 = 204;
+const int TXT_INFO = 205;
+const int TXT_DESCRIPTION = 206;
+const int TXT_LYRICS = 207;
+const int TXT_LOG = 208;
+
+// Add Station Window Components
+const int LBL_STATION_NAME = 400;
+const int INPUT_STATION_NAME = 401;
+const int LBL_STATION_URL = 402;
+const int INPUT_STATION_URL = 403;
+const int KEYBOARD_COMPONENT = 404;
 
 const int BTN_PLAY = 1;
 const int BTN_STOP = 2;
@@ -234,8 +255,6 @@ void setup() {
 }
 
 void loop() {
-  // Handle OTA updates
   handleOTA();
-
   vTaskDelay(1);
 }

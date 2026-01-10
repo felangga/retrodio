@@ -16,7 +16,7 @@ void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSli
 
     // Draw track
     lcd.fillRect(trackX, trackY, trackW, trackH, MAC_LIGHT_GRAY);
-    draw3DFrame(lcd, trackX, trackY, trackW, trackH, true);
+    draw3DFrame(lcd, trackX, trackY, trackW, trackH);
 
     // Calculate thumb position
     int range = slider.maxValue - slider.minValue;
@@ -24,7 +24,7 @@ void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSli
 
     // Draw thumb
     lcd.fillRect(trackX - 3, thumbY, trackW + 6, 10, MAC_WHITE);
-    draw3DFrame(lcd, trackX - 3, thumbY, trackW + 6, 10, false);
+    draw3DFrame(lcd, trackX - 3, thumbY, trackW + 6, 10);
   } else {
     // Horizontal slider
     int trackY = y + h / 2 - 2;
@@ -34,7 +34,7 @@ void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSli
 
     // Draw track
     lcd.fillRect(trackX, trackY, trackW, trackH, MAC_LIGHT_GRAY);
-    draw3DFrame(lcd, trackX, trackY, trackW, trackH, true);
+    draw3DFrame(lcd, trackX, trackY, trackW, trackH);
 
     // Calculate thumb position
     int range = slider.maxValue - slider.minValue;
@@ -42,7 +42,7 @@ void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSli
 
     // Draw thumb
     lcd.fillRect(thumbX, trackY - 3, 10, trackH + 6, MAC_WHITE);
-    draw3DFrame(lcd, thumbX, trackY - 3, 10, trackH + 6, false);
+    draw3DFrame(lcd, thumbX, trackY - 3, 10, trackH + 6);
   }
 }
 

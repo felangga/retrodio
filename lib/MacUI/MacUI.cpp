@@ -18,6 +18,23 @@ static int registeredWindowCount = 0;
 static const int MAX_WINDOWS = 10;
 
 /**
+ * Convert FontType enum to GFXfont pointer
+ */
+const GFXfont* getFontFromType(FontType fontType) {
+  switch (fontType) {
+    case FONT_CHICAGO_9PT:
+      return CHICAGO9_FONT;
+    case FONT_CHICAGO_11PT:
+      return CHICAGO11_FONT;
+    case FONT_CHICAGO_14PT:
+      return CHICAGO14_FONT;
+    case FONT_DEFAULT:
+    default:
+      return nullptr;
+  }
+}
+
+/**
  * Initialize sprite buffer for double buffering
  * Call this once during setup after lcd.init()
  */
@@ -47,31 +64,28 @@ void initComponentBuffer(lgfx::LGFX_Device* lcd, int maxWidth, int maxHeight) {
  * Draw the classic Mac OS menu bar
  */
 void drawMenuBar(lgfx::LGFX_Device& lcd, const String& appName) {
-  // Draw menu bar background
   lcd.fillRect(0, 0, screenWidth, 20, MAC_WHITE);
   lcd.drawFastHLine(0, 20, screenWidth, MAC_BLACK);
 
   lcd.fillCircle(15, 10, 6, MAC_BLACK);
   lcd.fillCircle(18, 7, 3, MAC_WHITE);
 
-  // Draw menu items
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  lcd.setTextSize(1);
-  lcd.setCursor(30, 6);
-  lcd.print(appName);
+  lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+  lcd.setTextDatum(textdatum_t::middle_left);
+  lcd.drawString(appName, 30, 10);
+  lcd.setFont(nullptr);  
 }
 
 void drawClock(lgfx::LGFX_Device& lcd, const String& time) {
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  lcd.setTextSize(1);
-  lcd.fillRect(screenWidth - 60, 0, 80, 20, MAC_WHITE);
-  lcd.setCursor(screenWidth - 60, 6);
-  lcd.print(time);
+  lcd.fillRect(screenWidth - 80, 0, 80, 20, MAC_WHITE);
+  lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+  lcd.setTextDatum(textdatum_t::middle_left);
+  lcd.drawString(time, screenWidth - 80, 10);
+  lcd.setFont(nullptr); 
 }
 
-/**
- * Draw a classic Mac OS window with title bar
- */
 void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& title,
                 bool active) {
   // Draw window shadow
@@ -88,11 +102,11 @@ void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
   uint16_t titleColor = active ? MAC_BLACK : MAC_GRAY;
   lcd.fillRect(x + TITLE_BAR_BORDER, y + TITLE_BAR_BORDER, w - 4, TITLE_BAR_HEIGHT, titleColor);
 
-  // Draw title text (adjusted for larger title bar)
   lcd.setTextColor(MAC_WHITE, titleColor);
   lcd.setTextSize(1);
-  int titleX = x + (w - title.length() * 6) / 2;
-  lcd.setCursor(titleX, y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT - 8) / 2);  // Centered in title bar
+  int titleX = x + (w - title.length()*10) / 2;
+  lcd.setCursor(titleX, y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT) / 2);  
+  lcd.setFont(getFontFromType(FONT_CHICAGO_11PT));
   lcd.print(title);
 
   // Calculate minimize button position (centered vertically in title bar)
@@ -100,7 +114,6 @@ void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
   lcd.fillRect(x + w - 24, minBtnY, 18, 18, MAC_WHITE);
   lcd.drawRect(x + w - 24, minBtnY, 18, 18, MAC_BLACK);
 
-  // Draw minimize symbol (−)
   lcd.drawFastHLine(x + w - 18, minBtnY + 8, 8, MAC_BLACK);
 }
 
@@ -111,13 +124,9 @@ void drawWindow(lgfx::LGFX_Device& lcd, const MacWindow& window) {
   if (!window.visible)
     return;
 
-  // Draw full window
   drawWindow(lcd, window.x, window.y, window.w, window.h, window.title, window.active);
 
-  // Skip drawing child components during drag to reduce flicker
-  // They'll be redrawn once the drag ends
   if (!window.isDragging) {
-    // Draw all child components (flexible system)
     drawWindowChildComponents(lcd, window);
   }
 }
@@ -127,7 +136,8 @@ void drawWindow(lgfx::LGFX_Device& lcd, const MacWindow& window) {
 bool isInsideCloseButton(const MacWindow& window, int tx, int ty) {
   if (!window.visible)
     return false;
-  int buttonHeight = 16;  // Now consistent 16 pixels for both normal and minimized
+
+  int buttonHeight = 16;  
   int buttonY = window.y + 4;
   return tx >= window.x + 4 && tx < window.x + 20 && ty >= buttonY && ty < buttonY + buttonHeight;
 }
@@ -539,25 +549,14 @@ void drawDesktopIcon(lgfx::LGFX_Device& lcd, int x, int y, const String& name, b
 }
 
 /**
- * Draw 3D frame (inset or outset)
+ * Draw 3D frame
  */
-void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, bool inset) {
-  if (inset) {
-    // Inset frame (shadow on top/left, highlight on bottom/right)
+void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h) {
     lcd.drawFastHLine(x, y, w, MAC_DARK_GRAY);
     lcd.drawFastVLine(x, y, h, MAC_DARK_GRAY);
-    lcd.drawFastHLine(x, y + h - 1, w, MAC_WHITE);
-    lcd.drawFastVLine(x + w - 1, y, h, MAC_WHITE);
-  } else {
-    // Outset frame (highlight on top/left, shadow on bottom/right)
-    lcd.drawFastHLine(x, y, w, MAC_WHITE);
-    lcd.drawFastVLine(x, y, h, MAC_WHITE);
     lcd.drawFastHLine(x, y + h - 1, w, MAC_DARK_GRAY);
     lcd.drawFastVLine(x + w - 1, y, h, MAC_DARK_GRAY);
-  }
 }
-
-
 
 // ===== DESKTOP ICON IMPLEMENTATION =====
 
@@ -738,7 +737,7 @@ void drawComponent(lgfx::LGFX_Device& lcd, const MacComponent& component, int wi
                            btnData->pressed);
         } else {
           drawButton(lcd, absoluteX, absoluteY, component.w, component.h, btnData->text,
-                     btnData->pressed);
+                     btnData->pressed, btnData->font);
         }
       }
       break;
