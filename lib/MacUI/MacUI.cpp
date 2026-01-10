@@ -549,25 +549,14 @@ void drawDesktopIcon(lgfx::LGFX_Device& lcd, int x, int y, const String& name, b
 }
 
 /**
- * Draw 3D frame (inset or outset)
+ * Draw 3D frame
  */
-void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, bool inset) {
-  if (inset) {
-    // Inset frame (shadow on top/left, highlight on bottom/right)
+void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h) {
     lcd.drawFastHLine(x, y, w, MAC_DARK_GRAY);
     lcd.drawFastVLine(x, y, h, MAC_DARK_GRAY);
-    lcd.drawFastHLine(x, y + h - 1, w, MAC_WHITE);
-    lcd.drawFastVLine(x + w - 1, y, h, MAC_WHITE);
-  } else {
-    // Outset frame (highlight on top/left, shadow on bottom/right)
-    lcd.drawFastHLine(x, y, w, MAC_WHITE);
-    lcd.drawFastVLine(x, y, h, MAC_WHITE);
     lcd.drawFastHLine(x, y + h - 1, w, MAC_DARK_GRAY);
     lcd.drawFastVLine(x + w - 1, y, h, MAC_DARK_GRAY);
-  }
 }
-
-
 
 // ===== DESKTOP ICON IMPLEMENTATION =====
 

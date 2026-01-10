@@ -142,7 +142,8 @@ struct MacInputField {
   int maxLength;
   unsigned long lastCursorBlink;
   bool cursorVisible;
-  void (*onTextChanged)(int componentId, const String& text);  // Callback when text changes
+  FontType font;
+  void (*onTextChanged)(int componentId, const String& text);  
 };
 
 // ===== KEYBOARD STRUCT =====
@@ -282,7 +283,7 @@ void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, Symbol
                       bool pressed = false);
 void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbol,
                 uint16_t color = MAC_BLACK);
-void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, bool inset = false);
+void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h);
 
 // Desktop elements
 void drawDesktopIcon(lgfx::LGFX_Device& lcd, int x, int y, const String& name,

@@ -9,7 +9,7 @@
 void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListView& listView) {
   // Only draw frame on full redraw (not during scrolling)
   if (listView.needsFullRedraw) {
-    draw3DFrame(lcd, x, y, w, h, true);
+    draw3DFrame(lcd, x, y, w, h);
     listView.needsFullRedraw = false;
   }
 

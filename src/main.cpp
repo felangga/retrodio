@@ -24,6 +24,9 @@
 #include "AudioHandlers.h"
 #include "NetworkHandlers.h"
 #include "StationManager.h"
+#include "RadioWindow.h"
+#include "AddStationWindow.h"
+#include "ConfirmDeleteWindow.h"
 #include "UIHelpers.h"
 #include "OTAHandler.h"
 

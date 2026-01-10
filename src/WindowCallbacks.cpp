@@ -9,6 +9,7 @@
 #include "WindowCallbacks.h"
 #include "GlobalState.h"
 #include "StationManager.h"
+#include "ConfirmDeleteWindow.h"
 #include "AudioHandlers.h"
 #include "wt32_sc01_plus.h"
 #include "ConfigManager.h"
@@ -441,7 +442,7 @@ void onVolUp() {
   ConfigManager::setVolume(newVol);
 
   if (!radioWindow.minimized && radioWindow.visible) {
-    draw3DFrame(lcd, radioWindow.x + 310, radioWindow.y + 35, 90, 25, true);
+    draw3DFrame(lcd, radioWindow.x + 310, radioWindow.y + 35, 90, 25);
     lcd.setTextColor(MAC_BLACK, MAC_WHITE);
     lcd.setTextSize(1);
     lcd.setCursor(radioWindow.x + 315, radioWindow.y + 43);
@@ -493,7 +494,7 @@ void onVolDown() {
   ConfigManager::setVolume(newVol);
 
   if (!radioWindow.minimized && radioWindow.visible) {
-    draw3DFrame(lcd, radioWindow.x + 310, radioWindow.y + 35, 90, 25, true);
+    draw3DFrame(lcd, radioWindow.x + 310, radioWindow.y + 35, 90, 25);
     lcd.setTextColor(MAC_BLACK, MAC_WHITE);
     lcd.setTextSize(1);
     lcd.setCursor(radioWindow.x + 315, radioWindow.y + 43);

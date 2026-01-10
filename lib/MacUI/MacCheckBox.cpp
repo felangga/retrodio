@@ -14,7 +14,7 @@ void drawCheckBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacC
   // Draw checkbox box
   lcd.fillRect(boxX, boxY, boxSize, boxSize, MAC_WHITE);
   lcd.drawRect(boxX, boxY, boxSize, boxSize, MAC_BLACK);
-  draw3DFrame(lcd, boxX + 1, boxY + 1, boxSize - 2, boxSize - 2, true);
+  draw3DFrame(lcd, boxX + 1, boxY + 1, boxSize - 2, boxSize - 2);
 
   // Draw checkmark if checked
   if (checkbox.checked) {
