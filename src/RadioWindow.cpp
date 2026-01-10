@@ -17,6 +17,14 @@
 MacComponent* findComponentById(const MacWindow& window, int id);
 void updateComponentSymbol(const MacWindow& window, int componentId, SymbolType newSymbol);
 
+// Forward declarations for button handlers
+void onPlay();
+void onStop();
+void onVolUp();
+void onVolDown();
+void onPrev();
+void onNext();
+
 void initializeRadioWindow() {
   extern String currentStationName;
   extern const int BTN_STATION;
@@ -47,27 +55,23 @@ void initializeRadioWindow() {
   extern const int TXT_DESCRIPTION;
   extern const int TXT_CPU_LABEL;
 
-  MacComponent* txtRadioName = createRunningTextComponent(20, 45, 380, 25, TXT_RADIO_NAME,
+  MacComponent* txtRadioName = createRunningTextComponent(20, 45, 380, 45, TXT_RADIO_NAME,
                                                           currentStationName, 2, MAC_BLACK, 3);
   addChildComponent(radioWindow, txtRadioName);
 
-  MacComponent* txtRadioDetails = createRunningTextComponent(20, 75, 200, 20, TXT_RADIO_DETAILS,
+  MacComponent* txtRadioDetails = createRunningTextComponent(20, 85, 250, 20, TXT_RADIO_DETAILS,
                                                              "Standby waiting for metadata ...", 2, MAC_BLACK, 1);
   addChildComponent(radioWindow, txtRadioDetails);
 
-  MacComponent* txtBitRate = createRunningTextComponent(20, 92, 200, 20, TXT_BITRATE,
+  MacComponent* txtBitRate = createRunningTextComponent(20, 100, 100, 20, TXT_BITRATE,
                                                         "Bitrate: N/A", 2, MAC_BLACK, 1);
   addChildComponent(radioWindow, txtBitRate);
 
-  MacComponent* txtID3 = createRunningTextComponent(20, 109, 200, 20, TXT_ID3,
-                                                    "ID3: N/A", 2, MAC_BLACK, 1);
-  addChildComponent(radioWindow, txtID3);
-
-  MacComponent* txtInfo = createRunningTextComponent(20, 126, 200, 20, TXT_INFO,
+  MacComponent* txtInfo = createRunningTextComponent(20, 115, 250, 20, TXT_INFO,
                                                      "", 2, MAC_BLACK, 1);
   addChildComponent(radioWindow, txtInfo);
 
-  MacComponent* txtDescription = createRunningTextComponent(20, 143, 200, 20, TXT_DESCRIPTION,
+  MacComponent* txtDescription = createRunningTextComponent(20, 130, 250, 20, TXT_DESCRIPTION,
                                                             "", 2, MAC_BLACK, 1);
   addChildComponent(radioWindow, txtDescription);
 

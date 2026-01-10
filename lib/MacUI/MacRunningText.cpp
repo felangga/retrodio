@@ -85,7 +85,7 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
 
   // Calculate text position
   int textX = contentX + (runningText.scrollEnabled ? -runningText.scrollOffset : 0);
-  int textY = contentY + (contentH - 8 * runningText.textSize) / 2;
+  int textY = contentY + contentH / 2;
 
   // Draw the text (it will be clipped by the component area)
   drawTarget->setClipRect(contentX, contentY, w, contentH);
@@ -124,7 +124,7 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
 }
 
 MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, const String& text,
-                                         int scrollSpeed, uint16_t textColor, int textSize) {
+                                         int scrollSpeed, uint16_t textColor, int textSize, FontType font) {
   MacComponent* component = createComponent(COMPONENT_RUNNING_TEXT, x, y, w, h, id);
 
   // Create running text-specific data
@@ -141,7 +141,7 @@ MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, con
   runningTextData->isPaused = true;
   runningTextData->pauseStartTime = millis();
   runningTextData->pauseDuration = 2000;
-  runningTextData->font = FONT_DEFAULT;  // Default font
+  runningTextData->font = font;
 
   component->customData = runningTextData;
   return component;

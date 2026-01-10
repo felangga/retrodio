@@ -32,7 +32,6 @@ void updateStationMetadata(const String& stationName, const String& trackInfo) {
     MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
     runningText->text = stationName;
     runningText->scrollOffset = 0;
-    runningText->font = FONT_CHICAGO_11PT;
   }
 
   MacComponent* txtRadioDetails = findComponentById(radioWindow, TXT_RADIO_DETAILS);

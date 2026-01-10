@@ -28,6 +28,12 @@ const GFXfont* getFontFromType(FontType fontType) {
       return CHICAGO11_FONT;
     case FONT_CHICAGO_14PT:
       return CHICAGO14_FONT;
+    case FONT_DEJAVU_12PT:
+      return &fonts::DejaVu12;
+    case FONT_TOM_THUMB: 
+      return &fonts::TomThumb;
+    case FONT_FREE_MONO_12PT:
+      return &fonts::FreeMono12pt7b;
     case FONT_DEFAULT:
     default:
       return nullptr;

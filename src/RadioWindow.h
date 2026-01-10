@@ -3,22 +3,8 @@
  *
  * Copyright (c) 2025 felangga
  *
- * This header file contains declarations for radio window functions
  */
-
-#ifndef RADIO_WINDOW_H
-#define RADIO_WINDOW_H
 
 #include "MacUI.h"
 
 void initializeRadioWindow();
-
-// Radio button handlers
-void onPlay();
-void onStop();
-void onVolUp();
-void onVolDown();
-void onPrev();
-void onNext();
-
-#endif
