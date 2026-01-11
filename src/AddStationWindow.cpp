@@ -34,7 +34,7 @@ void initializeAddStationWindow() {
   labelData->font = FONT_CHICAGO_9PT;
   addChildComponent(addStationWindow, lblStationURL);
 
-  MacComponent* txtStationURL = createInputFieldComponent(150, 80, 190, 25, INPUT_STATION_URL, "https://...", 200);
+  MacComponent* txtStationURL = createInputFieldComponent(150, 80, 190, 25, INPUT_STATION_URL, "https://...", 200, "https://");
   addChildComponent(addStationWindow, txtStationURL);
 
   MacComponent* btnSave = createButtonComponent(180, 120, 80, 30, BTN_SAVE_STATION, "Save");

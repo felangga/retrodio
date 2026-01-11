@@ -218,8 +218,36 @@ void handleKeyboardInteraction() {
     return;
   }
 
+  // Find the target input field component
+  MacComponent* targetInputComp = nullptr;
+  for (int i = 0; i < addStationWindow.childComponentCount; i++) {
+    MacComponent* comp = addStationWindow.childComponents[i];
+    if (comp && comp->id == keyboard->targetInputId && comp->type == COMPONENT_INPUT_FIELD) {
+      targetInputComp = comp;
+      break;
+    }
+  }
+
+  if (!targetInputComp) {
+    return;
+  }
+
   uint16_t tx, ty;
-  if (!lcd.getTouch(&tx, &ty)) {
+  bool isTouching = lcd.getTouch(&tx, &ty);
+
+  if (!isTouching) {
+    // No touch detected - reset key press state and restore key appearance
+    if (keyboard->isKeyPressed) {
+      keyboard->isKeyPressed = false;
+      keyboard->isBackspace = false;
+      keyboard->isSpace = false;
+      keyboard->lastPressedChar = '\0';
+
+      // Redraw keyboard to restore normal key appearance
+      lcd.startWrite();
+      drawKeyboard(lcd, globalKeyboard->x, globalKeyboard->y, globalKeyboard->w, globalKeyboard->h, *keyboard);
+      lcd.endWrite();
+    }
     return;
   }
 
@@ -236,38 +264,18 @@ void handleKeyboardInteraction() {
                         ty <= addStationWindow.y + addStationWindow.h);
 
   if (touchInKeyboard) {
-    // Find the target input field component
-    MacComponent* targetInputComp = nullptr;
-
-    // Search for the input field in the add station window
-    for (int i = 0; i < addStationWindow.childComponentCount; i++) {
-      MacComponent* comp = addStationWindow.childComponents[i];
-      if (comp && comp->id == keyboard->targetInputId && comp->type == COMPONENT_INPUT_FIELD) {
-        targetInputComp = comp;
-        break;
-      }
-    }
-
-    if (!targetInputComp) {
-      return;
-    }
-
     // Handle keyboard touch with absolute coordinates
-    bool textChanged = handleKeyboardTouch(lcd, globalKeyboard, targetInputComp, tx, ty);
+    bool textChanged = handleKeyboardTouch(lcd, globalKeyboard, targetInputComp, tx, ty, &addStationWindow);
 
     if (textChanged) {
       // Only redraw the input field to show the updated text
-      // The keyboard already redraws itself in handleKeyboardTouch when needed
       lcd.startWrite();
       drawComponent(lcd, *targetInputComp, addStationWindow.x, addStationWindow.y);
       lcd.endWrite();
-
-      // Wait for touch release to prevent multiple character inputs
-      delay(150);
-      while (lcd.getTouch(&tx, &ty)) {
-        delay(10);
-      }
     }
+
+    // Handle key repeat while key is held
+    handleKeyboardRepeat(lcd, globalKeyboard, targetInputComp, &addStationWindow);
   } else if (touchInWindow) {
     // Touch is in window but not on keyboard - check what was clicked
     int relativeX = tx - addStationWindow.x;
@@ -317,11 +325,6 @@ void handleKeyboardInteraction() {
 
       drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
-
-      delay(150);
-      while (lcd.getTouch(&tx, &ty)) {
-        delay(10);
-      }
     } else if (clickedUrlInput && keyboard->targetInputId != INPUT_STATION_URL) {
       // Switch focus to URL input
       MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
@@ -336,11 +339,6 @@ void handleKeyboardInteraction() {
 
       drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
-
-      delay(150);
-      while (lcd.getTouch(&tx, &ty)) {
-        delay(10);
-      }
     } else if (!clickedNameInput && !clickedUrlInput) {
       // Clicked somewhere else in the window (not on input fields) - hide keyboard
       keyboard->visible = false;
@@ -363,11 +361,6 @@ void handleKeyboardInteraction() {
       int keyboardY = screenHeight - keyboardHeight;
       drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
       drawWindow(lcd, addStationWindow);
-
-      delay(150);
-      while (lcd.getTouch(&tx, &ty)) {
-        delay(10);
-      }
     }
   } else {
     // Touch is completely outside the window - hide keyboard
@@ -406,11 +399,6 @@ void handleKeyboardInteraction() {
     int keyboardHeight = screenHeight / 2;
     int keyboardY = screenHeight - keyboardHeight;
     drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
-
-    delay(150);
-    while (lcd.getTouch(&tx, &ty)) {
-      delay(10);
-    }
   }
 }
 
