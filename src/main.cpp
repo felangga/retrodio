@@ -116,7 +116,7 @@ String lastDisplayedDescription = "";
 String lastDisplayedLyrics = "";
 String lastDisplayedLog = "";
 
-MacWindow radioWindow{20,  40,  420, 240, "Radio", true, false, true,
+MacWindow radioWindow{30,  40,  420, 240, "Radio", true, false, true,
                       onWindowMinimize, onWindowClose, onWindowContentClick, onWindowMoved,
                       nullptr, 0, false, 0, 0};
 
