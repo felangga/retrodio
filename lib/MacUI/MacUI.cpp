@@ -8,6 +8,11 @@
  */
 
 #include "MacUI.h"
+
+// Slider constants (must match MacSlider.cpp)
+#define SLIDER_THUMB_SIZE 30
+#define SLIDER_TRACK_WIDTH 8
+
 // Sprite buffer for double buffering components
 lgfx::LGFX_Sprite* componentSprite = nullptr;
 lgfx::LGFX_Sprite* windowSprite = nullptr;
@@ -264,8 +269,44 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
           listViewData->lastTouchY = ty;
           listViewData->touchStartTime = millis();
         }
+
+        // Check if touch is on a Slider component for dragging
+        if (window.visible && touchedComponent && touchedComponent->type == COMPONENT_SLIDER &&
+            touchedComponent->customData) {
+          MacSlider* sliderData = (MacSlider*)touchedComponent->customData;
+
+          // Calculate slider value based on touch position
+          int relativeX = tx - (window.x + touchedComponent->x);
+          int relativeY = ty - (window.y + touchedComponent->y);
+
+          if (sliderData->vertical) {
+            int trackH = touchedComponent->h - (SLIDER_THUMB_SIZE / 2);
+            int trackY = (SLIDER_THUMB_SIZE / 4);
+            int touchPos = trackH - (relativeY - trackY);
+            touchPos = max(0, min(touchPos, trackH));
+            int range = sliderData->maxValue - sliderData->minValue;
+            sliderData->currentValue = sliderData->minValue + (touchPos * range / trackH);
+          } else {
+            int trackW = touchedComponent->w - (SLIDER_THUMB_SIZE / 2);
+            int trackX = 10;
+            int touchPos = relativeX - trackX;
+            touchPos = max(0, min(touchPos, trackW));
+            int range = sliderData->maxValue - sliderData->minValue;
+            sliderData->currentValue = sliderData->minValue + (touchPos * range / trackW);
+          }
+
+          // Redraw the slider
+          lcd.startWrite();
+          drawComponent(lcd, *touchedComponent, window.x, window.y);
+          lcd.endWrite();
+
+          // Call the callback if it exists
+          if (touchedComponent->onValueChanged != nullptr) {
+            touchedComponent->onValueChanged(touchedComponent->id, sliderData->currentValue);
+          }
+        }
       } else if (window.visible) {
-        // Handle ongoing swipe for ListView (only if window is visible)
+        // Handle ongoing swipe for ListView and Slider dragging (only if window is visible)
         static unsigned long lastScrollUpdate = 0;
         unsigned long now = millis();
 
@@ -295,6 +336,46 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
               }
 
               listViewData->lastTouchY = ty;
+            }
+          } else if (component && component->type == COMPONENT_SLIDER && component->customData) {
+            // Check if touch is still on this slider
+            if (tx >= window.x + component->x && tx <= window.x + component->x + component->w &&
+                ty >= window.y + component->y && ty <= window.y + component->y + component->h) {
+              MacSlider* sliderData = (MacSlider*)component->customData;
+              int oldValue = sliderData->currentValue;
+
+              // Calculate slider value based on touch position
+              int relativeX = tx - (window.x + component->x);
+              int relativeY = ty - (window.y + component->y);
+
+              if (sliderData->vertical) {
+                int trackH = component->h - (SLIDER_THUMB_SIZE / 2);
+                int trackY = (SLIDER_THUMB_SIZE / 4);
+                int touchPos = trackH - (relativeY - trackY);
+                touchPos = max(0, min(touchPos, trackH));
+                int range = sliderData->maxValue - sliderData->minValue;
+                sliderData->currentValue = sliderData->minValue + (touchPos * range / trackH);
+              } else {
+                int trackW = component->w - (SLIDER_THUMB_SIZE / 2);
+                int trackX = 10;
+                int touchPos = relativeX - trackX;
+                touchPos = max(0, min(touchPos, trackW));
+                int range = sliderData->maxValue - sliderData->minValue;
+                sliderData->currentValue = sliderData->minValue + (touchPos * range / trackW);
+              }
+
+              // Only redraw and callback if value changed
+              if (oldValue != sliderData->currentValue && (now - lastScrollUpdate > 100)) {
+                lcd.startWrite();
+                drawComponent(lcd, *component, window.x, window.y);
+                lcd.endWrite();
+                lastScrollUpdate = now;
+
+                // Call the callback if it exists
+                if (component->onValueChanged != nullptr) {
+                  component->onValueChanged(component->id, sliderData->currentValue);
+                }
+              }
             }
           }
         }

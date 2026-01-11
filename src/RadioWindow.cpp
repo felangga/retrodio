@@ -20,10 +20,9 @@ void updateComponentSymbol(const MacWindow& window, int componentId, SymbolType 
 // Forward declarations for button handlers
 void onPlay();
 void onStop();
-void onVolUp();
-void onVolDown();
 void onPrev();
 void onNext();
+void onVolumeChange(int componentId, int value);
 
 void initializeRadioWindow() {
   extern String currentStationName;
@@ -64,7 +63,7 @@ void initializeRadioWindow() {
   addChildComponent(radioWindow, txtRadioDetails);
 
   MacComponent* txtBitRate = createRunningTextComponent(20, 100, 100, 20, TXT_BITRATE,
-                                                        "Bitrate: N/A", 2, MAC_BLACK, 1);
+                                                        "", 2, MAC_BLACK, 1);
   addChildComponent(radioWindow, txtBitRate);
 
   MacComponent* txtInfo = createRunningTextComponent(20, 115, 250, 20, TXT_INFO,
@@ -80,13 +79,12 @@ void initializeRadioWindow() {
   addChildComponent(radioWindow, cpuLabel);
   #endif
 
-  MacComponent* btnVolUp = createButtonComponent(200, 165, 50, 50, 3, "", SYMBOL_VOL_UP);
-  btnVolUp->onClick = [](int componentId) { onVolUp(); };
-  addChildComponent(radioWindow, btnVolUp);
-
-  MacComponent* btnVolDn = createButtonComponent(250, 165, 50, 50, 6, "", SYMBOL_VOL_DOWN);
-  btnVolDn->onClick = [](int componentId) { onVolDown(); };
-  addChildComponent(radioWindow, btnVolDn);
+  extern Audio audio;
+  extern const int CMP_VOLUME_SLIDER;
+  int currentVolume = audio.getVolume();
+  MacComponent* volumeSlider = createSliderComponent(200, 160, 120, 65, CMP_VOLUME_SLIDER, 0, 21, currentVolume, false);
+  volumeSlider->onValueChanged = [](int componentId, int value) { onVolumeChange(componentId, value); };
+  addChildComponent(radioWindow, volumeSlider);
 }
 
 // Radio button handler implementations
@@ -122,21 +120,6 @@ void onStop() {
   updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
 }
 
-void onVolUp() {
-  extern Audio audio;
-
-  int newVol = min(21, audio.getVolume() + 1);
-  audio.setVolume(newVol);
-  ConfigManager::setVolume(newVol);
-
-  if (!radioWindow.minimized && radioWindow.visible) {
-    draw3DFrame(lcd, radioWindow.x + 310, radioWindow.y + 35, 90, 25);
-    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-    lcd.setTextSize(1);
-    lcd.setCursor(radioWindow.x + 315, radioWindow.y + 43);
-    lcd.printf("Volume: %d", newVol);
-  }
-}
 
 void onPrev() {
   int stationCount = ConfigManager::getStationCount();
@@ -174,18 +157,9 @@ void onNext() {
   switchToStation(nextIndex);
 }
 
-void onVolDown() {
+void onVolumeChange(int componentId, int value) {
   extern Audio audio;
 
-  int newVol = max(0, audio.getVolume() - 1);
-  audio.setVolume(newVol);
-  ConfigManager::setVolume(newVol);
-
-  if (!radioWindow.minimized && radioWindow.visible) {
-    draw3DFrame(lcd, radioWindow.x + 310, radioWindow.y + 35, 90, 25);
-    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-    lcd.setTextSize(1);
-    lcd.setCursor(radioWindow.x + 315, radioWindow.y + 43);
-    lcd.printf("Volume: %d", newVol);
-  }
+  audio.setVolume(value);
+  ConfigManager::setVolume(value);
 }

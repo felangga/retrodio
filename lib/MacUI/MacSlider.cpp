@@ -6,43 +6,40 @@
 
 #include "MacUI.h"
 
+#define SLIDER_THUMB_SIZE 30
+#define SLIDER_TRACK_WIDTH 8
+
 void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSlider& slider) {
+  lcd.fillRect(x, y, w + (SLIDER_THUMB_SIZE/2), h, MAC_WHITE);
+
   if (slider.vertical) {
-    // Vertical slider
-    int trackX = x + w / 2 - 2;
-    int trackW = 4;
-    int trackH = h - 20;
-    int trackY = y + 10;
+    int trackX = x + w / 2 - (SLIDER_TRACK_WIDTH / 2);
+    int trackH = h - (SLIDER_THUMB_SIZE / 2);
+    int trackY = y + (SLIDER_THUMB_SIZE / 4);
 
     // Draw track
-    lcd.fillRect(trackX, trackY, trackW, trackH, MAC_LIGHT_GRAY);
-    draw3DFrame(lcd, trackX, trackY, trackW, trackH);
+    lcd.fillRect(trackX, trackY, SLIDER_TRACK_WIDTH, trackH, MAC_LIGHT_GRAY);
 
     // Calculate thumb position
     int range = slider.maxValue - slider.minValue;
-    int thumbY = trackY + trackH - ((slider.currentValue - slider.minValue) * trackH / range) - 5;
+    int thumbY = trackY + trackH - ((slider.currentValue - slider.minValue) * trackH / range) - (SLIDER_THUMB_SIZE / 2);
 
     // Draw thumb
-    lcd.fillRect(trackX - 3, thumbY, trackW + 6, 10, MAC_WHITE);
-    draw3DFrame(lcd, trackX - 3, thumbY, trackW + 6, 10);
+    lcd.fillRect(trackX - (SLIDER_THUMB_SIZE / 2), thumbY, SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE, MAC_WHITE);
   } else {
-    // Horizontal slider
-    int trackY = y + h / 2 - 2;
-    int trackH = 4;
-    int trackW = w - 20;
-    int trackX = x + 10;
+    int trackY = y + h / 2;
+    int trackW = w - (SLIDER_THUMB_SIZE / 2);
+    int trackX = x + (SLIDER_THUMB_SIZE / 2);
 
     // Draw track
-    lcd.fillRect(trackX, trackY, trackW, trackH, MAC_LIGHT_GRAY);
-    draw3DFrame(lcd, trackX, trackY, trackW, trackH);
+    lcd.fillRect(trackX, trackY, trackW, SLIDER_TRACK_WIDTH, MAC_LIGHT_GRAY);
 
     // Calculate thumb position
     int range = slider.maxValue - slider.minValue;
-    int thumbX = trackX + ((slider.currentValue - slider.minValue) * trackW / range) - 5;
+    int thumbX = trackX + ((slider.currentValue - slider.minValue) * trackW / range) - (SLIDER_THUMB_SIZE / 2);
 
-    // Draw thumb
-    lcd.fillRect(thumbX, trackY - 3, 10, trackH + 6, MAC_WHITE);
-    draw3DFrame(lcd, thumbX, trackY - 3, 10, trackH + 6);
+    lcd.fillRoundRect(thumbX, trackY - (SLIDER_THUMB_SIZE / 2) + (SLIDER_TRACK_WIDTH /2), SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE, 5, MAC_WHITE);
+    lcd.drawRoundRect(thumbX, trackY - (SLIDER_THUMB_SIZE / 2) + (SLIDER_TRACK_WIDTH /2), SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE, 5, MAC_BLACK);
   }
 }
 
