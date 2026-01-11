@@ -238,15 +238,45 @@ void handleKeyboardInteraction() {
   if (!isTouching) {
     // No touch detected - reset key press state and restore key appearance
     if (keyboard->isKeyPressed) {
+      // Check if we need to deactivate shift after typing a character
+      bool needShiftDeactivation = keyboard->shiftActive &&
+                                    keyboard->selectedKey != -2 &&
+                                    keyboard->lastPressedChar != '\0';
+
+      // Deactivate shift if it was active and a character was typed
+      if (needShiftDeactivation) {
+        keyboard->shiftActive = false;
+      }
+
+      // Restore just the pressed key to normal state (not the whole keyboard)
+      extern void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int y, int w, int h);
+      restorePressedKey(lcd, keyboard, globalKeyboard->x, globalKeyboard->y, globalKeyboard->w, globalKeyboard->h);
+
+      // If shift was deactivated, we need to redraw the shift button too
+      if (needShiftDeactivation) {
+        // Only redraw the shift key button, not the whole keyboard
+        int rowHeight = (globalKeyboard->h - (2 * 5) - 28 - 2) / 4;  // KEYBOARD_MARGIN=5, SPECIAL_ROW_HEIGHT=28, KEY_SPACING=2
+        int row3Y = globalKeyboard->y + 5 + 3 * rowHeight;
+        int shiftX = globalKeyboard->x + 5;
+
+        lcd.startWrite();
+        lcd.fillRoundRect(shiftX, row3Y, 45, rowHeight - 2, 4, MAC_WHITE);  // SHIFT_WIDTH=45, radius=4
+        lcd.drawRoundRect(shiftX, row3Y, 45, rowHeight - 2, 4, MAC_BLACK);
+        lcd.drawRoundRect(shiftX + 1, row3Y + 1, 45 - 2, rowHeight - 2 - 2, 2, MAC_BLACK);
+        lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+        lcd.setTextSize(1);
+        extern const GFXfont* getFontFromType(FontType fontType);
+        lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+        int shiftTextW = lcd.textWidth("Shift");
+        lcd.setCursor(shiftX + (45 - shiftTextW) / 2, row3Y + (rowHeight - 2) / 2);
+        lcd.print("Shift");
+        lcd.endWrite();
+      }
+
       keyboard->isKeyPressed = false;
       keyboard->isBackspace = false;
       keyboard->isSpace = false;
       keyboard->lastPressedChar = '\0';
-
-      // Redraw keyboard to restore normal key appearance
-      lcd.startWrite();
-      drawKeyboard(lcd, globalKeyboard->x, globalKeyboard->y, globalKeyboard->w, globalKeyboard->h, *keyboard);
-      lcd.endWrite();
     }
     return;
   }

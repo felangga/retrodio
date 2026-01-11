@@ -26,7 +26,7 @@ void initializeAddStationWindow() {
 
   addChildComponent(addStationWindow, lblStationName);
 
-  MacComponent* txtStationName = createInputFieldComponent(150, 45, 190, 25, INPUT_STATION_NAME, "Enter station name", 50);
+  MacComponent* txtStationName = createInputFieldComponent(140, 45, 200, 25, INPUT_STATION_NAME, "Enter station name", 50);
   addChildComponent(addStationWindow, txtStationName);
 
   MacComponent* lblStationURL = createLabelComponent(20, 90, 120, 20, LBL_STATION_URL, "Station URL:");
@@ -34,14 +34,14 @@ void initializeAddStationWindow() {
   labelData->font = FONT_CHICAGO_9PT;
   addChildComponent(addStationWindow, lblStationURL);
 
-  MacComponent* txtStationURL = createInputFieldComponent(150, 80, 190, 25, INPUT_STATION_URL, "https://...", 200, "https://");
+  MacComponent* txtStationURL = createInputFieldComponent(140, 80, 200, 25, INPUT_STATION_URL, "https://...", 200, "https://");
   addChildComponent(addStationWindow, txtStationURL);
 
-  MacComponent* btnSave = createButtonComponent(180, 120, 80, 30, BTN_SAVE_STATION, "Save");
+  MacComponent* btnSave = createButtonComponent(170, 115, 80, 30, BTN_SAVE_STATION, "Save");
   btnSave->onClick = [](int componentId) { onSaveStationButtonClick(); };
   addChildComponent(addStationWindow, btnSave);
 
-  MacComponent* btnCancel = createButtonComponent(270, 120, 80, 30, BTN_CANCEL_ADD_STATION, "Cancel");
+  MacComponent* btnCancel = createButtonComponent(260, 115, 80, 30, BTN_CANCEL_ADD_STATION, "Cancel");
   btnCancel->onClick = [](int componentId) { onCancelAddStationButtonClick(); };
   addChildComponent(addStationWindow, btnCancel);
 }

@@ -18,7 +18,7 @@ void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSli
     int trackY = y + (SLIDER_THUMB_SIZE / 4);
 
     // Draw track
-    lcd.fillRect(trackX, trackY, SLIDER_TRACK_WIDTH, trackH, MAC_LIGHT_GRAY);
+    lcd.fillRect(trackX, trackY, SLIDER_TRACK_WIDTH, trackH, MAC_BLACK);
 
     // Calculate thumb position
     int range = slider.maxValue - slider.minValue;
@@ -32,7 +32,7 @@ void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSli
     int trackX = x + (SLIDER_THUMB_SIZE / 2);
 
     // Draw track
-    lcd.fillRect(trackX, trackY, trackW, SLIDER_TRACK_WIDTH, MAC_LIGHT_GRAY);
+    lcd.fillRect(trackX, trackY, trackW, SLIDER_TRACK_WIDTH, MAC_BLACK);
 
     // Calculate thumb position
     int range = slider.maxValue - slider.minValue;
