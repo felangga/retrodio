@@ -1,14 +1,16 @@
 /*
  * MacInputField.cpp - Input field component with cursor
- * Part of MacUI Library
+ * 
+ * Copyright (c) 2025 felangga
  */
 
 #include "MacUI.h"
 
 void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInputField& inputField) {
-  // Draw 3D inset frame for input field
   draw3DFrame(lcd, x, y, w, h);
   lcd.fillRect(x + 2, y + 2, w - 4, h - 4, MAC_WHITE);
+
+  // Set font and text size BEFORE measuring text widths
   lcd.setTextSize(1);
   lcd.setFont(getFontFromType(inputField.font));
 
@@ -27,41 +29,69 @@ void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInput
     // Calculate visible text (scroll if needed)
     int maxVisibleWidth = w - 10;  // Leave space for padding
 
-    // Measure text width
-    lcd.setTextSize(1);
-
-    // Calculate cursor position
+    // Calculate cursor position in pixels
     String textBeforeCursor = inputField.text.substring(0, inputField.cursorPos);
     int cursorX = lcd.textWidth(textBeforeCursor.c_str());
 
+    // Calculate total text width
+    int totalTextWidth = lcd.textWidth(inputField.text.c_str());
+
     // Calculate scroll offset to keep cursor visible
-    int scrollOffset = 0;
-    if (cursorX > maxVisibleWidth - 10) {
-      // Scroll so cursor is near the right edge with some padding
-      scrollOffset = cursorX - maxVisibleWidth + 20;
+    const int CURSOR_PADDING = 10;
+
+    // Debug calculation values
+    int oldScrollOffset = inputField.scrollOffset;
+
+    // Only reset scroll if all text fits, otherwise follow cursor
+    if (totalTextWidth <= maxVisibleWidth) {
+      inputField.scrollOffset = 0;
+    } else {
+      // Text is longer than visible area - scroll to follow cursor
+      if (cursorX > inputField.scrollOffset + maxVisibleWidth - CURSOR_PADDING) {
+        // Cursor is beyond right edge - scroll right
+        inputField.scrollOffset = cursorX - maxVisibleWidth + CURSOR_PADDING;
+      } else if (cursorX < inputField.scrollOffset + CURSOR_PADDING) {
+        // Cursor is beyond left edge - scroll left
+        inputField.scrollOffset = max(0, cursorX - CURSOR_PADDING);
+      }
+
+      // Ensure we don't scroll past the end
+      int maxScrollOffset = totalTextWidth - maxVisibleWidth;
+      if (inputField.scrollOffset > maxScrollOffset) {
+        inputField.scrollOffset = maxScrollOffset;
+      }
     }
-
-    // Set clipping region for text to prevent overflow
-    lcd.setClipRect(x + 3, y + 3, w - 6, h - 6);
-
-    // Draw the text without background (transparent text mode)
-    lcd.setTextColor(MAC_BLACK);
-    lcd.setTextSize(1);
 
     // Calculate text start position with scroll offset
-    int textStartX = textX - scrollOffset;
+    int textStartX = textX - inputField.scrollOffset;
 
-    // Draw each character individually to prevent wrapping
-    lcd.setCursor(textStartX, textY);
+    // Define visible area boundaries
+    int visibleLeft = x + 3;
+    int visibleRight = x + w - 3;
+
+    // Draw only characters that are visible within the bounds
+    int charX = textStartX;
     for (int i = 0; i < inputField.text.length(); i++) {
-      lcd.print(inputField.text[i]);
-    }
+      char c = inputField.text[i];
+      int charWidth = lcd.textWidth(String(c).c_str());
 
-    lcd.clearClipRect();
+      // Check if this character is fully within visible bounds
+      if (charX >= visibleLeft && charX + charWidth <= visibleRight) {
+        lcd.setCursor(charX, textY);
+        lcd.print(c);
+      }
+
+      charX += charWidth;
+
+      // Stop drawing if we've gone past the visible area
+      if (charX >= visibleRight) {
+        break;
+      }
+    }
 
     // Draw cursor if focused
     if (inputField.focused && inputField.cursorVisible) {
-      int cursorScreenX = textX + cursorX - scrollOffset;
+      int cursorScreenX = textX + cursorX - inputField.scrollOffset;
 
       // Only draw cursor if it's within visible area
       if (cursorScreenX >= x + 5 && cursorScreenX < x + w - 5) {
@@ -81,9 +111,8 @@ void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInput
     }
   }
 
-  // Draw focus indicator (blue border) if focused
   if (inputField.focused) {
-    lcd.drawRect(x, y, w, h, MAC_BLUE);
+    lcd.drawRect(x, y, w, h, MAC_BLACK);
   }
 
   // Reset font to default
@@ -91,17 +120,18 @@ void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInput
 }
 
 MacComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
-                                        const String& placeholder, int maxLength) {
+                                        const String& placeholder, int maxLength, const String& defaultText) {
   MacComponent* component = createComponent(COMPONENT_INPUT_FIELD, x, y, w, h, id);
 
   MacInputField* inputField = new MacInputField();
-  inputField->text = "";
+  inputField->text = defaultText;
   inputField->placeholder = placeholder;
   inputField->focused = false;
-  inputField->cursorPos = 0;
+  inputField->cursorPos = defaultText.length();  // Place cursor at end of default text
   inputField->maxLength = maxLength;
   inputField->lastCursorBlink = millis();
   inputField->cursorVisible = true;
+  inputField->scrollOffset = 0;
   inputField->onTextChanged = nullptr;
   inputField->font = FONT_CHICAGO_9PT;
 

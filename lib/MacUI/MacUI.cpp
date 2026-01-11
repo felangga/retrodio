@@ -224,7 +224,7 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
 
         // Check if minimize button was pressed
         if (isInsideMinimizeButton(window, tx, ty)) {
-          delay(100);                            // Brief visual feedback
+          delay(50);                             // Brief visual feedback
           window.minimized = !window.minimized;  // Toggle minimize state
 
           if (window.minimized) {
@@ -692,7 +692,7 @@ void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon) {
         drawDesktopIcon(lcd, icon.x, icon.y, icon.name, true);
 
         // Call the icon's callback after a brief delay for visual feedback
-        delay(100);
+        delay(50);
         if (icon.onClick) {
           icon.onClick();
         }
@@ -952,7 +952,7 @@ void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int rel
       drawComponent(lcd, *clickedComponent, window.x, window.y);
 
       // Brief delay for visual feedback
-      delay(100);
+      delay(50);
 
       // Release pressed state BEFORE calling callback to prevent button appearing pressed on new window
       btnData->pressed = false;
@@ -991,7 +991,7 @@ void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int rel
 
           // Call item click callback if set
           if (listViewData->onItemClick != nullptr) {
-            delay(100);  // Brief visual feedback
+            delay(50);  // Brief visual feedback
             listViewData->onItemClick(clickedItemIndex, listViewData->items[clickedItemIndex].data);
           }
         }

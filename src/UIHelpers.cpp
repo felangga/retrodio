@@ -218,8 +218,66 @@ void handleKeyboardInteraction() {
     return;
   }
 
+  // Find the target input field component
+  MacComponent* targetInputComp = nullptr;
+  for (int i = 0; i < addStationWindow.childComponentCount; i++) {
+    MacComponent* comp = addStationWindow.childComponents[i];
+    if (comp && comp->id == keyboard->targetInputId && comp->type == COMPONENT_INPUT_FIELD) {
+      targetInputComp = comp;
+      break;
+    }
+  }
+
+  if (!targetInputComp) {
+    return;
+  }
+
   uint16_t tx, ty;
-  if (!lcd.getTouch(&tx, &ty)) {
+  bool isTouching = lcd.getTouch(&tx, &ty);
+
+  if (!isTouching) {
+    // No touch detected - reset key press state and restore key appearance
+    if (keyboard->isKeyPressed) {
+      // Check if we need to deactivate shift after typing a character
+      bool needShiftDeactivation = keyboard->shiftActive &&
+                                    keyboard->selectedKey != -2 &&
+                                    keyboard->lastPressedChar != '\0';
+
+      // Deactivate shift if it was active and a character was typed
+      if (needShiftDeactivation) {
+        keyboard->shiftActive = false;
+      }
+
+      // Restore just the pressed key to normal state (not the whole keyboard)
+      extern void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int y, int w, int h);
+      restorePressedKey(lcd, keyboard, globalKeyboard->x, globalKeyboard->y, globalKeyboard->w, globalKeyboard->h);
+
+      // If shift was deactivated, we need to redraw the shift button too
+      if (needShiftDeactivation) {
+        // Only redraw the shift key button, not the whole keyboard
+        int rowHeight = (globalKeyboard->h - (2 * 5) - 28 - 2) / 4;  // KEYBOARD_MARGIN=5, SPECIAL_ROW_HEIGHT=28, KEY_SPACING=2
+        int row3Y = globalKeyboard->y + 5 + 3 * rowHeight;
+        int shiftX = globalKeyboard->x + 5;
+
+        lcd.startWrite();
+        lcd.fillRoundRect(shiftX, row3Y, 45, rowHeight - 2, 4, MAC_WHITE);  // SHIFT_WIDTH=45, radius=4
+        lcd.drawRoundRect(shiftX, row3Y, 45, rowHeight - 2, 4, MAC_BLACK);
+        lcd.drawRoundRect(shiftX + 1, row3Y + 1, 45 - 2, rowHeight - 2 - 2, 2, MAC_BLACK);
+        lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+        lcd.setTextSize(1);
+        extern const GFXfont* getFontFromType(FontType fontType);
+        lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+        int shiftTextW = lcd.textWidth("Shift");
+        lcd.setCursor(shiftX + (45 - shiftTextW) / 2, row3Y + (rowHeight - 2) / 2);
+        lcd.print("Shift");
+        lcd.endWrite();
+      }
+
+      keyboard->isKeyPressed = false;
+      keyboard->isBackspace = false;
+      keyboard->isSpace = false;
+      keyboard->lastPressedChar = '\0';
+    }
     return;
   }
 
@@ -236,38 +294,18 @@ void handleKeyboardInteraction() {
                         ty <= addStationWindow.y + addStationWindow.h);
 
   if (touchInKeyboard) {
-    // Find the target input field component
-    MacComponent* targetInputComp = nullptr;
-
-    // Search for the input field in the add station window
-    for (int i = 0; i < addStationWindow.childComponentCount; i++) {
-      MacComponent* comp = addStationWindow.childComponents[i];
-      if (comp && comp->id == keyboard->targetInputId && comp->type == COMPONENT_INPUT_FIELD) {
-        targetInputComp = comp;
-        break;
-      }
-    }
-
-    if (!targetInputComp) {
-      return;
-    }
-
     // Handle keyboard touch with absolute coordinates
-    bool textChanged = handleKeyboardTouch(lcd, globalKeyboard, targetInputComp, tx, ty);
+    bool textChanged = handleKeyboardTouch(lcd, globalKeyboard, targetInputComp, tx, ty, &addStationWindow);
 
     if (textChanged) {
       // Only redraw the input field to show the updated text
-      // The keyboard already redraws itself in handleKeyboardTouch when needed
       lcd.startWrite();
       drawComponent(lcd, *targetInputComp, addStationWindow.x, addStationWindow.y);
       lcd.endWrite();
-
-      // Wait for touch release to prevent multiple character inputs
-      delay(150);
-      while (lcd.getTouch(&tx, &ty)) {
-        delay(10);
-      }
     }
+
+    // Handle key repeat while key is held
+    handleKeyboardRepeat(lcd, globalKeyboard, targetInputComp, &addStationWindow);
   } else if (touchInWindow) {
     // Touch is in window but not on keyboard - check what was clicked
     int relativeX = tx - addStationWindow.x;
@@ -317,11 +355,6 @@ void handleKeyboardInteraction() {
 
       drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
-
-      delay(150);
-      while (lcd.getTouch(&tx, &ty)) {
-        delay(10);
-      }
     } else if (clickedUrlInput && keyboard->targetInputId != INPUT_STATION_URL) {
       // Switch focus to URL input
       MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
@@ -336,11 +369,6 @@ void handleKeyboardInteraction() {
 
       drawComponent(lcd, *nameInputComp, addStationWindow.x, addStationWindow.y);
       drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
-
-      delay(150);
-      while (lcd.getTouch(&tx, &ty)) {
-        delay(10);
-      }
     } else if (!clickedNameInput && !clickedUrlInput) {
       // Clicked somewhere else in the window (not on input fields) - hide keyboard
       keyboard->visible = false;
@@ -363,11 +391,6 @@ void handleKeyboardInteraction() {
       int keyboardY = screenHeight - keyboardHeight;
       drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
       drawWindow(lcd, addStationWindow);
-
-      delay(150);
-      while (lcd.getTouch(&tx, &ty)) {
-        delay(10);
-      }
     }
   } else {
     // Touch is completely outside the window - hide keyboard
@@ -406,11 +429,6 @@ void handleKeyboardInteraction() {
     int keyboardHeight = screenHeight / 2;
     int keyboardY = screenHeight - keyboardHeight;
     drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
-
-    delay(150);
-    while (lcd.getTouch(&tx, &ty)) {
-      delay(10);
-    }
   }
 }
 

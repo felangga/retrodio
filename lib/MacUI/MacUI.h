@@ -139,8 +139,9 @@ struct MacInputField {
   int maxLength;
   unsigned long lastCursorBlink;
   bool cursorVisible;
+  int scrollOffset;  // Horizontal scroll offset for long text
   FontType font;
-  void (*onTextChanged)(int componentId, const String& text);  
+  void (*onTextChanged)(int componentId, const String& text);
 };
 
 // ===== KEYBOARD STRUCT =====
@@ -153,6 +154,15 @@ struct MacKeyboard {
   int targetInputId;  // ID of the input field this keyboard is linked to
   bool shiftActive;   // Shift key state (for uppercase)
   int selectedKey;    // Currently highlighted key (-1 for none)
+  // Key repeat tracking
+  bool isKeyPressed;           // Is a key currently being held
+  unsigned long keyPressStart; // When the key was first pressed
+  unsigned long lastRepeat;    // Last time the key was repeated
+  int pressedRow;              // Which row is being pressed (-1 for special keys)
+  int pressedKeyIndex;         // Which key in the row is being pressed
+  char lastPressedChar;        // The character of the last pressed key
+  bool isBackspace;            // Is backspace being held
+  bool isSpace;                // Is space being held
 };
 
 // ===== CHECKBOX STRUCT =====
@@ -328,7 +338,8 @@ MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, con
 MacComponent* createListViewComponent(int x, int y, int w, int h, int id, MacListViewItem* items,
                                       int itemCount, int itemHeight = 30);
 MacComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
-                                        const String& placeholder = "", int maxLength = 50);
+                                        const String& placeholder = "", int maxLength = 50, 
+                                        const String& defaultText = "");
 MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int targetInputId);
 MacComponent* createSliderComponent(int x, int y, int w, int h, int id, int minVal, int maxVal,
                                     int currentVal, bool vertical = false);
@@ -344,7 +355,11 @@ void updateInputFieldComponents(lgfx::LGFX_Device& lcd, MacWindow& window);
 
 // Helper to handle keyboard touch input
 bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent,
-                         MacComponent* inputComponent, int touchX, int touchY);
+                         MacComponent* inputComponent, int touchX, int touchY, MacWindow* window = nullptr);
+
+// Helper to handle keyboard key repeat (call this continuously in the UI loop)
+void handleKeyboardRepeat(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent,
+                          MacComponent* inputComponent, MacWindow* window = nullptr);
 
 // ===== GENERIC WINDOW MANAGEMENT HELPERS =====
 // Utility functions that can be called from user-defined callbacks

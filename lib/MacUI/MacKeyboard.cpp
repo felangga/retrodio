@@ -48,6 +48,109 @@ void drawMacKey(lgfx::LGFX_Device& lcd, int keyX, int keyY, int keyWidth, int ke
   lcd.print(keyChar);
 }
 
+// Helper function to restore a single pressed key to normal state
+void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int y, int w, int h) {
+  if (!keyboard->isKeyPressed) return;
+
+  int rowHeight = (h - (2 * KEYBOARD_MARGIN) - SPECIAL_ROW_HEIGHT - KEY_SPACING) / rowCount;
+
+  // Handle backspace key
+  if (keyboard->isBackspace) {
+    int row3Y = y + KEYBOARD_MARGIN + 3 * rowHeight;
+
+    bool inSymbolMode = (keyboard->selectedKey == -2);
+    const char* row3Keys = inSymbolMode ? keyboardRowsSymbol[3] :
+                           (keyboard->shiftActive ? keyboardRowsShift[3] : keyboardRows[3]);
+    int row3KeyCount = strlen(row3Keys);
+
+    int availableWidth = inSymbolMode ?
+                        (w - (2 * KEYBOARD_MARGIN) - BACKSPACE_WIDTH - KEY_SPACING) :
+                        (w - (2 * KEYBOARD_MARGIN) - SHIFT_WIDTH - BACKSPACE_WIDTH - (2 * KEY_SPACING));
+    int row3StartX = inSymbolMode ? KEYBOARD_MARGIN : (KEYBOARD_MARGIN + SHIFT_WIDTH + KEY_SPACING);
+    int row3KeyWidth = (availableWidth - (row3KeyCount - 1) * KEY_SPACING) / row3KeyCount;
+
+    int backspaceX = x + row3StartX + row3KeyCount * (row3KeyWidth + KEY_SPACING);
+
+    lcd.startWrite();
+    lcd.fillRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, MAC_WHITE);
+    lcd.drawRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, MAC_BLACK);
+    lcd.drawRoundRect(backspaceX + 1, row3Y + 1, BACKSPACE_WIDTH - 2, rowHeight - KEY_SPACING - 2, radius, MAC_BLACK);
+    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+    lcd.setTextSize(1);
+    lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+    int deleteTextW = lcd.textWidth("Del");
+    lcd.setCursor(backspaceX + (BACKSPACE_WIDTH - deleteTextW) / 2, row3Y + (rowHeight - KEY_SPACING) / 2);
+    lcd.print("Del");
+    lcd.endWrite();
+    return;
+  }
+
+  // Handle space key
+  if (keyboard->isSpace) {
+    int specialRowY = y + h - KEYBOARD_MARGIN - SPECIAL_ROW_HEIGHT;
+    int spaceStartX = KEYBOARD_MARGIN + SPECIAL_KEY_WIDTH + SPECIAL_KEY_SPACING;
+    int spaceW = w - (2 * KEYBOARD_MARGIN) - SPECIAL_KEY_WIDTH - DONE_KEY_WIDTH - (2 * SPECIAL_KEY_SPACING);
+    int spaceX = x + spaceStartX;
+
+    lcd.startWrite();
+    lcd.fillRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_WHITE);
+    lcd.drawRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
+    lcd.drawRoundRect(spaceX + 1, specialRowY + 1, spaceW - 2, SPECIAL_ROW_HEIGHT - 2, radius - 1, MAC_BLACK);
+    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+    lcd.setTextSize(1);
+    lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+    int spaceTextW = lcd.textWidth("Space");
+    lcd.setCursor(spaceX + (spaceW - spaceTextW) / 2, specialRowY + SPECIAL_ROW_HEIGHT / 2);
+    lcd.print("Space");
+    lcd.endWrite();
+    return;
+  }
+
+  // Handle regular character keys
+  if (keyboard->lastPressedChar != '\0' && keyboard->pressedRow >= 0) {
+    int row = keyboard->pressedRow;
+    int keyIndex = keyboard->pressedKeyIndex;
+
+    // Determine which character to show (considering shift state change)
+    const char* keys;
+    if (row == 3) {
+      bool inSymbolMode = (keyboard->selectedKey == -2);
+      keys = inSymbolMode ? keyboardRowsSymbol[3] :
+             (keyboard->shiftActive ? keyboardRowsShift[3] : keyboardRows[3]);
+
+      int row3Y = y + KEYBOARD_MARGIN + 3 * rowHeight;
+      int row3KeyCount = strlen(keys);
+      int availableWidth = inSymbolMode ?
+                          (w - (2 * KEYBOARD_MARGIN) - BACKSPACE_WIDTH - KEY_SPACING) :
+                          (w - (2 * KEYBOARD_MARGIN) - SHIFT_WIDTH - BACKSPACE_WIDTH - (2 * KEY_SPACING));
+      int row3StartX = inSymbolMode ? KEYBOARD_MARGIN : (KEYBOARD_MARGIN + SHIFT_WIDTH + KEY_SPACING);
+      int row3KeyWidth = (availableWidth - (row3KeyCount - 1) * KEY_SPACING) / row3KeyCount;
+      int keyX = x + row3StartX + keyIndex * (row3KeyWidth + KEY_SPACING);
+
+      char keyChar[2] = {keys[keyIndex], '\0'};
+      lcd.startWrite();
+      drawMacKey(lcd, keyX, row3Y, row3KeyWidth, rowHeight - KEY_SPACING, keyChar, false);
+      lcd.endWrite();
+    } else {
+      // Rows 0-2
+      keys = (keyboard->selectedKey == -2) ? keyboardRowsSymbol[row] :
+             (keyboard->shiftActive ? keyboardRowsShift[row] : keyboardRows[row]);
+
+      int keyCount = strlen(keys);
+      int rowWidth = w - (2 * KEYBOARD_MARGIN);
+      int keyWidth = (rowWidth - (keyCount - 1) * KEY_SPACING) / keyCount;
+      int startX = x + KEYBOARD_MARGIN;
+      int rowY = y + KEYBOARD_MARGIN + row * rowHeight;
+      int keyX = startX + keyIndex * (keyWidth + KEY_SPACING);
+
+      char keyChar[2] = {keys[keyIndex], '\0'};
+      lcd.startWrite();
+      drawMacKey(lcd, keyX, rowY, keyWidth, rowHeight - KEY_SPACING, keyChar, false);
+      lcd.endWrite();
+    }
+  }
+}
+
 void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboard& keyboard) {
   if (!keyboard.visible)
     return;
@@ -225,6 +328,15 @@ MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int ta
   keyboard->targetInputId = targetInputId;
   keyboard->shiftActive = false;
   keyboard->selectedKey = -1;
+  // Initialize key repeat tracking
+  keyboard->isKeyPressed = false;
+  keyboard->keyPressStart = 0;
+  keyboard->lastRepeat = 0;
+  keyboard->pressedRow = -1;
+  keyboard->pressedKeyIndex = -1;
+  keyboard->lastPressedChar = '\0';
+  keyboard->isBackspace = false;
+  keyboard->isSpace = false;
 
   component->customData = keyboard;
   return component;
@@ -232,7 +344,7 @@ MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int ta
 
 // Helper function to handle keyboard touch and update input field
 bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent,
-                         MacComponent* inputComponent, int touchX, int touchY) {
+                         MacComponent* inputComponent, int touchX, int touchY, MacWindow* window) {
   if (!keyboardComponent || keyboardComponent->type != COMPONENT_KEYBOARD)
     return false;
   if (!inputComponent || inputComponent->type != COMPONENT_INPUT_FIELD)
@@ -276,6 +388,7 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
       lcd.startWrite();
       drawKeyboard(lcd, x, y, w, h, *keyboard);
       lcd.endWrite();
+      delay(200);  // Add delay to prevent accidental double-taps
       return true;
     }
 
@@ -302,24 +415,21 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
         lcd.setCursor(spaceX + (spaceW - spaceTextW) / 2, btnY + SPECIAL_ROW_HEIGHT / 2);
         lcd.print("Space");
         lcd.endWrite();
-        delay(100);
 
-        // Add space
-        inputField->text = inputField->text.substring(0, inputField->cursorPos) + " " +
-                           inputField->text.substring(inputField->cursorPos);
-        inputField->cursorPos++;
+        // Track key press for repeat
+        if (!keyboard->isKeyPressed) {
+          keyboard->isKeyPressed = true;
+          keyboard->keyPressStart = millis();
+          keyboard->lastRepeat = millis();
+          keyboard->isSpace = true;
+          keyboard->isBackspace = false;
+          keyboard->lastPressedChar = '\0';
 
-        // Restore space bar
-        lcd.startWrite();
-        lcd.fillRoundRect(spaceX, btnY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_WHITE);
-        lcd.drawRoundRect(spaceX, btnY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
-        lcd.drawRoundRect(spaceX + 1, btnY + 1, spaceW - 2, SPECIAL_ROW_HEIGHT - 2, radius-1, MAC_BLACK);
-        lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-        lcd.setTextSize(1);
-        lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
-        lcd.setCursor(spaceX + (spaceW - spaceTextW) / 2, btnY + SPECIAL_ROW_HEIGHT / 2);
-        lcd.print("Space");
-        lcd.endWrite();
+          // Add space immediately on first press
+          inputField->text = inputField->text.substring(0, inputField->cursorPos) + " " +
+                             inputField->text.substring(inputField->cursorPos);
+          inputField->cursorPos++;
+        }
 
         return true;
       }
@@ -346,16 +456,12 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
       keyboard->visible = false;
       inputField->focused = false;
 
-      // Restore done button before hiding
+      // Clear the keyboard area and redraw the window
       lcd.startWrite();
-      lcd.fillRoundRect(doneX, btnY, DONE_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_WHITE);
-      lcd.drawRoundRect(doneX, btnY, DONE_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
-      lcd.drawRoundRect(doneX + 1, btnY + 1, DONE_KEY_WIDTH - 2, SPECIAL_ROW_HEIGHT - 2, radius-1, MAC_BLACK);
-      lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-      lcd.setTextSize(1);
-      lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
-      lcd.setCursor(doneX + (DONE_KEY_WIDTH - doneTextW) / 2, btnY + SPECIAL_ROW_HEIGHT / 2);
-      lcd.print("Done");
+      drawCheckeredPatternArea(lcd, x, y, w, h);
+      if (window != nullptr) {
+        drawWindow(lcd, *window);
+      }
       lcd.endWrite();
 
       return true;
@@ -380,6 +486,7 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
         lcd.startWrite();
         drawKeyboard(lcd, x, y, w, h, *keyboard);
         lcd.endWrite();
+        delay(200);  // Add delay to prevent accidental double-taps
         return true;
       }
 
@@ -430,22 +537,23 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
               lcd.startWrite();
               drawMacKey(lcd, keyX, row3Y, row3KeyWidth, rowHeight - KEY_SPACING, keyChar, true);
               lcd.endWrite();
-              delay(80);
 
-              // Add character
-              inputField->text = inputField->text.substring(0, inputField->cursorPos) + String(newChar) +
-                                 inputField->text.substring(inputField->cursorPos);
-              inputField->cursorPos++;
+              // Track key press for repeat
+              if (!keyboard->isKeyPressed) {
+                keyboard->isKeyPressed = true;
+                keyboard->keyPressStart = millis();
+                keyboard->lastRepeat = millis();
+                keyboard->isBackspace = false;
+                keyboard->isSpace = false;
+                keyboard->lastPressedChar = newChar;
+                keyboard->pressedRow = 3;
+                keyboard->pressedKeyIndex = keyIndex;
 
-              // Restore key to normal state and handle shift
-              lcd.startWrite();
-              if (keyboard->shiftActive && keyboard->selectedKey != -2) {
-                keyboard->shiftActive = false;
-                drawKeyboard(lcd, x, y, w, h, *keyboard);
-              } else {
-                drawMacKey(lcd, keyX, row3Y, row3KeyWidth, rowHeight - KEY_SPACING, keyChar, false);
+                // Add character immediately on first press
+                inputField->text = inputField->text.substring(0, inputField->cursorPos) + String(newChar) +
+                                   inputField->text.substring(inputField->cursorPos);
+                inputField->cursorPos++;
               }
-              lcd.endWrite();
 
               return true;
             }
@@ -470,24 +578,21 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
           lcd.setCursor(backspaceX + (BACKSPACE_WIDTH - deleteTextW) / 2, row3Y + (rowHeight - KEY_SPACING) / 2);
           lcd.print("Del");
           lcd.endWrite();
-          delay(100);
 
-          // Delete character
-          inputField->text = inputField->text.substring(0, inputField->cursorPos - 1) +
-                             inputField->text.substring(inputField->cursorPos);
-          inputField->cursorPos--;
+          // Track key press for repeat
+          if (!keyboard->isKeyPressed) {
+            keyboard->isKeyPressed = true;
+            keyboard->keyPressStart = millis();
+            keyboard->lastRepeat = millis();
+            keyboard->isBackspace = true;
+            keyboard->isSpace = false;
+            keyboard->lastPressedChar = '\0';
 
-          // Restore delete key
-          lcd.startWrite();
-          lcd.fillRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, MAC_WHITE);
-          lcd.drawRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, MAC_BLACK);
-          lcd.drawRoundRect(backspaceX + 1, row3Y + 1, BACKSPACE_WIDTH - 2, rowHeight - KEY_SPACING - 2, radius-1, MAC_BLACK);
-          lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-          lcd.setTextSize(1);
-          lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
-          lcd.setCursor(backspaceX + (BACKSPACE_WIDTH - deleteTextW) / 2, row3Y + (rowHeight - KEY_SPACING) / 2);
-          lcd.print("Del");
-          lcd.endWrite();
+            // Delete character immediately on first press
+            inputField->text = inputField->text.substring(0, inputField->cursorPos - 1) +
+                               inputField->text.substring(inputField->cursorPos);
+            inputField->cursorPos--;
+          }
 
           return true;
         }
@@ -530,22 +635,23 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
         lcd.startWrite();
         drawMacKey(lcd, keyX, rowY, keyWidth, rowHeight - KEY_SPACING, keyChar, true);
         lcd.endWrite();
-        delay(80);  // Brief visual feedback
 
-        // Add character
-        inputField->text = inputField->text.substring(0, inputField->cursorPos) + String(newChar) +
-                           inputField->text.substring(inputField->cursorPos);
-        inputField->cursorPos++;
+        // Track key press for repeat
+        if (!keyboard->isKeyPressed) {
+          keyboard->isKeyPressed = true;
+          keyboard->keyPressStart = millis();
+          keyboard->lastRepeat = millis();
+          keyboard->isBackspace = false;
+          keyboard->isSpace = false;
+          keyboard->lastPressedChar = newChar;
+          keyboard->pressedRow = row;
+          keyboard->pressedKeyIndex = keyIndex;
 
-        // Restore key to normal state and handle shift
-        lcd.startWrite();
-        if (keyboard->shiftActive && keyboard->selectedKey != -2 && row > 0) {
-          keyboard->shiftActive = false;
-          drawKeyboard(lcd, x, y, w, h, *keyboard);
-        } else {
-          drawMacKey(lcd, keyX, rowY, keyWidth, rowHeight - KEY_SPACING, keyChar, false);
+          // Add character immediately on first press
+          inputField->text = inputField->text.substring(0, inputField->cursorPos) + String(newChar) +
+                             inputField->text.substring(inputField->cursorPos);
+          inputField->cursorPos++;
         }
-        lcd.endWrite();
 
         return true;
       }
@@ -553,4 +659,90 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
   }
 
   return false;
+}
+
+// Helper function to handle key repeat when keys are held down
+void handleKeyboardRepeat(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent,
+                          MacComponent* inputComponent, MacWindow* window) {
+  if (!keyboardComponent || keyboardComponent->type != COMPONENT_KEYBOARD)
+    return;
+  if (!inputComponent || inputComponent->type != COMPONENT_INPUT_FIELD)
+    return;
+
+  MacKeyboard* keyboard = (MacKeyboard*)keyboardComponent->customData;
+  MacInputField* inputField = (MacInputField*)inputComponent->customData;
+
+  if (!keyboard->visible || !keyboard->isKeyPressed)
+    return;
+
+  unsigned long currentTime = millis();
+  const unsigned long INITIAL_DELAY = 400;  // Wait 400ms before starting repeat
+  const unsigned long REPEAT_INTERVAL = 80; // Repeat every 80ms while held
+
+  // Check if we should trigger a repeat
+  unsigned long timeSincePress = currentTime - keyboard->keyPressStart;
+
+  if (timeSincePress < INITIAL_DELAY) {
+    // Still in initial delay period, don't repeat yet
+    return;
+  }
+
+  unsigned long timeSinceLastRepeat = currentTime - keyboard->lastRepeat;
+
+  if (timeSinceLastRepeat < REPEAT_INTERVAL) {
+    // Not enough time has passed since last repeat
+    return;
+  }
+
+  // Time to repeat the key
+  keyboard->lastRepeat = currentTime;
+
+  int x = keyboardComponent->x;
+  int y = keyboardComponent->y;
+  int w = keyboardComponent->w;
+  int h = keyboardComponent->h;
+  int rowHeight = (h - (2 * KEYBOARD_MARGIN) - SPECIAL_ROW_HEIGHT - KEY_SPACING) / rowCount;
+
+  // Handle backspace repeat
+  if (keyboard->isBackspace) {
+    if (inputField->cursorPos > 0) {
+      inputField->text = inputField->text.substring(0, inputField->cursorPos - 1) +
+                         inputField->text.substring(inputField->cursorPos);
+      inputField->cursorPos--;
+
+      // Update the input field display
+      if (window != nullptr) {
+        drawComponent(lcd, *inputComponent, window->x, window->y);
+      }
+    }
+    return;
+  }
+
+  // Handle space repeat
+  if (keyboard->isSpace) {
+    if (inputField->text.length() < inputField->maxLength) {
+      inputField->text = inputField->text.substring(0, inputField->cursorPos) + " " +
+                         inputField->text.substring(inputField->cursorPos);
+      inputField->cursorPos++;
+
+      // Update the input field display
+      if (window != nullptr) {
+        drawComponent(lcd, *inputComponent, window->x, window->y);
+      }
+    }
+    return;
+  }
+
+  // Handle regular character repeat
+  if (keyboard->lastPressedChar != '\0' && inputField->text.length() < inputField->maxLength) {
+    inputField->text = inputField->text.substring(0, inputField->cursorPos) +
+                       String(keyboard->lastPressedChar) +
+                       inputField->text.substring(inputField->cursorPos);
+    inputField->cursorPos++;
+
+    // Update the input field display
+    if (window != nullptr) {
+      drawComponent(lcd, *inputComponent, window->x, window->y);
+    }
+  }
 }
