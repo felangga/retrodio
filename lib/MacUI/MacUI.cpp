@@ -93,7 +93,7 @@ void drawClock(lgfx::LGFX_Device& lcd, const String& time) {
   lcd.fillRect(screenWidth - 80, 0, 80, 20, MAC_WHITE);
   lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
   lcd.setTextDatum(textdatum_t::middle_left);
-  lcd.drawString(time, screenWidth - 80, 10);
+  lcd.drawString(time, screenWidth - 70, 10);
   lcd.setFont(nullptr); 
 }
 
