@@ -367,7 +367,7 @@ void handleWindowClose(lgfx::LGFX_Device& lcd, MacWindow& window,
                        DesktopIcon* associatedIcon = nullptr);
 void handleWindowMinimize(lgfx::LGFX_Device& lcd, MacWindow& window,
                           DesktopIcon* associatedIcon = nullptr);
-void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window);
+void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon = nullptr);
 void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int relativeX,
                               int relativeY);
 void handleWindowMoved(lgfx::LGFX_Device& lcd, MacWindow& window);

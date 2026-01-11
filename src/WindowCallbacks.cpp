@@ -25,7 +25,7 @@ void onWindowClose() {
 }
 
 void onRadioIconClick() {
-  handleIconClick(lcd, radioWindow);
+  handleIconClick(lcd, radioWindow, &radioIcon);
 }
 
 void onWindowContentClick(int relativeX, int relativeY) {

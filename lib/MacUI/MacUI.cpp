@@ -919,13 +919,23 @@ void handleWindowMinimize(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon
   window.visible = false;
   if (associatedIcon) {
     associatedIcon->visible = true;  // Show icon when window is minimized
+    // Draw the desktop icon on the screen
+    lcd.startWrite();
+    drawDesktopIcon(lcd, associatedIcon->x, associatedIcon->y, associatedIcon->name, associatedIcon->selected);
+    lcd.endWrite();
   }
 }
 
-void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window) {
+void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon) {
   // Restore window when icon is clicked
   window.minimized = false;
   window.visible = true;
+
+  // Hide the desktop icon
+  if (associatedIcon) {
+    associatedIcon->visible = false;
+  }
+
   // Redraw all windows to ensure proper layering and refresh
   lcd.startWrite();
   redrawAllWindows(lcd);
