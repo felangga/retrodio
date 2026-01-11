@@ -47,6 +47,7 @@ extern const int BTN_NEXT;
 extern const int BTN_VOL_DOWN;
 extern const int BTN_STATION;
 extern const int BTN_ADD_STATION;
+extern const int BTN_EDIT_STATION;
 extern const int BTN_SAVE_STATION;
 extern const int BTN_CANCEL_ADD_STATION;
 extern const int BTN_DELETE_STATION;
@@ -121,6 +122,8 @@ extern MacWindow confirmDeleteWindow;
 extern DesktopIcon radioIcon;
 extern MacComponent* globalKeyboard;
 extern int stationToDeleteIndex;
+extern bool isEditMode;
+extern int stationToEditIndex;
 
 // Helper Functions
 MacComponent* findComponentById(const MacWindow& window, int id);

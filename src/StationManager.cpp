@@ -156,6 +156,7 @@ void onStationItemClick(int index, void* itemData) {
 
 void initializeStationWindow() {
   extern const int BTN_ADD_STATION;
+  extern const int BTN_EDIT_STATION;
   extern const int BTN_DELETE_STATION;
 
   clearChildComponents(stationWindow);
@@ -164,7 +165,11 @@ void initializeStationWindow() {
   btnAddStation->onClick = [](int componentId) { onAddStationButtonClick(); };
   addChildComponent(stationWindow, btnAddStation);
 
-  MacComponent* btnDeleteStation = createButtonComponent(310, 77, 90, 30, BTN_DELETE_STATION, "Delete");
+  MacComponent* btnEditStation = createButtonComponent(310, 77, 90, 30, BTN_EDIT_STATION, "Edit");
+  btnEditStation->onClick = [](int componentId) { onEditStationButtonClick(); };
+  addChildComponent(stationWindow, btnEditStation);
+
+  MacComponent* btnDeleteStation = createButtonComponent(310, 112, 90, 30, BTN_DELETE_STATION, "Delete");
   btnDeleteStation->onClick = [](int componentId) { onDeleteStationButtonClick(); };
   addChildComponent(stationWindow, btnDeleteStation);
 
@@ -182,6 +187,28 @@ void initializeStationWindow() {
 
 
 void onAddStationButtonClick() {
+  extern bool isEditMode;
+  extern int stationToEditIndex;
+  extern const int INPUT_STATION_NAME;
+  extern const int INPUT_STATION_URL;
+
+  isEditMode = false;
+  stationToEditIndex = -1;
+
+  // Clear input fields
+  MacComponent* nameInputComp = findComponentById(addStationWindow, INPUT_STATION_NAME);
+  MacComponent* urlInputComp = findComponentById(addStationWindow, INPUT_STATION_URL);
+
+  if (nameInputComp && urlInputComp) {
+    MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
+    MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+
+    nameInput->text = "";
+    nameInput->cursorPos = 0;
+    urlInput->text = "";
+    urlInput->cursorPos = 0;
+  }
+
   stationWindow.visible = false;
   stationWindow.active = false;
   addStationWindow.visible = true;
@@ -192,9 +219,56 @@ void onAddStationButtonClick() {
   drawWindow(lcd, addStationWindow);
 }
 
+void onEditStationButtonClick() {
+  extern bool isEditMode;
+  extern int stationToEditIndex;
+  extern const int INPUT_STATION_NAME;
+  extern const int INPUT_STATION_URL;
+
+  // Find the station list component to get selected index
+  MacComponent* stationListComp = findComponentById(stationWindow, 300);
+
+  if (stationListComp && stationListComp->customData) {
+    MacListView* listViewData = (MacListView*)stationListComp->customData;
+
+    if (listViewData->selectedIndex >= 0 && listViewData->selectedIndex < ConfigManager::getStationCount()) {
+      isEditMode = true;
+      stationToEditIndex = listViewData->selectedIndex;
+
+      // Load station data into input fields
+      Station station = ConfigManager::getStation(stationToEditIndex);
+
+      MacComponent* nameInputComp = findComponentById(addStationWindow, INPUT_STATION_NAME);
+      MacComponent* urlInputComp = findComponentById(addStationWindow, INPUT_STATION_URL);
+
+      if (nameInputComp && urlInputComp) {
+        MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
+        MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+
+        nameInput->text = station.name;
+        nameInput->cursorPos = station.name.length();
+        urlInput->text = station.url;
+        urlInput->cursorPos = station.url.length();
+      }
+
+      stationWindow.visible = false;
+      stationWindow.active = false;
+      addStationWindow.visible = true;
+      addStationWindow.active = true;
+      addStationWindow.minimized = false;
+
+      drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
+      drawWindow(lcd, addStationWindow);
+    }
+  }
+}
+
 void onSaveStationButtonClick() {
   extern const int INPUT_STATION_NAME;
   extern const int INPUT_STATION_URL;
+  extern bool isEditMode;
+  extern int stationToEditIndex;
+
   MacComponent* nameInputComp = findComponentById(addStationWindow, INPUT_STATION_NAME);
   MacComponent* urlInputComp = findComponentById(addStationWindow, INPUT_STATION_URL);
 
@@ -206,7 +280,17 @@ void onSaveStationButtonClick() {
     String stationURL = urlInput->text;
 
     if (stationName.length() > 0 && stationURL.length() > 0) {
-      if (ConfigManager::addStation(stationName, stationURL)) {
+      bool success = false;
+
+      if (isEditMode && stationToEditIndex >= 0) {
+        // Update existing station
+        success = ConfigManager::updateStation(stationToEditIndex, stationName, stationURL);
+      } else {
+        // Add new station
+        success = ConfigManager::addStation(stationName, stationURL);
+      }
+
+      if (success) {
         reloadStationList();
         initializeStationWindow();
 
@@ -214,6 +298,10 @@ void onSaveStationButtonClick() {
         nameInput->cursorPos = 0;
         urlInput->text = "";
         urlInput->cursorPos = 0;
+
+        // Reset edit mode
+        isEditMode = false;
+        stationToEditIndex = -1;
       } else {
         return;
       }

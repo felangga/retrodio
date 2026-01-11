@@ -78,11 +78,12 @@ const int BTN_NEXT = 5;
 const int BTN_VOL_DOWN = 6;
 const int BTN_STATION = 7;
 const int BTN_ADD_STATION = 8;
-const int BTN_SAVE_STATION = 9;
-const int BTN_CANCEL_ADD_STATION = 10;
-const int BTN_DELETE_STATION = 11;
-const int BTN_CONFIRM_YES = 12;
-const int BTN_CONFIRM_NO = 13;
+const int BTN_EDIT_STATION = 9;
+const int BTN_SAVE_STATION = 10;
+const int BTN_CANCEL_ADD_STATION = 11;
+const int BTN_DELETE_STATION = 12;
+const int BTN_CONFIRM_YES = 13;
+const int BTN_CONFIRM_NO = 14;
 
 // ===== GLOBAL OBJECTS =====
 
@@ -138,6 +139,8 @@ DesktopIcon radioIcon{50, 60, "Radio Player", "window", false, false, &radioWind
 
 MacComponent* globalKeyboard = nullptr;
 int stationToDeleteIndex = -1;  // Track which station to delete
+bool isEditMode = false;  // Track if we're in edit mode
+int stationToEditIndex = -1;  // Track which station to edit
 
 // ===== HELPER FUNCTIONS =====
 
