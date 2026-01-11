@@ -98,7 +98,7 @@ void drawClock(lgfx::LGFX_Device& lcd, const String& time) {
 }
 
 void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& title,
-                bool active) {
+                bool active, bool showMinimizeButton) {
   // Draw window shadow
   lcd.fillRect(x + 3, y + 3, w, h, MAC_DARK_GRAY);
 
@@ -116,16 +116,19 @@ void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
   lcd.setTextColor(MAC_WHITE, titleColor);
   lcd.setTextSize(1);
   int titleX = x + (w - title.length()*10) / 2;
-  lcd.setCursor(titleX, y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT) / 2);  
+  lcd.setCursor(titleX, y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT) / 2);
   lcd.setFont(getFontFromType(FONT_CHICAGO_11PT));
   lcd.print(title);
 
-  // Calculate minimize button position (centered vertically in title bar)
-  int minBtnY = y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT - 18) / 2;
-  lcd.fillRect(x + w - 24, minBtnY, 18, 18, MAC_WHITE);
-  lcd.drawRect(x + w - 24, minBtnY, 18, 18, MAC_BLACK);
+  // Draw minimize button only if enabled
+  if (showMinimizeButton) {
+    // Calculate minimize button position (centered vertically in title bar)
+    int minBtnY = y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT - 18) / 2;
+    lcd.fillRect(x + w - 24, minBtnY, 18, 18, MAC_WHITE);
+    lcd.drawRect(x + w - 24, minBtnY, 18, 18, MAC_BLACK);
 
-  lcd.drawFastHLine(x + w - 18, minBtnY + 8, 8, MAC_BLACK);
+    lcd.drawFastHLine(x + w - 18, minBtnY + 8, 8, MAC_BLACK);
+  }
 }
 
 /**
@@ -135,7 +138,9 @@ void drawWindow(lgfx::LGFX_Device& lcd, const MacWindow& window) {
   if (!window.visible)
     return;
 
-  drawWindow(lcd, window.x, window.y, window.w, window.h, window.title, window.active);
+  // Only show minimize button if the callback exists
+  bool shouldShowMinimize = (window.onMinimize != nullptr);
+  drawWindow(lcd, window.x, window.y, window.w, window.h, window.title, window.active, shouldShowMinimize);
 
   if (!window.isDragging) {
     drawWindowChildComponents(lcd, window);
@@ -154,7 +159,8 @@ bool isInsideCloseButton(const MacWindow& window, int tx, int ty) {
 }
 
 bool isInsideMinimizeButton(const MacWindow& window, int tx, int ty) {
-  if (!window.visible)
+  // Don't show minimize button if the callback is null
+  if (!window.visible || window.onMinimize == nullptr)
     return false;
   int buttonHeight = 18;
   int buttonY = window.y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT - buttonHeight) / 2;

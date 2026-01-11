@@ -117,7 +117,7 @@ String lastDisplayedLyrics = "";
 String lastDisplayedLog = "";
 
 MacWindow radioWindow{30,  40,  420, 240, "Radio", true, false, true,
-                      onWindowMinimize, onWindowClose, onWindowContentClick, onWindowMoved,
+                      nullptr, onWindowClose, onWindowContentClick, onWindowMoved,
                       nullptr, 0, false, 0, 0};
 
 MacWindow stationWindow{20, 40, 420, 240, "Station List", false, false, false,
@@ -131,11 +131,12 @@ MacWindow addStationWindow{60, 40, 360, 160, "Add Station", false, false, false,
                            nullptr, 0, false, 0, 0};
 
 MacWindow confirmDeleteWindow{100, 100, 280, 120, "Confirm Delete", false, false, false,
-                              onConfirmDeleteWindowMinimize, onConfirmDeleteWindowClose,
+                              nullptr, onConfirmDeleteWindowClose,
                               onConfirmDeleteWindowContentClick, onConfirmDeleteWindowMoved,
                               nullptr, 0, false, 0, 0};
 
-DesktopIcon radioIcon{50, 60, "Radio Player", "window", false, false, &radioWindow, onRadioIconClick};
+
+DesktopIcon radioIcon{50, 60, "Radio", "window", false, false, &radioWindow, onRadioIconClick};
 
 MacComponent* globalKeyboard = nullptr;
 int stationToDeleteIndex = -1;  // Track which station to delete
