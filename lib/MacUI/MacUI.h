@@ -94,6 +94,7 @@ struct MacComponent {
   bool visible;
   bool enabled;
   void (*onClick)(int componentId);  // Generic callback with component ID
+  void (*onValueChanged)(int componentId, int value);  // Callback for value changes (e.g., sliders)
   void* customData;                  // Pointer to component-specific data
 };
 
@@ -329,6 +330,8 @@ MacComponent* createListViewComponent(int x, int y, int w, int h, int id, MacLis
 MacComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
                                         const String& placeholder = "", int maxLength = 50);
 MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int targetInputId);
+MacComponent* createSliderComponent(int x, int y, int w, int h, int id, int minVal, int maxVal,
+                                    int currentVal, bool vertical = false);
 
 // Helper to update running text properties
 void updateRunningTextProperties(MacComponent* component, const String* newText = nullptr,
