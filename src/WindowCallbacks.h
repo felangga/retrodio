@@ -40,6 +40,7 @@ void onConfirmDeleteWindowMoved();
 // Station window button callbacks
 void onStationButtonClick();
 void onAddStationButtonClick();
+void onEditStationButtonClick();
 void onSaveStationButtonClick();
 void onCancelAddStationButtonClick();
 void onDeleteStationButtonClick();
