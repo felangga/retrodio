@@ -24,8 +24,8 @@ const int btnAddStationID = 8;
 const int btnSaveStationID = 9;
 const int btnCancelAddStationID = 10;
 
-static LGFX lcd;  // Display instance
-Audio audio;      // Audio streaming instance
+static LGFX lcd; 
+Audio audio;    
 
 // Multi-core task handles
 TaskHandle_t uiTaskHandle = NULL;
