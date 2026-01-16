@@ -26,9 +26,9 @@ bool ConfigManager::begin() {
     createDefaultSettings();
   }
 
-  if (!loadStations()) {
+  // if (!loadStations()) {
     createDefaultStations();
-  }
+  // }
 
   return true;
 }
@@ -278,7 +278,8 @@ bool ConfigManager::createDefaultStations() {
   addStation("Sonora FM", "https://cast3.asurahosting.com/proxy/radios28/stream");
   addStation("BBC World Service",
              "https://radio.garden/api/ara/content/listen/FXyhz9Xk/channel.mp3?1766930004566");
-
+  addStation("TEST",
+             "https://streamcdnb4-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S97044836/tbbP8T1ZRPBL/playlist_audio.m3u8");
   return true;
 }
 

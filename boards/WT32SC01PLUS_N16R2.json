@@ -6,7 +6,7 @@
         },
         "core": "esp32",
         "extra_flags": [
-            "-DBOARD_HAS_PSRAM",
+            "-DBOARD_HAS_PSRAM=1",
             "-DARDUINO_ESP32S3_DEV",
             "-DARDUINO_USB_MODE=1",
             "-DARDUINO_RUNNING_CORE=1",

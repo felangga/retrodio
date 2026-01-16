@@ -185,25 +185,19 @@ void setup() {
   metadataMutex = xSemaphoreCreateMutex();
   audioCommandQueue = xQueueCreate(5, sizeof(AudioCommandMsg));
 
-  try {
-    lcd.init();
-    tft.initDMA();
-    tft.startWrite();
-    lcd.setRotation(lcd.getRotation() ^ 1);
-    initComponentBuffer(&lcd, 420, 50);
-    lcd.fillScreen(MAC_WHITE);
-    drawInterface(lcd);
 
-    registerWindow(&radioWindow);
-    registerWindow(&stationWindow);
-    registerWindow(&addStationWindow);
-    registerWindow(&confirmDeleteWindow);
+  lcd.init();
+  tft.initDMA();
+  tft.startWrite();
+  lcd.setRotation(lcd.getRotation() ^ 1);
+  initComponentBuffer(&lcd, 420, 50);
+  lcd.fillScreen(MAC_WHITE);
+  drawInterface(lcd);
 
-  } catch (...) {
-    DEBUG_PRINTLN("FATAL: LCD initialization failed!");
-    while (1)
-      delay(1000);
-  }
+  registerWindow(&radioWindow);
+  registerWindow(&stationWindow);
+  registerWindow(&addStationWindow);
+  registerWindow(&confirmDeleteWindow);
 
   if (!ConfigManager::begin()) {
     DEBUG_PRINTLN("ERROR: ConfigManager initialization failed!");
