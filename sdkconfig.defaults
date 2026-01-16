@@ -1,0 +1,27 @@
+# PSRAM Configuration for WT32-SC01 Plus
+# The board has 2MB Quad SPI PSRAM
+
+# Enable PSRAM
+CONFIG_SPIRAM=y
+
+# Use Quad mode instead of Octal
+CONFIG_SPIRAM_MODE_QUAD=y
+
+# PSRAM Type
+CONFIG_SPIRAM_TYPE_AUTO=y
+
+# PSRAM Speed - 80MHz is more stable than 120MHz
+CONFIG_SPIRAM_SPEED_80M=y
+
+# Use PSRAM for malloc
+CONFIG_SPIRAM_USE_MALLOC=y
+
+# Allocate memory from PSRAM
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=16384
+CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL=32768
+
+# Disable PSRAM test on boot (faster boot)
+# CONFIG_SPIRAM_MEMTEST is not set
+
+# Disable ESP Insights to avoid certificate build errors
+CONFIG_ESP_INSIGHTS_ENABLED=n

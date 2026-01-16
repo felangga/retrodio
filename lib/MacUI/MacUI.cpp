@@ -1,29 +1,49 @@
 /*
  * MacUI.cpp - Classic Macintosh OS User Interface Library Implementation
- * 
- * Copyright (c) 2025 Felangga
- * 
+ *
+ * Copyright (c) 2025 felangga
+ *
  * This file contains the implementation of classic Mac OS UI drawing functions
  * using primitive graphics functions with LovyanGFX library.
  */
 
 #include "MacUI.h"
 
-// Include component implementations
-#include "MacUI/MacButton.cpp"
-#include "MacUI/MacLabel.cpp"
-#include "MacUI/MacTextBox.cpp"
-#include "MacUI/MacCheckBox.cpp"
-#include "MacUI/MacSlider.cpp"
-#include "MacUI/MacProgressBar.cpp"
-#include "MacUI/MacRunningText.cpp"
-#include "MacUI/MacListView.cpp"
-#include "MacUI/MacInputField.cpp"
-#include "MacUI/MacKeyboard.cpp"
+// Slider constants (must match MacSlider.cpp)
+#define SLIDER_THUMB_SIZE 30
+#define SLIDER_TRACK_WIDTH 8
 
 // Sprite buffer for double buffering components
 lgfx::LGFX_Sprite* componentSprite = nullptr;
 lgfx::LGFX_Sprite* windowSprite = nullptr;
+
+// Window manager - track all registered windows
+static MacWindow** registeredWindows = nullptr;
+static int registeredWindowCount = 0;
+static const int MAX_WINDOWS = 10;
+
+/**
+ * Convert FontType enum to GFXfont pointer
+ */
+const GFXfont* getFontFromType(FontType fontType) {
+  switch (fontType) {
+    case FONT_CHICAGO_9PT:
+      return CHICAGO9_FONT;
+    case FONT_CHICAGO_11PT:
+      return CHICAGO11_FONT;
+    case FONT_CHICAGO_14PT:
+      return CHICAGO14_FONT;
+    case FONT_DEJAVU_12PT:
+      return &fonts::DejaVu12;
+    case FONT_TOM_THUMB: 
+      return &fonts::TomThumb;
+    case FONT_FREE_MONO_12PT:
+      return &fonts::FreeMono12pt7b;
+    case FONT_DEFAULT:
+    default:
+      return nullptr;
+  }
+}
 
 /**
  * Initialize sprite buffer for double buffering
@@ -36,7 +56,7 @@ void initComponentBuffer(lgfx::LGFX_Device* lcd, int maxWidth, int maxHeight) {
     componentSprite->createSprite(maxWidth, maxHeight);
     componentSprite->fillSprite(MAC_WHITE);  // Initialize with white background
   }
-  
+
   // Create a larger sprite for entire window (if memory allows)
   if (windowSprite == nullptr) {
     windowSprite = new lgfx::LGFX_Sprite(lcd);
@@ -55,31 +75,30 @@ void initComponentBuffer(lgfx::LGFX_Device* lcd, int maxWidth, int maxHeight) {
  * Draw the classic Mac OS menu bar
  */
 void drawMenuBar(lgfx::LGFX_Device& lcd, const String& appName) {
-  // Draw menu bar background
   lcd.fillRect(0, 0, screenWidth, 20, MAC_WHITE);
   lcd.drawFastHLine(0, 20, screenWidth, MAC_BLACK);
 
   lcd.fillCircle(15, 10, 6, MAC_BLACK);
   lcd.fillCircle(18, 7, 3, MAC_WHITE);
 
-  // Draw menu items
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  lcd.setTextSize(1);
-  lcd.setCursor(30, 6);
-  lcd.print(appName);
+  lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+  lcd.setTextDatum(textdatum_t::middle_left);
+  lcd.drawString(appName, 30, 10);
+  lcd.setFont(nullptr);  
 }
 
 void drawClock(lgfx::LGFX_Device& lcd, const String& time) {
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
   lcd.fillRect(screenWidth - 80, 0, 80, 20, MAC_WHITE);
-  lcd.setCursor(screenWidth - 80, 6);
-  lcd.print(time);
+  lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+  lcd.setTextDatum(textdatum_t::middle_left);
+  lcd.drawString(time, screenWidth - 70, 10);
+  lcd.setFont(nullptr); 
 }
 
-/**
- * Draw a classic Mac OS window with title bar
- */
-void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& title, bool active) {
+void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& title,
+                bool active, bool showMinimizeButton) {
   // Draw window shadow
   lcd.fillRect(x + 3, y + 3, w, h, MAC_DARK_GRAY);
 
@@ -90,37 +109,40 @@ void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String
   lcd.drawRect(x, y, w, h, MAC_BLACK);
   lcd.drawRect(x + 1, y + 1, w - 2, h - 2, MAC_BLACK);
 
-  // Draw title bar (increased height for larger buttons)
+  // Draw title bar (increased height for touchscreen usability)
   uint16_t titleColor = active ? MAC_BLACK : MAC_GRAY;
-  lcd.fillRect(x + 2, y + 2, w - 4, 24, titleColor);
+  lcd.fillRect(x + TITLE_BAR_BORDER, y + TITLE_BAR_BORDER, w - 4, TITLE_BAR_HEIGHT, titleColor);
 
-  // Draw title text (adjusted for larger title bar)
   lcd.setTextColor(MAC_WHITE, titleColor);
   lcd.setTextSize(1);
-  int titleX = x + (w - title.length() * 6) / 2;
-  lcd.setCursor(titleX, y + 10);  // Moved down to center in larger title bar
+  int titleX = x + (w - title.length()*10) / 2;
+  lcd.setCursor(titleX, y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT) / 2);
+  lcd.setFont(getFontFromType(FONT_CHICAGO_11PT));
   lcd.print(title);
 
-  lcd.fillRect(x + w - 24, y + 4, 18, 18, MAC_WHITE);
-  lcd.drawRect(x + w - 24, y + 4, 18, 18, MAC_BLACK);
+  // Draw minimize button only if enabled
+  if (showMinimizeButton) {
+    // Calculate minimize button position (centered vertically in title bar)
+    int minBtnY = y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT - 18) / 2;
+    lcd.fillRect(x + w - 24, minBtnY, 18, 18, MAC_WHITE);
+    lcd.drawRect(x + w - 24, minBtnY, 18, 18, MAC_BLACK);
 
-  // Draw minimize symbol (−)
-  lcd.drawFastHLine(x + w - 18, y + 12, 8, MAC_BLACK);
+    lcd.drawFastHLine(x + w - 18, minBtnY + 8, 8, MAC_BLACK);
+  }
 }
 
 /**
  * Draw a classic Mac OS window using MacWindow struct
  */
 void drawWindow(lgfx::LGFX_Device& lcd, const MacWindow& window) {
-  if (!window.visible) return;
+  if (!window.visible)
+    return;
 
-  // Draw full window
-  drawWindow(lcd, window.x, window.y, window.w, window.h, window.title, window.active);
-  
-  // Skip drawing child components during drag to reduce flicker
-  // They'll be redrawn once the drag ends
+  // Only show minimize button if the callback exists
+  bool shouldShowMinimize = (window.onMinimize != nullptr);
+  drawWindow(lcd, window.x, window.y, window.w, window.h, window.title, window.active, shouldShowMinimize);
+
   if (!window.isDragging) {
-    // Draw all child components (flexible system)
     drawWindowChildComponents(lcd, window);
   }
 }
@@ -128,25 +150,32 @@ void drawWindow(lgfx::LGFX_Device& lcd, const MacWindow& window) {
 // ===== WINDOW INTERACTION HELPERS =====
 
 bool isInsideCloseButton(const MacWindow& window, int tx, int ty) {
-  if (!window.visible) return false;
-  int buttonHeight = 16;  // Now consistent 16 pixels for both normal and minimized
+  if (!window.visible)
+    return false;
+
+  int buttonHeight = 16;  
   int buttonY = window.y + 4;
   return tx >= window.x + 4 && tx < window.x + 20 && ty >= buttonY && ty < buttonY + buttonHeight;
 }
 
 bool isInsideMinimizeButton(const MacWindow& window, int tx, int ty) {
-  if (!window.visible) return false;
-  int buttonHeight = 18;  // Now consistent 16 pixels for both normal and minimized
-  int buttonY = window.y + 4;
-  return tx >= window.x + window.w - 24 && tx < window.x + window.w - 6 && ty >= buttonY && ty < buttonY + buttonHeight;
+  // Don't show minimize button if the callback is null
+  if (!window.visible || window.onMinimize == nullptr)
+    return false;
+  int buttonHeight = 18;
+  int buttonY = window.y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT - buttonHeight) / 2;
+  return tx >= window.x + window.w - 24 && tx < window.x + window.w - 6 && ty >= buttonY &&
+         ty < buttonY + buttonHeight;
 }
 
 bool isInsideTitleBar(const MacWindow& window, int tx, int ty) {
-  if (!window.visible) return false;
-  int titleBarHeight = 24;
+  if (!window.visible)
+    return false;
 
   // Check if in title bar but not in close or minimize buttons
-  bool inTitleBar = tx >= window.x + 2 && tx < window.x + window.w - 2 && ty >= window.y + 2 && ty < window.y + 2 + titleBarHeight;
+  bool inTitleBar = tx >= window.x + TITLE_BAR_BORDER && tx < window.x + window.w - TITLE_BAR_BORDER &&
+                    ty >= window.y + TITLE_BAR_BORDER &&
+                    ty < window.y + TITLE_BAR_BORDER + TITLE_BAR_HEIGHT;
   bool inCloseButton = isInsideCloseButton(window, tx, ty);
   bool inMinimizeButton = isInsideMinimizeButton(window, tx, ty);
 
@@ -159,33 +188,57 @@ bool isInsideTitleBar(const MacWindow& window, int tx, int ty) {
  * Call this every loop for each window
  */
 void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
-  if (!window.visible) return;
+  if (!window.visible)
+    return;
 
   static bool wasPressed = false;
   static unsigned long pressTime = 0;
+  static int lastTouchX = 0;  // Track last touch coordinates for release callbacks
+  static int lastTouchY = 0;
 
   uint16_t tx, ty;
   bool touching = lcd.getTouch(&tx, &ty);
 
   if (touching) {
     // Check if touch is inside window bounds
-    bool insideWindow = tx >= window.x && tx < window.x + window.w && 
-                       ty >= window.y && ty < window.y + window.h;
+    bool insideWindow =
+        tx >= window.x && tx < window.x + window.w && ty >= window.y && ty < window.y + window.h;
 
     if (insideWindow) {
+      // If window is not active, only allow title bar interactions (minimize/close/drag)
+      // Block all content interactions for inactive windows
+      if (!window.active) {
+        if (!wasPressed) {
+          wasPressed = true;
+          // Only allow minimize button and title bar interactions
+          if (isInsideMinimizeButton(window, tx, ty) || isInsideTitleBar(window, tx, ty)) {
+            // Let it fall through to normal handling
+          } else {
+            // Block all other interactions for inactive windows
+            return;
+          }
+        }
+      }
+
+      // Always update last touch coordinates while touching
+      lastTouchX = tx;
+      lastTouchY = ty;
+
       if (!wasPressed) {
         wasPressed = true;
         pressTime = millis();
 
         // Check if minimize button was pressed
         if (isInsideMinimizeButton(window, tx, ty)) {
-          delay(100);                            // Brief visual feedback
+          delay(50);                             // Brief visual feedback
           window.minimized = !window.minimized;  // Toggle minimize state
 
           if (window.minimized) {
-            // Hide the window completely and clear its area
+            // Hide the window completely and clear its area (including shadow)
             window.visible = false;
-            redrawDesktopArea(lcd, window.x, window.y, window.w, window.h);
+            lcd.startWrite();
+            drawCheckeredPatternArea(lcd, window.x, window.y, window.w + 5, window.h + 5);
+            lcd.endWrite();
           } else {
             // Restore the window
             window.visible = true;
@@ -206,7 +259,6 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
 
         // Check if title bar was pressed (for dragging)
         if (isInsideTitleBar(window, tx, ty)) {
-          // Start dragging
           window.isDragging = true;
           window.dragOffsetX = tx - window.x;
           window.dragOffsetY = ty - window.y;
@@ -215,7 +267,8 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
 
         // Check if touch is on a ListView component for swipe scrolling (only if window is visible)
         MacComponent* touchedComponent = findComponentAt(window, tx, ty);
-        if (window.visible && touchedComponent && touchedComponent->type == COMPONENT_LISTVIEW && touchedComponent->customData) {
+        if (window.visible && touchedComponent && touchedComponent->type == COMPONENT_LISTVIEW &&
+            touchedComponent->customData) {
           MacListView* listViewData = (MacListView*)touchedComponent->customData;
           listViewData->isTouching = true;
           listViewData->touchStartY = ty;
@@ -223,35 +276,112 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
           listViewData->touchStartTime = millis();
         }
 
-        // Handle window content interactions (buttons, etc.)
-        // This allows the window to manage all its child components
-        if (window.onContentClick) {
-          window.onContentClick(tx - window.x, ty - window.y); // Pass relative coordinates
+        // Check if touch is on a Slider component for dragging
+        if (window.visible && touchedComponent && touchedComponent->type == COMPONENT_SLIDER &&
+            touchedComponent->customData) {
+          MacSlider* sliderData = (MacSlider*)touchedComponent->customData;
+
+          // Calculate slider value based on touch position
+          int relativeX = tx - (window.x + touchedComponent->x);
+          int relativeY = ty - (window.y + touchedComponent->y);
+
+          if (sliderData->vertical) {
+            int trackH = touchedComponent->h - (SLIDER_THUMB_SIZE / 2);
+            int trackY = (SLIDER_THUMB_SIZE / 4);
+            int touchPos = trackH - (relativeY - trackY);
+            touchPos = max(0, min(touchPos, trackH));
+            int range = sliderData->maxValue - sliderData->minValue;
+            sliderData->currentValue = sliderData->minValue + (touchPos * range / trackH);
+          } else {
+            int trackW = touchedComponent->w - (SLIDER_THUMB_SIZE / 2);
+            int trackX = 10;
+            int touchPos = relativeX - trackX;
+            touchPos = max(0, min(touchPos, trackW));
+            int range = sliderData->maxValue - sliderData->minValue;
+            sliderData->currentValue = sliderData->minValue + (touchPos * range / trackW);
+          }
+
+          // Redraw the slider
+          lcd.startWrite();
+          drawComponent(lcd, *touchedComponent, window.x, window.y);
+          lcd.endWrite();
+
+          // Call the callback if it exists
+          if (touchedComponent->onValueChanged != nullptr) {
+            touchedComponent->onValueChanged(touchedComponent->id, sliderData->currentValue);
+          }
         }
       } else if (window.visible) {
-        // Handle ongoing swipe for ListView (only if window is visible)
+        // Handle ongoing swipe for ListView and Slider dragging (only if window is visible)
+        static unsigned long lastScrollUpdate = 0;
+        unsigned long now = millis();
+
         for (int i = 0; i < window.childComponentCount; i++) {
           MacComponent* component = window.childComponents[i];
           if (component && component->type == COMPONENT_LISTVIEW && component->customData) {
             MacListView* listViewData = (MacListView*)component->customData;
             if (listViewData->isTouching) {
               int deltaY = ty - listViewData->lastTouchY;
-              
+
               // Update scroll offset (inverted for natural scrolling)
               int oldOffset = listViewData->scrollOffset;
               listViewData->scrollOffset -= deltaY;
-              
+
               // Constrain scroll offset
               int visibleHeight = component->h - 4;
-              int maxScroll = max(0, listViewData->itemCount * listViewData->itemHeight - visibleHeight);
+              int maxScroll =
+                  max(0, listViewData->itemCount * listViewData->itemHeight - visibleHeight);
               listViewData->scrollOffset = max(0, min(listViewData->scrollOffset, maxScroll));
-              
-              // Redraw if scroll changed
-              if (oldOffset != listViewData->scrollOffset) {
+
+              // Throttle redraw to reduce flickering (max 30 FPS)
+              if (oldOffset != listViewData->scrollOffset && (now - lastScrollUpdate > 33)) {
+                lcd.startWrite();
                 drawComponent(lcd, *component, window.x, window.y);
+                lcd.endWrite();
+                lastScrollUpdate = now;
               }
-              
+
               listViewData->lastTouchY = ty;
+            }
+          } else if (component && component->type == COMPONENT_SLIDER && component->customData) {
+            // Check if touch is still on this slider
+            if (tx >= window.x + component->x && tx <= window.x + component->x + component->w &&
+                ty >= window.y + component->y && ty <= window.y + component->y + component->h) {
+              MacSlider* sliderData = (MacSlider*)component->customData;
+              int oldValue = sliderData->currentValue;
+
+              // Calculate slider value based on touch position
+              int relativeX = tx - (window.x + component->x);
+              int relativeY = ty - (window.y + component->y);
+
+              if (sliderData->vertical) {
+                int trackH = component->h - (SLIDER_THUMB_SIZE / 2);
+                int trackY = (SLIDER_THUMB_SIZE / 4);
+                int touchPos = trackH - (relativeY - trackY);
+                touchPos = max(0, min(touchPos, trackH));
+                int range = sliderData->maxValue - sliderData->minValue;
+                sliderData->currentValue = sliderData->minValue + (touchPos * range / trackH);
+              } else {
+                int trackW = component->w - (SLIDER_THUMB_SIZE / 2);
+                int trackX = 10;
+                int touchPos = relativeX - trackX;
+                touchPos = max(0, min(touchPos, trackW));
+                int range = sliderData->maxValue - sliderData->minValue;
+                sliderData->currentValue = sliderData->minValue + (touchPos * range / trackW);
+              }
+
+              // Only redraw and callback if value changed
+              if (oldValue != sliderData->currentValue && (now - lastScrollUpdate > 100)) {
+                lcd.startWrite();
+                drawComponent(lcd, *component, window.x, window.y);
+                lcd.endWrite();
+                lastScrollUpdate = now;
+
+                // Call the callback if it exists
+                if (component->onValueChanged != nullptr) {
+                  component->onValueChanged(component->id, sliderData->currentValue);
+                }
+              }
             }
           }
         }
@@ -279,7 +409,7 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
         // Only update if position actually changed significantly (reduce micro-movements)
         if (abs(newX - lastDrawnX) > 8 || abs(newY - lastDrawnY) > 8) {
           lastDragUpdate = now;
-          
+
           // Store old position
           int oldX = window.x;
           int oldY = window.y;
@@ -291,23 +421,43 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
           lastDrawnY = newY;
 
           // Draw dotted rectangle outline during drag for classic Mac look
-          lcd.startWrite();
-          
-          // Clear old position
-          drawCheckeredPatternArea(lcd, oldX, oldY, window.w + 5, window.h + 5);
-          
-          // Draw dotted rectangle at new position
-          for (int i = 0; i < window.w; i += 4) {
-            lcd.drawPixel(window.x + i, window.y, MAC_BLACK);
-            lcd.drawPixel(window.x + i, window.y + window.h - 1, MAC_BLACK);
+          // Use double buffering if sprite is available to eliminate flicker
+          if (windowSprite != nullptr) {
+            // Render everything to the sprite buffer first
+            renderToSprite(&window);
+
+            // Draw bolder dotted rectangle at new position to sprite (adjusted for sprite coords)
+            int spriteY = window.y - 21;
+            for (int i = 0; i < window.w; i += 4) {
+              windowSprite->fillRect(window.x + i, spriteY, 2, 2, MAC_BLACK);
+              windowSprite->fillRect(window.x + i, spriteY + window.h - 2, 2, 2, MAC_BLACK);
+            }
+            for (int i = 0; i < window.h; i += 4) {
+              windowSprite->fillRect(window.x, spriteY + i, 2, 2, MAC_BLACK);
+              windowSprite->fillRect(window.x + window.w - 2, spriteY + i, 2, 2, MAC_BLACK);
+            }
+
+            // Push the entire sprite to screen at once (eliminates flicker)
+            lcd.startWrite();
+            windowSprite->pushSprite(&lcd, 0, 21);
+            lcd.endWrite();
+          } else {
+            // Fallback: direct rendering (with flicker)
+            lcd.startWrite();
+            drawCheckeredPatternArea(lcd, oldX, oldY, window.w + 5, window.h + 5);
+            redrawAllWindowsExcept(lcd, &window);
+
+            for (int i = 0; i < window.w; i += 4) {
+              lcd.fillRect(window.x + i, window.y, 2, 2, MAC_BLACK);
+              lcd.fillRect(window.x + i, window.y + window.h - 2, 2, 2, MAC_BLACK);
+            }
+            for (int i = 0; i < window.h; i += 4) {
+              lcd.fillRect(window.x, window.y + i, 2, 2, MAC_BLACK);
+              lcd.fillRect(window.x + window.w - 2, window.y + i, 2, 2, MAC_BLACK);
+            }
+            lcd.endWrite();
           }
-          for (int i = 0; i < window.h; i += 4) {
-            lcd.drawPixel(window.x, window.y + i, MAC_BLACK);
-            lcd.drawPixel(window.x + window.w - 1, window.y + i, MAC_BLACK);
-          }
-          
-          lcd.endWrite();
-          
+
           // Notify that window moved (so buttons can update positions)
           if (window.onWindowMoved) {
             window.onWindowMoved();
@@ -321,15 +471,23 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
       }
     }
   } else {
-    // Touch released - stop dragging and ListView swiping
+    if (wasPressed && window.onContentClick && !window.isDragging) {
+      window.onContentClick(lastTouchX - window.x, lastTouchY - window.y);
+    }
+
     if (window.isDragging) {
       window.isDragging = false;
-      // Redraw window with all components now that dragging has ended
+
       lcd.startWrite();
+      // Clear the dotted outline with background pattern
+      drawCheckeredPatternArea(lcd, window.x, window.y, window.w + 5, window.h + 5);
+      // Redraw all other windows to refresh any obscured content
+      redrawAllWindowsExcept(lcd, &window);
+      // Draw the dragged window at its final position with all components (on top)
       drawWindow(lcd, window);
       lcd.endWrite();
     }
-    
+
     // Reset ListView touch state
     for (int i = 0; i < window.childComponentCount; i++) {
       MacComponent* component = window.childComponents[i];
@@ -338,7 +496,7 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
         listViewData->isTouching = false;
       }
     }
-    
+
     wasPressed = false;
   }
 }
@@ -362,22 +520,83 @@ void drawCheckeredPattern(lgfx::LGFX_Device& lcd) {
  */
 void drawCheckeredPatternArea(lgfx::LGFX_Device& lcd, int startX, int startY, int w, int h) {
   int patternSize = 3;
-  
+
   // Constrain to valid screen area
   startY = max(21, startY);  // Don't draw over menu bar
   int endX = min((int)screenWidth, startX + w);
   int endY = min((int)screenHeight, startY + h);
-  
+
   // Align to pattern grid for seamless appearance
   int gridStartX = (startX / patternSize) * patternSize;
   int gridStartY = (startY / patternSize) * patternSize;
-  
+
   for (int y = gridStartY; y < endY; y += patternSize) {
     for (int x = gridStartX; x < endX; x += patternSize) {
       if ((x / patternSize + y / patternSize) % 2 == 0) {
         lcd.fillRect(x, y, patternSize, patternSize, MAC_LIGHT_GRAY);
       } else {
         lcd.fillRect(x, y, patternSize, patternSize, MAC_WHITE);
+      }
+    }
+  }
+}
+
+/**
+ * Render the entire screen to sprite buffer (for double buffering during drag)
+ */
+void renderToSprite(MacWindow* draggedWindow) {
+  if (windowSprite == nullptr) return;
+
+  int patternSize = 3;
+
+  // Draw checkered pattern to sprite
+  for (int y = 0; y < windowSprite->height(); y += patternSize) {
+    for (int x = 0; x < windowSprite->width(); x += patternSize) {
+      int screenY = y + 21;
+      if ((x / patternSize + screenY / patternSize) % 2 == 0) {
+        windowSprite->fillRect(x, y, patternSize, patternSize, MAC_LIGHT_GRAY);
+      } else {
+        windowSprite->fillRect(x, y, patternSize, patternSize, MAC_WHITE);
+      }
+    }
+  }
+
+  // Draw all visible windows except the dragged one
+  if (registeredWindows != nullptr) {
+    for (int i = 0; i < MAX_WINDOWS; i++) {
+      if (registeredWindows[i] != nullptr &&
+          registeredWindows[i] != draggedWindow &&
+          registeredWindows[i]->visible) {
+        MacWindow* win = registeredWindows[i];
+
+        // Adjust coordinates for sprite (sprite starts at y=21 on screen)
+        int spriteY = win->y - 21;
+
+        // Draw window shadow
+        windowSprite->fillRect(win->x + 3, spriteY + 3, win->w, win->h, MAC_DARK_GRAY);
+
+        // Draw window background
+        windowSprite->fillRect(win->x, spriteY, win->w, win->h, MAC_WHITE);
+
+        // Draw window border
+        windowSprite->drawRect(win->x, spriteY, win->w, win->h, MAC_BLACK);
+        windowSprite->drawRect(win->x + 1, spriteY + 1, win->w - 2, win->h - 2, MAC_BLACK);
+
+        // Draw title bar
+        uint16_t titleColor = win->active ? MAC_BLACK : MAC_GRAY;
+        windowSprite->fillRect(win->x + 2, spriteY + 2, win->w - 4, 24, titleColor);
+
+        // Draw title text
+        windowSprite->setTextColor(MAC_WHITE, titleColor);
+        windowSprite->setTextSize(1);
+        int titleX = win->x + (win->w - win->title.length() * 6) / 2;
+        windowSprite->setCursor(titleX, spriteY + 10);
+        windowSprite->print(win->title);
+
+        // Draw minimize button
+        windowSprite->fillRect(win->x + win->w - 24, spriteY + 4, 18, 18, MAC_WHITE);
+        windowSprite->drawRect(win->x + win->w - 24, spriteY + 4, 18, 18, MAC_BLACK);
+        windowSprite->drawFastHLine(win->x + win->w - 18, spriteY + 12, 8, MAC_BLACK);
       }
     }
   }
@@ -423,38 +642,13 @@ void drawDesktopIcon(lgfx::LGFX_Device& lcd, int x, int y, const String& name, b
 }
 
 /**
- * Draw 3D frame (inset or outset)
+ * Draw 3D frame
  */
-void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, bool inset) {
-  if (inset) {
-    // Inset frame (shadow on top/left, highlight on bottom/right)
+void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h) {
     lcd.drawFastHLine(x, y, w, MAC_DARK_GRAY);
     lcd.drawFastVLine(x, y, h, MAC_DARK_GRAY);
-    lcd.drawFastHLine(x, y + h - 1, w, MAC_WHITE);
-    lcd.drawFastVLine(x + w - 1, y, h, MAC_WHITE);
-  } else {
-    // Outset frame (highlight on top/left, shadow on bottom/right)
-    lcd.drawFastHLine(x, y, w, MAC_WHITE);
-    lcd.drawFastVLine(x, y, h, MAC_WHITE);
     lcd.drawFastHLine(x, y + h - 1, w, MAC_DARK_GRAY);
     lcd.drawFastVLine(x + w - 1, y, h, MAC_DARK_GRAY);
-  }
-}
-
-/**
- * Display status message on screen
- * @param message The message to display
- * @param y Y coordinate for the message (default: 160)
- */
-void displayStatus(lgfx::LGFX_Device& lcd, const String& message, int y) {
-  // Clear the status area in the radio window (adjusted for landscape)
-  lcd.fillRect(45, y, 175, 15, MAC_WHITE);
-
-  // Display new message in classic Mac style
-  lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  lcd.setTextSize(1);
-  lcd.setCursor(45, y);
-  lcd.println(message);
 }
 
 // ===== DESKTOP ICON IMPLEMENTATION =====
@@ -462,7 +656,7 @@ void displayStatus(lgfx::LGFX_Device& lcd, const String& message, int y) {
 /**
  * Redraw desktop area with proper background pattern
  */
-void redrawDesktopArea(lgfx::LGFX_Device& lcd, int x, int y, int w, int h) {
+void redrawDesktopArea(lgfx::LGFX_Device& lcd) {
   drawCheckeredPattern(lcd);
 }
 
@@ -470,7 +664,8 @@ void redrawDesktopArea(lgfx::LGFX_Device& lcd, int x, int y, int w, int h) {
  * Check if touch is inside desktop icon bounds
  */
 bool isInsideDesktopIcon(const DesktopIcon& icon, int tx, int ty) {
-  if (!icon.visible) return false;
+  if (!icon.visible)
+    return false;
   return tx >= icon.x && tx < icon.x + 64 &&  // icon is 64x64 (32x32 + label)
          ty >= icon.y && ty < icon.y + 50;    // 32px icon + 18px label
 }
@@ -480,7 +675,8 @@ bool isInsideDesktopIcon(const DesktopIcon& icon, int tx, int ty) {
  * Call this every loop for each desktop icon
  */
 void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon) {
-  if (!icon.visible) return;
+  if (!icon.visible)
+    return;
 
   static bool wasPressed = false;
   static unsigned long pressTime = 0;
@@ -502,7 +698,7 @@ void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon) {
         drawDesktopIcon(lcd, icon.x, icon.y, icon.name, true);
 
         // Call the icon's callback after a brief delay for visual feedback
-        delay(100);
+        delay(50);
         if (icon.onClick) {
           icon.onClick();
         }
@@ -546,20 +742,20 @@ MacComponent* createComponent(ComponentType type, int x, int y, int w, int h, in
 void addChildComponent(MacWindow& window, MacComponent* component) {
   // Allocate or reallocate the child components array
   MacComponent** newArray = new MacComponent*[window.childComponentCount + 1];
-  
+
   // Copy existing components to new array
   for (int i = 0; i < window.childComponentCount; i++) {
     newArray[i] = window.childComponents[i];
   }
-  
+
   // Add new component
   newArray[window.childComponentCount] = component;
-  
+
   // Clean up old array if it exists
   if (window.childComponents != nullptr) {
     delete[] window.childComponents;
   }
-  
+
   // Update window
   window.childComponents = newArray;
   window.childComponentCount++;
@@ -584,7 +780,7 @@ void drawWindowChildComponents(lgfx::LGFX_Device& lcd, const MacWindow& window) 
   if (window.childComponents == nullptr || window.childComponentCount == 0) {
     return;
   }
-  
+
   for (int i = 0; i < window.childComponentCount; i++) {
     MacComponent* component = window.childComponents[i];
     if (component != nullptr && component->visible) {
@@ -598,11 +794,11 @@ MacComponent* findComponentAt(const MacWindow& window, int x, int y) {
   if (!window.visible || window.childComponents == nullptr || window.childComponentCount == 0) {
     return nullptr;
   }
-  
+
   // Convert absolute coordinates to window-relative coordinates
   int relativeX = x - window.x;
   int relativeY = y - window.y;
-  
+
   for (int i = 0; i < window.childComponentCount; i++) {
     MacComponent* component = window.childComponents[i];
     if (component != nullptr && component->visible && component->enabled) {
@@ -612,99 +808,102 @@ MacComponent* findComponentAt(const MacWindow& window, int x, int y) {
       }
     }
   }
-  
+
   return nullptr;
 }
 
+void drawComponent(lgfx::LGFX_Device& lcd, const MacComponent& component, int windowX,
+                   int windowY) {
+  if (!component.visible)
+    return;
 
-void drawComponent(lgfx::LGFX_Device& lcd, const MacComponent& component, int windowX, int windowY) {
-  if (!component.visible) return;
-  
   int absoluteX = windowX + component.x;
   int absoluteY = windowY + component.y;
-  
+
   switch (component.type) {
     case COMPONENT_BUTTON:
       // Draw button using component data
       if (component.customData != nullptr) {
         MacButton* btnData = (MacButton*)component.customData;
         if (btnData->symbol != SYMBOL_NONE) {
-          drawSymbolButton(lcd, absoluteX, absoluteY, component.w, component.h, btnData->symbol, btnData->pressed);
+          drawSymbolButton(lcd, absoluteX, absoluteY, component.w, component.h, btnData->radius, btnData->symbol,
+                           btnData->pressed);
         } else {
-          drawButton(lcd, absoluteX, absoluteY, component.w, component.h, btnData->text, btnData->pressed);
+          drawButton(lcd, absoluteX, absoluteY, component.w, component.h, btnData->radius, btnData->text,
+                     btnData->pressed, btnData->font);
         }
       }
       break;
-      
+
     case COMPONENT_LABEL:
       if (component.customData != nullptr) {
         MacLabel* labelData = (MacLabel*)component.customData;
         drawLabel(lcd, absoluteX, absoluteY, component.w, component.h, *labelData);
       }
       break;
-      
+
     case COMPONENT_TEXTBOX:
       if (component.customData != nullptr) {
         MacTextBox* textboxData = (MacTextBox*)component.customData;
         drawTextBox(lcd, absoluteX, absoluteY, component.w, component.h, *textboxData);
       }
       break;
-      
+
     case COMPONENT_CHECKBOX:
       if (component.customData != nullptr) {
         MacCheckBox* checkboxData = (MacCheckBox*)component.customData;
         drawCheckBox(lcd, absoluteX, absoluteY, component.w, component.h, *checkboxData);
       }
       break;
-      
+
     case COMPONENT_SLIDER:
       if (component.customData != nullptr) {
         MacSlider* sliderData = (MacSlider*)component.customData;
         drawSlider(lcd, absoluteX, absoluteY, component.w, component.h, *sliderData);
       }
       break;
-      
+
     case COMPONENT_PROGRESS_BAR:
       if (component.customData != nullptr) {
         MacProgressBar* progressData = (MacProgressBar*)component.customData;
         drawProgressBar(lcd, absoluteX, absoluteY, component.w, component.h, *progressData);
       }
       break;
-      
+
     case COMPONENT_RUNNING_TEXT:
       if (component.customData != nullptr) {
         MacRunningText* runningTextData = (MacRunningText*)component.customData;
         drawRunningText(lcd, absoluteX, absoluteY, component.w, component.h, *runningTextData);
       }
       break;
-      
+
     case COMPONENT_LISTVIEW:
       if (component.customData != nullptr) {
         MacListView* listViewData = (MacListView*)component.customData;
         drawListView(lcd, absoluteX, absoluteY, component.w, component.h, *listViewData);
       }
       break;
-      
+
     case COMPONENT_INPUT_FIELD:
       if (component.customData != nullptr) {
         MacInputField* inputFieldData = (MacInputField*)component.customData;
         drawInputField(lcd, absoluteX, absoluteY, component.w, component.h, *inputFieldData);
       }
       break;
-      
+
     case COMPONENT_KEYBOARD:
       if (component.customData != nullptr) {
         MacKeyboard* keyboardData = (MacKeyboard*)component.customData;
         drawKeyboard(lcd, absoluteX, absoluteY, component.w, component.h, *keyboardData);
       }
       break;
-      
+
     case COMPONENT_CUSTOM:
       // Custom components can implement their own drawing logic
       // For now, just draw a placeholder rectangle
       lcd.drawRect(absoluteX, absoluteY, component.w, component.h, MAC_GRAY);
       break;
-      
+
     default:
       // Unknown component type - draw placeholder
       lcd.drawRect(absoluteX, absoluteY, component.w, component.h, MAC_BLACK);
@@ -719,7 +918,6 @@ void handleWindowClose(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* a
   if (associatedIcon) {
     associatedIcon->visible = false;  // Hide icon when window is closed
   }
-  displayStatus(lcd, "Window closed", 300);
 }
 
 void handleWindowMinimize(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon) {
@@ -727,67 +925,89 @@ void handleWindowMinimize(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon
   window.visible = false;
   if (associatedIcon) {
     associatedIcon->visible = true;  // Show icon when window is minimized
+    // Draw the desktop icon on the screen
+    lcd.startWrite();
+    drawDesktopIcon(lcd, associatedIcon->x, associatedIcon->y, associatedIcon->name, associatedIcon->selected);
+    lcd.endWrite();
   }
-  displayStatus(lcd, "Window minimized", 300);
 }
 
-void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window) {
+void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon) {
   // Restore window when icon is clicked
   window.minimized = false;
   window.visible = true;
-  // Trigger a full interface redraw to show the restored window
-  drawWindow(lcd, window);
+
+  // Hide the desktop icon
+  if (associatedIcon) {
+    associatedIcon->visible = false;
+  }
+
+  // Redraw all windows to ensure proper layering and refresh
+  lcd.startWrite();
+  redrawAllWindows(lcd);
+  lcd.endWrite();
 }
 
-void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int relativeX, int relativeY) {
+void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int relativeX,
+                              int relativeY) {
   // Ignore clicks if window is not visible
-  if (!window.visible) return;
+  if (!window.visible)
+    return;
 
   // Check for components at the clicked position
-  MacComponent* clickedComponent = findComponentAt(window, window.x + relativeX, window.y + relativeY);
-  
+  MacComponent* clickedComponent =
+      findComponentAt(window, window.x + relativeX, window.y + relativeY);
+
   if (clickedComponent != nullptr) {
     // Handle button press visual feedback
     if (clickedComponent->type == COMPONENT_BUTTON && clickedComponent->customData != nullptr) {
       MacButton* btnData = (MacButton*)clickedComponent->customData;
-      
+
       // Set pressed state and redraw
       btnData->pressed = true;
       drawComponent(lcd, *clickedComponent, window.x, window.y);
-      
+
       // Brief delay for visual feedback
-      delay(100);
-      
+      delay(50);
+
+      // Release pressed state BEFORE calling callback to prevent button appearing pressed on new window
+      btnData->pressed = false;
+
       // Call the callback if it exists
       if (clickedComponent->onClick != nullptr) {
         clickedComponent->onClick(clickedComponent->id);
       }
-      
-      // Release pressed state and redraw
-      btnData->pressed = false;
-      drawComponent(lcd, *clickedComponent, window.x, window.y);
-    } else if (clickedComponent->type == COMPONENT_LISTVIEW && clickedComponent->customData != nullptr) {
-      // Handle ListView - this is now just for tap detection, scrolling happens in interactiveWindow
+
+      // Redraw button only if window is still visible (avoid drawing on wrong window)
+      if (window.visible) {
+        drawComponent(lcd, *clickedComponent, window.x, window.y);
+      }
+    } else if (clickedComponent->type == COMPONENT_LISTVIEW &&
+               clickedComponent->customData != nullptr) {
+      // Handle ListView - this is now just for tap detection, scrolling happens in
+      // interactiveWindow
       MacListView* listViewData = (MacListView*)clickedComponent->customData;
-      
+
       // Check if this was a tap (not a swipe)
-      int swipeDistance = abs(relativeY - listViewData->touchStartY);
+      // Convert touchStartY from absolute to relative coordinates for proper comparison
+      int relativeTouchStartY = listViewData->touchStartY - window.y;
+      int swipeDistance = abs(relativeY - relativeTouchStartY);
       unsigned long swipeDuration = millis() - listViewData->touchStartTime;
-      
+
       // If movement was small and quick, it's a tap
       if (swipeDistance < 10 && swipeDuration < 300) {
         // Calculate which item was clicked
         int clickedY = relativeY - clickedComponent->y;
         int clickedItemIndex = (clickedY + listViewData->scrollOffset) / listViewData->itemHeight;
-        
+
         if (clickedItemIndex >= 0 && clickedItemIndex < listViewData->itemCount) {
           // Update selection
           listViewData->selectedIndex = clickedItemIndex;
           drawComponent(lcd, *clickedComponent, window.x, window.y);
-          
+
           // Call item click callback if set
           if (listViewData->onItemClick != nullptr) {
-            delay(100);  // Brief visual feedback
+            delay(50);  // Brief visual feedback
             listViewData->onItemClick(clickedItemIndex, listViewData->items[clickedItemIndex].data);
           }
         }
@@ -803,4 +1023,83 @@ void handleWindowMoved(lgfx::LGFX_Device& lcd, MacWindow& window) {
   // During dragging, don't constantly redraw - the drawing happens in interactiveWindow
   // This callback is just for notification purposes
   // Components are positioned relative to window, so no updates needed
+}
+
+// ===== WINDOW MANAGER IMPLEMENTATION =====
+
+/**
+ * Register a window to be tracked by the window manager
+ */
+void registerWindow(MacWindow* window) {
+  if (registeredWindows == nullptr) {
+    registeredWindows = new MacWindow*[MAX_WINDOWS];
+    for (int i = 0; i < MAX_WINDOWS; i++) {
+      registeredWindows[i] = nullptr;
+    }
+  }
+
+  // Find empty slot
+  for (int i = 0; i < MAX_WINDOWS; i++) {
+    if (registeredWindows[i] == nullptr) {
+      registeredWindows[i] = window;
+      registeredWindowCount++;
+      return;
+    }
+  }
+}
+
+/**
+ * Unregister a window from the window manager
+ */
+void unregisterWindow(MacWindow* window) {
+  if (registeredWindows == nullptr) return;
+
+  for (int i = 0; i < MAX_WINDOWS; i++) {
+    if (registeredWindows[i] == window) {
+      registeredWindows[i] = nullptr;
+      registeredWindowCount--;
+      return;
+    }
+  }
+}
+
+/**
+ * Redraw all registered windows
+ */
+void redrawAllWindows(lgfx::LGFX_Device& lcd) {
+  if (registeredWindows == nullptr) return;
+
+  for (int i = 0; i < MAX_WINDOWS; i++) {
+    if (registeredWindows[i] != nullptr && registeredWindows[i]->visible) {
+      drawWindow(lcd, *registeredWindows[i]);
+    }
+  }
+}
+
+/**
+ * Redraw all registered windows except the specified one
+ */
+void redrawAllWindowsExcept(lgfx::LGFX_Device& lcd, MacWindow* exceptWindow) {
+  if (registeredWindows == nullptr) return;
+
+  for (int i = 0; i < MAX_WINDOWS; i++) {
+    if (registeredWindows[i] != nullptr &&
+        registeredWindows[i] != exceptWindow &&
+        registeredWindows[i]->visible) {
+      drawWindow(lcd, *registeredWindows[i]);
+    }
+  }
+}
+
+/**
+ * Show a window on top of all others (makes it visible and redraws all windows)
+ */
+void showWindowOnTop(lgfx::LGFX_Device& lcd, MacWindow& window) {
+  window.visible = true;
+  window.minimized = false;
+
+  lcd.startWrite();
+  redrawAllWindowsExcept(lcd, &window);
+  drawWindow(lcd, window);
+  lcd.endWrite();
 }

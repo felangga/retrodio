@@ -1,15 +1,17 @@
 /*
  * MacRunningText.cpp - Running Text Component Implementation
- * 
- * Copyright (c) 2025 Felangga
+ *
+ * Copyright (c) 2025 felangga
  */
 
 #include "MacUI.h"
 
-void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunningText& runningText) {
+void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
+                     MacRunningText& runningText) {
   // Use sprite buffer if available for flicker-free updates
-  bool useSprite = (componentSprite != nullptr && w <= componentSprite->width() && h <= componentSprite->height());
- 
+  bool useSprite = (componentSprite != nullptr && w <= componentSprite->width() &&
+                    h <= componentSprite->height());
+
   if (useSprite) {
     // Draw to sprite buffer first
     componentSprite->fillRect(0, 0, w, h, runningText.backgroundColor);
@@ -17,21 +19,20 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunn
     // Fall back to direct drawing
     lcd.fillRect(x, y, w, h, runningText.backgroundColor);
   }
-  
+
   // Calculate text width in pixels based on text size
   int contentW = w - 4;
   int textWidth = runningText.text.length() * 6 * runningText.textSize;
-  
+
   // Update scroll position if scrolling is enabled
   if (runningText.scrollEnabled) {
     unsigned long currentTime = millis();
-    
+
     // Check if text fits completely within the content area
     if (textWidth <= contentW) {
       // Text fits completely, no need to scroll - just keep it centered
       runningText.scrollOffset = 0;
     } else {
-    
       // Check if we're in pause state
       if (runningText.isPaused) {
         if (currentTime - runningText.pauseStartTime >= runningText.pauseDuration) {
@@ -44,7 +45,7 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunn
         if (currentTime - runningText.lastUpdate >= runningText.updateInterval) {
           runningText.scrollOffset += runningText.scrollSpeed;
           runningText.lastUpdate = currentTime;
-          
+
           // Check scroll boundaries and pause when text completes one cycle
           if (runningText.scrollSpeed > 0) {
             // Scrolling left (text moving right to left)
@@ -67,28 +68,30 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunn
       }
     }
   }
-  
+
   // Set up drawing coordinates
   int contentX = useSprite ? 0 : x;
   int contentY = useSprite ? 0 : y;
   int contentH = h;
-  
+
   lgfx::LGFX_Device* drawTarget = useSprite ? (lgfx::LGFX_Device*)componentSprite : &lcd;
-  
+
   // Set text properties
-  drawTarget->setTextColor(runningText.textColor, runningText.backgroundColor);
+  drawTarget->setTextColor(runningText.textColor, runningText.backgroundColor);  
+  drawTarget->setFont(getFontFromType(runningText.font));
   drawTarget->setTextSize(runningText.textSize);
-  drawTarget->setTextWrap(false);  // Disable text wrapping to prevent multi-line text
-  
+  drawTarget->setTextWrap(false);  
+  drawTarget->setTextDatum(lgfx::textdatum_t::middle_left);
+
   // Calculate text position
   int textX = contentX + (runningText.scrollEnabled ? -runningText.scrollOffset : 0);
-  int textY = contentY + (contentH - 8 * runningText.textSize) / 2;
-  
+  int textY = contentY + contentH / 2;
+
   // Draw the text (it will be clipped by the component area)
   drawTarget->setClipRect(contentX, contentY, w, contentH);
   drawTarget->setCursor(textX, textY);
   drawTarget->print(runningText.text);
-  
+
   // If scrolling and text is wrapping around, draw it again on the other side
   // Only draw wrap-around if actively scrolling (not paused and offset is significant)
   if (runningText.scrollEnabled && !runningText.isPaused && runningText.scrollOffset != 0) {
@@ -104,10 +107,13 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunn
       drawTarget->print(runningText.text);
     }
   }
-  
+
   // Clear clipping
   drawTarget->clearClipRect();
-  
+
+  // Reset font to default
+  drawTarget->setFont(nullptr);
+
   // Push sprite buffer to screen if used
   if (useSprite) {
     // Set clipping on the main lcd to prevent overflow
@@ -117,9 +123,10 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacRunn
   }
 }
 
-MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, const String& text, int scrollSpeed, uint16_t textColor, int textSize) {
+MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, const String& text,
+                                         int scrollSpeed, uint16_t textColor, int textSize, FontType font) {
   MacComponent* component = createComponent(COMPONENT_RUNNING_TEXT, x, y, w, h, id);
-  
+
   // Create running text-specific data
   MacRunningText* runningTextData = new MacRunningText();
   runningTextData->text = text;
@@ -134,7 +141,8 @@ MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, con
   runningTextData->isPaused = true;
   runningTextData->pauseStartTime = millis();
   runningTextData->pauseDuration = 2000;
-  
+  runningTextData->font = font;
+
   component->customData = runningTextData;
   return component;
 }
@@ -143,40 +151,45 @@ MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, con
  * Helper function to update running text properties dynamically
  * Pass nullptr for parameters you don't want to change
  */
-void updateRunningTextProperties(MacComponent* component, const String* newText, int* newTextSize, 
-                                  uint16_t* newTextColor, uint16_t* newBgColor, 
-                                  int* newScrollSpeed, int* newPauseDuration) {
-  if (component == nullptr || component->type != COMPONENT_RUNNING_TEXT || component->customData == nullptr) {
+void updateRunningTextProperties(MacComponent* component, const String* newText, int* newTextSize,
+                                 uint16_t* newTextColor, uint16_t* newBgColor, int* newScrollSpeed,
+                                 int* newPauseDuration, FontType* newFont) {
+  if (component == nullptr || component->type != COMPONENT_RUNNING_TEXT ||
+      component->customData == nullptr) {
     return;
   }
-  
+
   MacRunningText* runningTextData = (MacRunningText*)component->customData;
-  
+
   if (newText != nullptr) {
     runningTextData->text = *newText;
     runningTextData->scrollOffset = 0;
     runningTextData->isPaused = true;
     runningTextData->pauseStartTime = millis();
   }
-  
+
   if (newTextSize != nullptr) {
     runningTextData->textSize = *newTextSize;
   }
-  
+
   if (newTextColor != nullptr) {
     runningTextData->textColor = *newTextColor;
   }
-  
+
   if (newBgColor != nullptr) {
     runningTextData->backgroundColor = *newBgColor;
   }
-  
+
   if (newScrollSpeed != nullptr) {
     runningTextData->scrollSpeed = *newScrollSpeed;
   }
-  
+
   if (newPauseDuration != nullptr) {
     runningTextData->pauseDuration = *newPauseDuration;
+  }
+
+  if (newFont != nullptr) {
+    runningTextData->font = *newFont;
   }
 }
 
@@ -188,21 +201,21 @@ void updateRunningTextComponents(lgfx::LGFX_Device& lcd, MacWindow& window) {
   if (!window.visible || window.childComponents == nullptr || window.childComponentCount == 0) {
     return;
   }
-  
+
   // Skip updates if window is being dragged to prevent flicker
   if (window.isDragging) {
     return;
   }
-  
+
   for (int i = 0; i < window.childComponentCount; i++) {
     MacComponent* component = window.childComponents[i];
     if (component != nullptr && component->visible && component->type == COMPONENT_RUNNING_TEXT) {
       if (component->customData != nullptr) {
         MacRunningText* runningTextData = (MacRunningText*)component->customData;
-        
+
         // Check if it's time to update
         unsigned long currentTime = millis();
-        if (runningTextData->scrollEnabled && 
+        if (runningTextData->scrollEnabled &&
             currentTime - runningTextData->lastUpdate >= runningTextData->updateInterval) {
           // Redraw this component to animate the scroll
           drawComponent(lcd, *component, window.x, window.y);
