@@ -87,6 +87,13 @@ void updateWifiSignal() {
   }
 
   int rssi = WiFi.RSSI();
+
+  lcd.setFont(nullptr);
+  lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+  lcd.setTextSize(1);
+  lcd.setCursor(328,11);
+  lcd.println(String(rssi) + " dBm");
+
   // RSSI returns 0 if not available, treat as no signal
   if (rssi == 0) {
     rssi = -100;
@@ -477,9 +484,6 @@ void uiTask(void* parameter) {
   extern String lastDisplayedLyrics;
   extern String lastDisplayedLog;
   extern String currentStationName;
-
-  int touchX, touchY;
-  bool keyboardWasVisible = false;
 
   while (true) {
     updateClock();
