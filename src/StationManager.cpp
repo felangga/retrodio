@@ -86,6 +86,12 @@ void switchToStation(int index) {
     if (xSemaphoreTake(metadataMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
       streamMetadata.stationName[0] = '\0';
       streamMetadata.trackInfo[0] = '\0';
+      streamMetadata.bitRate[0] = '\0';
+      streamMetadata.id3data[0] = '\0';
+      streamMetadata.info[0] = '\0';
+      streamMetadata.description[0] = '\0';
+      streamMetadata.lyrics[0] = '\0';
+      streamMetadata.log[0] = '\0';
       streamMetadata.received = false;
       xSemaphoreGive(metadataMutex);
     }
@@ -100,6 +106,11 @@ void switchToStation(int index) {
   lastDisplayedLog = "";
 
   extern const int TXT_RADIO_NAME;
+  extern const int TXT_RADIO_DETAILS;
+  extern const int TXT_BITRATE;
+  extern const int TXT_INFO;
+  extern const int TXT_DESCRIPTION;
+
   MacComponent* txtRadioName = findComponentById(radioWindow, TXT_RADIO_NAME);
   if (txtRadioName && txtRadioName->customData) {
     MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
@@ -107,6 +118,27 @@ void switchToStation(int index) {
       runningText->text = currentStationName;
       runningText->scrollOffset = 0;
     }
+  }
+
+  MacComponent* txtRadioDetails = findComponentById(radioWindow, TXT_RADIO_DETAILS);
+  if (txtRadioDetails && txtRadioDetails->customData) {
+    MacRunningText* runningText = (MacRunningText*)txtRadioDetails->customData;
+    runningText->text = "";
+    runningText->scrollOffset = 0;
+  }
+
+  MacComponent* txtBitRate = findComponentById(radioWindow, TXT_BITRATE);
+  if (txtBitRate && txtBitRate->customData) {
+    MacRunningText* runningText = (MacRunningText*)txtBitRate->customData;
+    runningText->text = "";
+    runningText->scrollOffset = 0;
+  }
+
+  MacComponent* txtInfo = findComponentById(radioWindow, TXT_INFO);
+  if (txtInfo && txtInfo->customData) {
+    MacRunningText* runningText = (MacRunningText*)txtInfo->customData;
+    runningText->text = "";
+    runningText->scrollOffset = 0;
   }
 
   MacComponent* txtDescription = findComponentById(radioWindow, TXT_DESCRIPTION);

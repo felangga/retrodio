@@ -87,7 +87,6 @@ void initializeRadioWindow() {
   addChildComponent(radioWindow, volumeSlider);
 }
 
-// Radio button handler implementations
 void onPlay() {
   extern Audio audio;
   extern QueueHandle_t audioCommandQueue;

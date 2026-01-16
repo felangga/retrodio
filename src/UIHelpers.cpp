@@ -575,27 +575,27 @@ void uiTask(void* parameter) {
             updateStationMetadata(currentStationName, currentTrackInfo);
           }
 
-          if (bitRate.length() > 0 && bitRate != lastDisplayedBitRate) {
+          if (bitRate != lastDisplayedBitRate) {
             MacComponent* txtBitRate = findComponentById(radioWindow, TXT_BITRATE);
             if (txtBitRate && txtBitRate->customData) {
               MacRunningText* runningText = (MacRunningText*)txtBitRate->customData;
-              runningText->text = "Bitrate: " + bitRate;
+              runningText->text = bitRate.length() > 0 ? "Bitrate: " + bitRate : "";
               runningText->scrollOffset = 0;
               lastDisplayedBitRate = bitRate;
             }
           }
 
-          if (id3Data.length() > 0 && id3Data != lastDisplayedID3) {
+          if (id3Data != lastDisplayedID3) {
             MacComponent* txtID3 = findComponentById(radioWindow, TXT_ID3);
             if (txtID3 && txtID3->customData) {
               MacRunningText* runningText = (MacRunningText*)txtID3->customData;
-              runningText->text = "ID3: " + id3Data;
+              runningText->text = id3Data.length() > 0 ? "ID3: " + id3Data : "";
               runningText->scrollOffset = 0;
               lastDisplayedID3 = id3Data;
             }
           }
 
-          if (info.length() > 0 && info != lastDisplayedInfo) {
+          if (info != lastDisplayedInfo) {
             MacComponent* txtInfo = findComponentById(radioWindow, TXT_INFO);
             if (txtInfo && txtInfo->customData) {
               MacRunningText* runningText = (MacRunningText*)txtInfo->customData;
@@ -615,21 +615,21 @@ void uiTask(void* parameter) {
             }
           }
 
-          if (lyrics.length() > 0 && lyrics != lastDisplayedLyrics) {
+          if (lyrics != lastDisplayedLyrics) {
             MacComponent* txtLyrics = findComponentById(radioWindow, TXT_LYRICS);
             if (txtLyrics && txtLyrics->customData) {
               MacRunningText* runningText = (MacRunningText*)txtLyrics->customData;
-              runningText->text = "Lyrics: " + lyrics;
+              runningText->text = lyrics.length() > 0 ? "Lyrics: " + lyrics : "";
               runningText->scrollOffset = 0;
               lastDisplayedLyrics = lyrics;
             }
           }
 
-          if (log.length() > 0 && log != lastDisplayedLog) {
+          if (log != lastDisplayedLog) {
             MacComponent* txtLog = findComponentById(radioWindow, TXT_LOG);
             if (txtLog && txtLog->customData) {
               MacRunningText* runningText = (MacRunningText*)txtLog->customData;
-              runningText->text = "Log: " + log;
+              runningText->text = log.length() > 0 ? "Log: " + log : "";
               runningText->scrollOffset = 0;
               lastDisplayedLog = log;
             }
