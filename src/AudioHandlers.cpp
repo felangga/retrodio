@@ -184,7 +184,7 @@ void initializeAudio() {
   delay(100);
 
   audio.setVolume(DEFAULT_VOLUME);
-  audio.setConnectionTimeout(1000, 5000);
+  audio.setConnectionTimeout(4000, 8000);
 
   Audio::audio_info_callback = audio_callback;
 }

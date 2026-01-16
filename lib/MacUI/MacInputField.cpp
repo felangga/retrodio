@@ -38,10 +38,7 @@ void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInput
 
     // Calculate scroll offset to keep cursor visible
     const int CURSOR_PADDING = 10;
-
-    // Debug calculation values
-    int oldScrollOffset = inputField.scrollOffset;
-
+    
     // Only reset scroll if all text fits, otherwise follow cursor
     if (totalTextWidth <= maxVisibleWidth) {
       inputField.scrollOffset = 0;

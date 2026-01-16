@@ -697,12 +697,6 @@ void handleKeyboardRepeat(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponen
   // Time to repeat the key
   keyboard->lastRepeat = currentTime;
 
-  int x = keyboardComponent->x;
-  int y = keyboardComponent->y;
-  int w = keyboardComponent->w;
-  int h = keyboardComponent->h;
-  int rowHeight = (h - (2 * KEYBOARD_MARGIN) - SPECIAL_ROW_HEIGHT - KEY_SPACING) / rowCount;
-
   // Handle backspace repeat
   if (keyboard->isBackspace) {
     if (inputField->cursorPos > 0) {
