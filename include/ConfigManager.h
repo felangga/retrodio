@@ -41,6 +41,8 @@ class ConfigManager {
   static void setVolume(int volume);
   static LastStation getLastStation();
   static void setLastStation(const LastStation& station);
+  static int getLastStationIndex();
+  static void setLastStationIndex(int index);
 
   // Station list management
   static bool loadStations();
@@ -50,6 +52,7 @@ class ConfigManager {
   static bool addStation(const String& name, const String& url);
   static bool removeStation(int index);
   static bool updateStation(int index, const String& name, const String& url);
+  static bool moveStationToTop(int index);
   static void clearStations();
 
   // Utility functions
@@ -60,6 +63,7 @@ class ConfigManager {
   // Current settings
   static int volume;
   static LastStation lastStation;
+  static int lastStationIndex;
 
   // Station list
   static Station stations[MAX_STATIONS];

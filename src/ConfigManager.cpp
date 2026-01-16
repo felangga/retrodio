@@ -9,6 +9,7 @@
 // Static member initialization
 int ConfigManager::volume = 5;
 LastStation ConfigManager::lastStation = {"", ""};
+int ConfigManager::lastStationIndex = -1;
 Station ConfigManager::stations[MAX_STATIONS];
 int ConfigManager::stationCount = 0;
 
@@ -55,6 +56,7 @@ bool ConfigManager::loadSettings() {
   volume = doc["volume"] | 5;
   lastStation.name = doc["lastStationName"] | "";
   lastStation.url = doc["lastStationURL"] | "";
+  lastStationIndex = doc["lastStationIndex"] | -1;
 
   return true;
 }
@@ -68,6 +70,7 @@ bool ConfigManager::saveSettings() {
   doc["volume"] = volume;
   doc["lastStationName"] = lastStation.name;
   doc["lastStationURL"] = lastStation.url;
+  doc["lastStationIndex"] = lastStationIndex;
 
   // Write to file
   File file = LittleFS.open(SETTINGS_FILE, "w");
@@ -172,6 +175,21 @@ void ConfigManager::setLastStation(const LastStation& station) {
 }
 
 /**
+ * Get last played station index
+ */
+int ConfigManager::getLastStationIndex() {
+  return lastStationIndex;
+}
+
+/**
+ * Set last played station index and save
+ */
+void ConfigManager::setLastStationIndex(int index) {
+  lastStationIndex = index;
+  saveSettings();
+}
+
+/**
  * Get number of stations
  */
 int ConfigManager::getStationCount() {
@@ -235,6 +253,28 @@ bool ConfigManager::updateStation(int index, const String& name, const String& u
 }
 
 /**
+ * Move station to top of the list
+ */
+bool ConfigManager::moveStationToTop(int index) {
+  if (index <= 0 || index >= stationCount) {
+    return false;  // Already at top or invalid index
+  }
+
+  // Save the station to move
+  Station stationToMove = stations[index];
+
+  // Shift all stations before it down by one
+  for (int i = index; i > 0; i--) {
+    stations[i] = stations[i - 1];
+  }
+
+  // Place the selected station at the top
+  stations[0] = stationToMove;
+
+  return saveStations();
+}
+
+/**
  * Clear all stations
  */
 void ConfigManager::clearStations() {
@@ -256,6 +296,7 @@ void ConfigManager::factoryReset() {
 bool ConfigManager::createDefaultSettings() {
   volume = 5;
   lastStation = {"", ""};
+  lastStationIndex = -1;
   return saveSettings();
 }
 

@@ -173,6 +173,7 @@ void switchToStation(int index) {
         btnData->symbol = SYMBOL_PAUSE;
         LastStation lastStation = {station.name, station.url};
         ConfigManager::setLastStation(lastStation);
+        ConfigManager::setLastStationIndex(index);
       } else {
         updateStationMetadata(currentStationName, "Error: Command queue full");
       }
@@ -181,7 +182,16 @@ void switchToStation(int index) {
 }
 
 void onStationItemClick(int index, void* itemData) {
-  switchToStation(index);
+  // Move the selected station to the top of the list
+  if (index > 0) {
+    ConfigManager::moveStationToTop(index);
+    reloadStationList();
+    initializeStationWindow();
+    drawWindow(lcd, stationWindow);
+  }
+
+  // Switch to the station (now at index 0)
+  switchToStation(0);
 }
 
 void initializeStationWindow() {
