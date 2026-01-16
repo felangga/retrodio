@@ -13,6 +13,7 @@
 #include "AddStationWindow.h"
 #include "wt32_sc01_plus.h"
 #include <time.h>
+#include <WiFi.h>
 
 #define ENABLE_DEBUG 0
 
@@ -64,6 +65,37 @@ void updateClock() {
   lastClockText = current;
 
   drawClock(lcd, current);
+}
+
+static unsigned long lastWifiUpdate = 0;
+static int lastRssi = 1;  // Use 1 as "not yet initialized" (valid RSSI is always negative)
+
+void updateWifiSignal() {
+  unsigned long now = millis();
+  // Update every 2 seconds to avoid frequent redraws
+  if (now - lastWifiUpdate < 2000)
+    return;
+  lastWifiUpdate = now;
+
+  if (WiFi.status() != WL_CONNECTED) {
+    // Not connected - show no signal
+    if (lastRssi != -100) {
+      lastRssi = -100;
+      drawWifiSignal(lcd, lastRssi);
+    }
+    return;
+  }
+
+  int rssi = WiFi.RSSI();
+  // RSSI returns 0 if not available, treat as no signal
+  if (rssi == 0) {
+    rssi = -100;
+  }
+  // Redraw if first time (lastRssi > 0) or signal changed significantly (by 5 dBm)
+  if (lastRssi > 0 || abs(rssi - lastRssi) >= 5) {
+    lastRssi = rssi;
+    drawWifiSignal(lcd, rssi);
+  }
 }
 
 void updateCPUUsage() {
@@ -449,6 +481,7 @@ void uiTask(void* parameter) {
 
   while (true) {
     updateClock();
+    updateWifiSignal();
 
     bool keyboardActive = false;
     if (globalKeyboard) {

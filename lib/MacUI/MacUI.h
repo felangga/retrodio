@@ -278,6 +278,7 @@ void drawMenuBar(lgfx::LGFX_Device& lcd, const String& appName);
 void drawCheckeredPattern(lgfx::LGFX_Device& lcd);
 void drawCheckeredPatternArea(lgfx::LGFX_Device& lcd, int x, int y, int w, int h);
 void drawClock(lgfx::LGFX_Device& lcd, const String& time);  // added clock drawing
+void drawWifiSignal(lgfx::LGFX_Device& lcd, int rssi);  // WiFi signal strength indicator
 
 // Window and dialog functions
 void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& title,

@@ -16,6 +16,7 @@
 void updateStationMetadata(const String& stationName, const String& trackInfo);
 void updateClock();
 void updateCPUUsage();
+void updateWifiSignal();
 
 // Interface drawing
 void drawInterface(lgfx::LGFX_Device& lcd);

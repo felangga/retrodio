@@ -94,7 +94,55 @@ void drawClock(lgfx::LGFX_Device& lcd, const String& time) {
   lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
   lcd.setTextDatum(textdatum_t::middle_left);
   lcd.drawString(time, screenWidth - 70, 10);
-  lcd.setFont(nullptr); 
+  lcd.setFont(nullptr);
+}
+
+/**
+ * Draw WiFi signal strength indicator in the menu bar
+ * Classic Mac-style WiFi icon with signal bars
+ * @param rssi WiFi signal strength in dBm (typically -30 to -90)
+ */
+void drawWifiSignal(lgfx::LGFX_Device& lcd, int rssi) {
+  // Position: left of the clock area
+  int baseX = screenWidth - 100;
+  int baseY = 4;
+
+  // Clear the WiFi area
+  lcd.fillRect(baseX - 2, 0, 20, 20, MAC_WHITE);
+
+  // Determine signal strength level (0-4 bars)
+  // RSSI ranges: -30 (excellent) to -90 (poor)
+  int bars = 0;
+  if (rssi >= -50) {
+    bars = 4;  // Excellent
+  } else if (rssi >= -60) {
+    bars = 3;  // Good
+  } else if (rssi >= -70) {
+    bars = 2;  // Fair
+  } else if (rssi >= -80) {
+    bars = 1;  // Weak
+  } else {
+    bars = 0;  // No signal / very weak
+  }
+
+  // Draw WiFi icon as signal bars (classic style)
+  int barWidth = 3;
+  int barSpacing = 1;
+  int maxHeight = 12;
+
+  for (int i = 0; i < 4; i++) {
+    int barHeight = 3 + (i * 3);  // Increasing height: 3, 6, 9, 12
+    int barX = baseX + (i * (barWidth + barSpacing));
+    int barY = baseY + (maxHeight - barHeight);
+
+    if (i < bars) {
+      // Filled bar (signal present)
+      lcd.fillRect(barX, barY, barWidth, barHeight, MAC_BLACK);
+    } else {
+      // Empty bar outline (no signal)
+      lcd.drawRect(barX, barY, barWidth, barHeight, MAC_GRAY);
+    }
+  }
 }
 
 void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& title,
