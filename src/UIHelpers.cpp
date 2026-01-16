@@ -271,11 +271,13 @@ void handleKeyboardInteraction() {
     // No touch detected - reset key press state and restore key appearance
     if (keyboard->isKeyPressed) {
       // Check if we need to deactivate shift after typing a character
+      // Only deactivate if shift is not locked (caps lock mode)
       bool needShiftDeactivation = keyboard->shiftActive &&
+                                    !keyboard->shiftLocked &&
                                     keyboard->selectedKey != -2 &&
                                     keyboard->lastPressedChar != '\0';
 
-      // Deactivate shift if it was active and a character was typed
+      // Deactivate shift if it was active (but not locked) and a character was typed
       if (needShiftDeactivation) {
         keyboard->shiftActive = false;
       }

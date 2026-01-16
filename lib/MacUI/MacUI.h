@@ -153,6 +153,8 @@ struct MacKeyboard {
   int h;
   int targetInputId;  // ID of the input field this keyboard is linked to
   bool shiftActive;   // Shift key state (for uppercase)
+  bool shiftLocked;   // Shift lock state (caps lock mode via double-tap)
+  unsigned long lastShiftPressTime;  // Timestamp of last shift press for double-tap detection
   int selectedKey;    // Currently highlighted key (-1 for none)
   // Key repeat tracking
   bool isKeyPressed;           // Is a key currently being held

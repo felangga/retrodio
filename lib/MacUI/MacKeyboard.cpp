@@ -242,10 +242,17 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
     }
     lcd.setTextSize(1);
 
-    // Center-align "Shift" text
-    int shiftTextW = lcd.textWidth("Shift");
+    // Center-align text - show different label when shift is locked
+    const char* shiftLabel = keyboard.shiftLocked ? "CAPS" : "Shift";
+    int shiftTextW = lcd.textWidth(shiftLabel);
     lcd.setCursor(shiftX + (SHIFT_WIDTH - shiftTextW) / 2, row3Y + (rowHeight - KEY_SPACING) / 2);
-    lcd.print("Shift");
+    lcd.print(shiftLabel);
+
+    // Draw underline indicator when shift is locked
+    if (keyboard.shiftLocked) {
+      int underlineY = row3Y + rowHeight - KEY_SPACING - 4;
+      lcd.drawFastHLine(shiftX + 8, underlineY, SHIFT_WIDTH - 16, MAC_WHITE);
+    }
   }
 
   // Draw letter keys (zxcvbnm)
@@ -327,6 +334,8 @@ MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int ta
   keyboard->h = h;
   keyboard->targetInputId = targetInputId;
   keyboard->shiftActive = false;
+  keyboard->shiftLocked = false;
+  keyboard->lastShiftPressTime = 0;
   keyboard->selectedKey = -1;
   // Initialize key repeat tracking
   keyboard->isKeyPressed = false;
@@ -482,11 +491,27 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
 
       // Check Shift button (leftmost in row 3) - only if NOT in symbol mode
       if (!inSymbolMode && relX >= KEYBOARD_MARGIN && relX <= KEYBOARD_MARGIN + SHIFT_WIDTH && row3RelY >= 0 && row3RelY <= rowHeight - KEY_SPACING) {
-        keyboard->shiftActive = !keyboard->shiftActive;
+        unsigned long currentTime = millis();
+        const unsigned long DOUBLE_TAP_THRESHOLD = 400;  // 400ms window for double-tap
+
+        if (keyboard->shiftLocked) {
+          // If shift is locked, single tap unlocks it
+          keyboard->shiftLocked = false;
+          keyboard->shiftActive = false;
+        } else if (keyboard->shiftActive && (currentTime - keyboard->lastShiftPressTime) < DOUBLE_TAP_THRESHOLD) {
+          // Double-tap detected while shift is active - lock it
+          keyboard->shiftLocked = true;
+          keyboard->shiftActive = true;
+        } else {
+          // Single tap - toggle shift
+          keyboard->shiftActive = !keyboard->shiftActive;
+        }
+
+        keyboard->lastShiftPressTime = currentTime;
         lcd.startWrite();
         drawKeyboard(lcd, x, y, w, h, *keyboard);
         lcd.endWrite();
-        delay(200);  // Add delay to prevent accidental double-taps
+        delay(150);  // Reduced delay to allow double-tap detection
         return true;
       }
 

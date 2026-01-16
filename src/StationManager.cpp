@@ -21,8 +21,6 @@ int stationItemCount = 0;
 
 void reloadStationList() {
   MacListViewItem* oldItems = stationItems;
-  int oldCount = stationItemCount;
-
   stationItemCount = ConfigManager::getStationCount();
 
   if (stationItemCount == 0) {
@@ -205,8 +203,8 @@ void onAddStationButtonClick() {
 
     nameInput->text = "";
     nameInput->cursorPos = 0;
-    urlInput->text = "";
-    urlInput->cursorPos = 0;
+    urlInput->text = "https://";
+    urlInput->cursorPos = urlInput->text.length();
   }
 
   stationWindow.visible = false;

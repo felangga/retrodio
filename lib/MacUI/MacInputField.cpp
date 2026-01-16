@@ -124,7 +124,7 @@ MacComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
   inputField->text = defaultText;
   inputField->placeholder = placeholder;
   inputField->focused = false;
-  inputField->cursorPos = defaultText.length();  // Place cursor at end of default text
+  inputField->cursorPos = defaultText.length();  
   inputField->maxLength = maxLength;
   inputField->lastCursorBlink = millis();
   inputField->cursorVisible = true;
