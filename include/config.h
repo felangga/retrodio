@@ -15,7 +15,7 @@
 #define WIFI_PASSWORD "tamankenari"
 
 // ===== Audio Settings =====
-#define DEFAULT_VOLUME 21 // Range: 0-21
+#define DEFAULT_VOLUME 10 // Range: 0-21
 
 // ===== NTP Configuration =====
 #define NTP_SERVER "pool.ntp.org"

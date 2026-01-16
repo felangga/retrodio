@@ -81,7 +81,7 @@ void initializeRadioWindow() {
 
   extern Audio audio;
   extern const int CMP_VOLUME_SLIDER;
-  int currentVolume = audio.getVolume();
+  int currentVolume = ConfigManager::getVolume();
   MacComponent* volumeSlider = createSliderComponent(200, 155, 120, 65, CMP_VOLUME_SLIDER, 0, 21, currentVolume, false);
   volumeSlider->onValueChanged = [](int componentId, int value) { onVolumeChange(componentId, value); };
   addChildComponent(radioWindow, volumeSlider);

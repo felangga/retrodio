@@ -225,6 +225,7 @@ void setup() {
   initializeAudio();
 
   audio.setVolume(ConfigManager::getVolume());
+  audio.setAudioTaskCore(0);  
 
   LastStation lastStation = ConfigManager::getLastStation();
   if (lastStation.name.length() > 0 && lastStation.url.length() > 0) {
@@ -242,7 +243,6 @@ void setup() {
   }
 
   xTaskCreatePinnedToCore(uiTask, "UI_Task", 8192, NULL, 1, &uiTaskHandle, 1);
-
   xTaskCreatePinnedToCore(audioTask, "Audio_Task", 16384, NULL, 2, &audioTaskHandle, 0);
 
   if (RadioURL.length() > 0) {
@@ -260,5 +260,5 @@ void setup() {
 
 void loop() {
   handleOTA();
-  vTaskDelay(1);
+  vTaskDelay(10);
 }
