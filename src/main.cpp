@@ -209,8 +209,22 @@ void setup() {
 
   delay(100);
 
-  DEBUG_PRINTLN("\n=== Starting WiFi ===");
-  connectToWiFi();
+  DEBUG_PRINTLN("\n=== Starting WiFi (async) ===");
+  showNotification("Connecting to WiFi...");
+  initWiFiAsync();
+
+  // Wait for WiFi connection before proceeding
+  while (isWiFiConnecting()) {
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
+
+  if (isWiFiConnected()) {
+    DEBUG_PRINTLN("WiFi connected!");
+    showNotification("WiFi Connected!", 2000);  // Show for 2 seconds
+  } else {
+    DEBUG_PRINTLN("WiFi connection failed!");
+    showNotification("WiFi Failed!", 3000);  // Show for 3 seconds
+  }
 
   // Initialize OTA after WiFi connection
   DEBUG_PRINTLN("=== Setting up OTA ===");

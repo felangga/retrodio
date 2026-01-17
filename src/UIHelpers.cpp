@@ -98,10 +98,136 @@ void updateWifiSignal() {
   if (rssi == 0) {
     rssi = -100;
   }
+  
   // Redraw if first time (lastRssi > 0) or signal changed significantly (by 5 dBm)
   if (lastRssi > 0 || abs(rssi - lastRssi) >= 5) {
     lastRssi = rssi;
     drawWifiSignal(lcd, rssi);
+  }
+}
+
+// Notification bar state
+static bool notificationVisible = false;
+static String notificationMessage = "";
+static unsigned long notificationStartTime = 0;
+static unsigned long notificationDuration = 0;  // 0 = permanent until hidden
+static int notificationWidth = 0;
+static int notificationX = 0;
+static int notificationY = 21;  // Below menu bar
+static int notificationH = 18;
+static uint16_t* notificationBackupBuffer = nullptr;
+static int notificationBackupSize = 0;
+
+// Forward declaration
+static void drawNotification();
+
+void showNotification(const String& message, unsigned long duration) {
+  // Hide previous notification first if visible
+  if (notificationVisible) {
+    hideNotification();
+  }
+
+  notificationMessage = message;
+  notificationDuration = duration;
+  notificationStartTime = millis();
+
+  // Calculate notification width based on text
+  lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+  notificationWidth = lcd.textWidth(message) + 16;
+  lcd.setFont(nullptr);
+
+  // Calculate position (top-right, below menu bar)
+  notificationX = screenWidth - notificationWidth - 5;
+
+  // Save the background pixels before drawing
+  int backupW = notificationWidth + 2;
+  int backupH = notificationH + 2;
+  int newSize = backupW * backupH;
+
+  // Reallocate buffer if needed
+  if (notificationBackupBuffer == nullptr || notificationBackupSize < newSize) {
+    if (notificationBackupBuffer != nullptr) {
+      free(notificationBackupBuffer);
+    }
+    notificationBackupBuffer = (uint16_t*)malloc(newSize * sizeof(uint16_t));
+    notificationBackupSize = newSize;
+  }
+
+  if (notificationBackupBuffer != nullptr) {
+    lcd.readRect(notificationX - 1, notificationY - 1, backupW, backupH, notificationBackupBuffer);
+  }
+
+  notificationVisible = true;
+
+  // Draw the notification
+  drawNotification();
+}
+
+void hideNotification() {
+  if (!notificationVisible) return;
+
+  notificationVisible = false;
+
+  // Calculate the notification area
+  int clearX = notificationX - 1;
+  int clearY = notificationY - 1;
+  int clearW = notificationWidth + 2;
+  int clearH = notificationH + 2;
+
+  // First, redraw the checkered pattern as background
+  drawCheckeredPatternArea(lcd, clearX, clearY, clearW, clearH);
+
+  // Check if any visible windows overlap with the notification area and redraw them
+  // Windows are checked in z-order (back to front)
+  // Note: Window shadow extends 3 pixels beyond window bounds, so include that in overlap check
+  // Use <= for boundary checks to include windows that touch exactly at the boundary
+  if (radioWindow.visible && !radioWindow.minimized) {
+    // Check if window (including shadow) overlaps with notification area
+    if (radioWindow.x <= clearX + clearW && radioWindow.x + radioWindow.w + 3 >= clearX &&
+        radioWindow.y <= clearY + clearH && radioWindow.y + radioWindow.h + 3 >= clearY) {
+      drawWindow(lcd, radioWindow);
+    }
+  }
+
+  if (stationWindow.visible && !stationWindow.minimized) {
+    if (stationWindow.x <= clearX + clearW && stationWindow.x + stationWindow.w + 3 >= clearX &&
+        stationWindow.y <= clearY + clearH && stationWindow.y + stationWindow.h + 3 >= clearY) {
+      drawWindow(lcd, stationWindow);
+    }
+  }
+
+  if (addStationWindow.visible && !addStationWindow.minimized) {
+    if (addStationWindow.x <= clearX + clearW && addStationWindow.x + addStationWindow.w + 3 >= clearX &&
+        addStationWindow.y <= clearY + clearH && addStationWindow.y + addStationWindow.h + 3 >= clearY) {
+      drawWindow(lcd, addStationWindow);
+    }
+  }
+}
+
+static void drawNotification() {
+  if (!notificationVisible) return;
+
+  lcd.fillRoundRect(notificationX, notificationY, notificationWidth, notificationH, 4, MAC_WHITE);
+  lcd.drawRoundRect(notificationX, notificationY, notificationWidth, notificationH, 4, MAC_BLACK);
+
+  lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+  lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+  lcd.setTextDatum(textdatum_t::middle_center);
+  lcd.drawString(notificationMessage, notificationX + notificationWidth / 2, notificationY + notificationH / 2);
+  lcd.setFont(nullptr);
+  lcd.setTextDatum(textdatum_t::top_left);
+}
+
+void updateNotification() {
+  if (!notificationVisible) return;
+
+  // Check if notification should auto-hide
+  if (notificationDuration > 0) {
+    unsigned long elapsed = millis() - notificationStartTime;
+    if (elapsed >= notificationDuration) {
+      hideNotification();
+      return;
+    }
   }
 }
 
@@ -488,6 +614,7 @@ void uiTask(void* parameter) {
   while (true) {
     updateClock();
     updateWifiSignal();
+    updateNotification();
 
     bool keyboardActive = false;
     if (globalKeyboard) {

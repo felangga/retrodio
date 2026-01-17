@@ -45,10 +45,6 @@ const GFXfont* getFontFromType(FontType fontType) {
   }
 }
 
-/**
- * Initialize sprite buffer for double buffering
- * Call this once during setup after lcd.init()
- */
 void initComponentBuffer(lgfx::LGFX_Device* lcd, int maxWidth, int maxHeight) {
   if (componentSprite == nullptr) {
     componentSprite = new lgfx::LGFX_Sprite(lcd);
@@ -71,9 +67,6 @@ void initComponentBuffer(lgfx::LGFX_Device* lcd, int maxWidth, int maxHeight) {
   }
 }
 
-/**
- * Draw the classic Mac OS menu bar
- */
 void drawMenuBar(lgfx::LGFX_Device& lcd, const String& appName) {
   lcd.fillRect(0, 0, screenWidth, 20, MAC_WHITE);
   lcd.drawFastHLine(0, 20, screenWidth, MAC_BLACK);
@@ -97,21 +90,14 @@ void drawClock(lgfx::LGFX_Device& lcd, const String& time) {
   lcd.setFont(nullptr);
 }
 
-/**
- * Draw WiFi signal strength indicator in the menu bar
- * Classic Mac-style WiFi icon with signal bars
- * @param rssi WiFi signal strength in dBm (typically -30 to -90)
- */
 void drawWifiSignal(lgfx::LGFX_Device& lcd, int rssi) {
-  // Position: left of the clock area
+
   int baseX = screenWidth - 100;
   int baseY = 4;
 
   // Clear the WiFi area
   lcd.fillRect(baseX - 2, 0, 20, 20, MAC_WHITE);
 
-  // Determine signal strength level (0-4 bars)
-  // RSSI ranges: -30 (excellent) to -90 (poor)
   int bars = 0;
   if (rssi >= -50) {
     bars = 4;  // Excellent
@@ -125,21 +111,18 @@ void drawWifiSignal(lgfx::LGFX_Device& lcd, int rssi) {
     bars = 0;  // No signal / very weak
   }
 
-  // Draw WiFi icon as signal bars (classic style)
   int barWidth = 3;
   int barSpacing = 1;
   int maxHeight = 12;
 
   for (int i = 0; i < 4; i++) {
-    int barHeight = 3 + (i * 3);  // Increasing height: 3, 6, 9, 12
+    int barHeight = 3 + (i * 3);  
     int barX = baseX + (i * (barWidth + barSpacing));
     int barY = baseY + (maxHeight - barHeight);
 
     if (i < bars) {
-      // Filled bar (signal present)
       lcd.fillRect(barX, barY, barWidth, barHeight, MAC_BLACK);
     } else {
-      // Empty bar outline (no signal)
       lcd.drawRect(barX, barY, barWidth, barHeight, MAC_GRAY);
     }
   }
@@ -147,35 +130,31 @@ void drawWifiSignal(lgfx::LGFX_Device& lcd, int rssi) {
 
 void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& title,
                 bool active, bool showMinimizeButton) {
-  // Draw window shadow
   lcd.fillRect(x + 3, y + 3, w, h, MAC_DARK_GRAY);
 
-  // Draw window background
   lcd.fillRect(x, y, w, h, MAC_WHITE);
 
-  // Draw window border
   lcd.drawRect(x, y, w, h, MAC_BLACK);
   lcd.drawRect(x + 1, y + 1, w - 2, h - 2, MAC_BLACK);
 
-  // Draw title bar (increased height for touchscreen usability)
   uint16_t titleColor = active ? MAC_BLACK : MAC_GRAY;
   lcd.fillRect(x + TITLE_BAR_BORDER, y + TITLE_BAR_BORDER, w - 4, TITLE_BAR_HEIGHT, titleColor);
 
   lcd.setTextColor(MAC_WHITE, titleColor);
   lcd.setTextSize(1);
-  int titleX = x + (w - title.length()*10) / 2;
-  lcd.setCursor(titleX, y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT) / 2);
   lcd.setFont(getFontFromType(FONT_CHICAGO_11PT));
-  lcd.print(title);
+  lcd.setTextDatum(textdatum_t::middle_center);
+  int titleX = x + w / 2;
+  int titleY = y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT) / 2;
+  lcd.drawString(title, titleX, titleY);
 
-  // Draw minimize button only if enabled
   if (showMinimizeButton) {
-    // Calculate minimize button position (centered vertically in title bar)
-    int minBtnY = y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT - 18) / 2;
-    lcd.fillRect(x + w - 24, minBtnY, 18, 18, MAC_WHITE);
-    lcd.drawRect(x + w - 24, minBtnY, 18, 18, MAC_BLACK);
+    int minBtnY = y;
+    lcd.fillRect(x + w - TITLE_BAR_HEIGHT, minBtnY+1, TITLE_BAR_HEIGHT-1, TITLE_BAR_HEIGHT , MAC_WHITE);
+    lcd.drawRect(x + w - TITLE_BAR_HEIGHT, minBtnY+1, TITLE_BAR_HEIGHT-1, TITLE_BAR_HEIGHT , MAC_BLACK);
 
-    lcd.drawFastHLine(x + w - 18, minBtnY + 8, 8, MAC_BLACK);
+    lcd.drawFastHLine(x + w - TITLE_BAR_HEIGHT + 8, minBtnY + (TITLE_BAR_HEIGHT / 2), 16, MAC_BLACK);
+    lcd.drawFastHLine(x + w - TITLE_BAR_HEIGHT + 8, minBtnY + (TITLE_BAR_HEIGHT / 2)+1, 16, MAC_BLACK);
   }
 }
 
@@ -195,8 +174,6 @@ void drawWindow(lgfx::LGFX_Device& lcd, const MacWindow& window) {
   }
 }
 
-// ===== WINDOW INTERACTION HELPERS =====
-
 bool isInsideCloseButton(const MacWindow& window, int tx, int ty) {
   if (!window.visible)
     return false;
@@ -207,12 +184,11 @@ bool isInsideCloseButton(const MacWindow& window, int tx, int ty) {
 }
 
 bool isInsideMinimizeButton(const MacWindow& window, int tx, int ty) {
-  // Don't show minimize button if the callback is null
   if (!window.visible || window.onMinimize == nullptr)
     return false;
-  int buttonHeight = 18;
-  int buttonY = window.y + TITLE_BAR_BORDER + (TITLE_BAR_HEIGHT - buttonHeight) / 2;
-  return tx >= window.x + window.w - 24 && tx < window.x + window.w - 6 && ty >= buttonY &&
+  int buttonHeight = TITLE_BAR_HEIGHT;
+  int buttonY = window.y;
+  return tx >= window.x + window.w - TITLE_BAR_HEIGHT && tx < window.x + window.w && ty >= buttonY &&
          ty < buttonY + buttonHeight;
 }
 

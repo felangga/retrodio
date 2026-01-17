@@ -24,6 +24,52 @@
 #define DEBUG_PRINTF(...)
 #endif
 
+// Async WiFi state
+static volatile bool wifiConnecting = false;
+static volatile bool wifiConnected = false;
+
+static void onWiFiEvent(WiFiEvent_t event) {
+  switch (event) {
+    case ARDUINO_EVENT_WIFI_STA_CONNECTED:
+      DEBUG_PRINTLN("WiFi connected to AP, waiting for IP...");
+      break;
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+      wifiConnecting = false;
+      wifiConnected = true;
+      configTime(GMT_OFFSET_SEC, DST_OFFSET_SEC, NTP_SERVER);
+      DEBUG_PRINTLN("WiFi connected successfully!");
+      DEBUG_PRINTF("IP Address: %s\n", WiFi.localIP().toString().c_str());
+      DEBUG_PRINTF("Signal strength: %d dBm\n", WiFi.RSSI());
+      break;
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+      wifiConnecting = false;
+      wifiConnected = false;
+      DEBUG_PRINTLN("WiFi disconnected");
+      break;
+    default:
+      break;
+  }
+}
+
+void initWiFiAsync() {
+  DEBUG_PRINTF("Starting async WiFi connection to SSID: %s\n", WIFI_SSID);
+
+  WiFi.onEvent(onWiFiEvent);
+  WiFi.mode(WIFI_STA);
+  delay(100);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  wifiConnecting = true;
+  wifiConnected = false;
+}
+
+bool isWiFiConnecting() {
+  return wifiConnecting;
+}
+
+bool isWiFiConnected() {
+  return wifiConnected && (WiFi.status() == WL_CONNECTED);
+}
+
 bool connectToWiFi() {
   DEBUG_PRINTF("Attempting WiFi connection to SSID: %s\n", WIFI_SSID);
 

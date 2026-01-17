@@ -10,6 +10,11 @@
 #define NETWORK_HANDLERS_H
 
 // Network initialization and management
-bool connectToWiFi();
+bool connectToWiFi();  // Blocking version (legacy)
+
+// Async WiFi connection
+void initWiFiAsync();
+bool isWiFiConnecting();
+bool isWiFiConnected();
 
 #endif

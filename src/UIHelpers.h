@@ -18,6 +18,11 @@ void updateClock();
 void updateCPUUsage();
 void updateWifiSignal();
 
+// General notification bar (top-right corner)
+void showNotification(const String& message, unsigned long duration = 0);
+void hideNotification();
+void updateNotification();
+
 // Interface drawing
 void drawInterface(lgfx::LGFX_Device& lcd);
 void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window);

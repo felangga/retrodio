@@ -26,9 +26,9 @@ bool ConfigManager::begin() {
     createDefaultSettings();
   }
 
-  // if (!loadStations()) {
+  if (!loadStations()) {
     createDefaultStations();
-  // }
+  }
 
   return true;
 }
