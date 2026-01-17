@@ -12,6 +12,7 @@
 #include "AudioHandlers.h"
 #include "ConfigManager.h"
 #include "StationManager.h"
+#include "NetworkHandlers.h"
 #include "wt32_sc01_plus.h"
 
 MacComponent* findComponentById(const MacWindow& window, int id);
@@ -99,6 +100,11 @@ void onPlay() {
     isPlaying = false;
     updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
   } else {
+    // Check WiFi connection before trying to play
+    if (!isWiFiConnected()) {
+      showNotification("No WiFi connection!", 2000);
+      return;
+    }
     AudioCommandMsg msg = {CMD_CONNECT, ""};
     strncpy(msg.url, RadioURL.c_str(), sizeof(msg.url) - 1);
     xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);

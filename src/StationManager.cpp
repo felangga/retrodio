@@ -12,6 +12,7 @@
 #include "UIHelpers.h"
 #include "ConfigManager.h"
 #include "WindowCallbacks.h"
+#include "NetworkHandlers.h"
 #include <WiFi.h>
 
 void initializeConfirmDeleteWindow();

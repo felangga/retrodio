@@ -9,6 +9,8 @@
 // Static member initialization
 int ConfigManager::volume = 5;
 LastStation ConfigManager::lastStation = {"", ""};
+String ConfigManager::wifiSSID = "";
+String ConfigManager::wifiPassword = "";
 Station ConfigManager::stations[MAX_STATIONS];
 int ConfigManager::stationCount = 0;
 
@@ -55,6 +57,8 @@ bool ConfigManager::loadSettings() {
   volume = doc["volume"] | 5;
   lastStation.name = doc["lastStationName"] | "";
   lastStation.url = doc["lastStationURL"] | "";
+  wifiSSID = doc["wifiSSID"] | "";
+  wifiPassword = doc["wifiPassword"] | "";
 
   return true;
 }
@@ -68,6 +72,8 @@ bool ConfigManager::saveSettings() {
   doc["volume"] = volume;
   doc["lastStationName"] = lastStation.name;
   doc["lastStationURL"] = lastStation.url;
+  doc["wifiSSID"] = wifiSSID;
+  doc["wifiPassword"] = wifiPassword;
 
   // Write to file
   File file = LittleFS.open(SETTINGS_FILE, "w");
@@ -240,6 +246,29 @@ bool ConfigManager::updateStation(int index, const String& name, const String& u
 void ConfigManager::clearStations() {
   stationCount = 0;
   saveStations();
+}
+
+/**
+ * Get saved WiFi SSID
+ */
+String ConfigManager::getWifiSSID() {
+  return wifiSSID;
+}
+
+/**
+ * Get saved WiFi password
+ */
+String ConfigManager::getWifiPassword() {
+  return wifiPassword;
+}
+
+/**
+ * Set WiFi credentials and save
+ */
+void ConfigManager::setWifiCredentials(const String& ssid, const String& password) {
+  wifiSSID = ssid;
+  wifiPassword = password;
+  saveSettings();
 }
 
 /**

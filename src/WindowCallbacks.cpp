@@ -10,6 +10,7 @@
 #include "GlobalState.h"
 #include "StationManager.h"
 #include "ConfirmDeleteWindow.h"
+#include "WifiWindow.h"
 #include "AudioHandlers.h"
 #include "RadioWindow.h"
 #include "wt32_sc01_plus.h"
@@ -218,6 +219,122 @@ void onConfirmDeleteWindowContentClick(int relativeX, int relativeY) {
 
 void onConfirmDeleteWindowMoved() {
   handleWindowMoved(lcd, confirmDeleteWindow);
+}
+
+// WiFi Window Callbacks
+void onWifiWindowMinimize() {
+  extern MacComponent* wifiKeyboard;
+
+  if (wifiKeyboard) {
+    MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+    keyboard->visible = false;
+  }
+
+  wifiWindow.visible = false;
+  wifiWindow.active = false;
+
+  // Clear keyboard area if it was visible
+  int keyboardHeight = screenHeight / 2;
+  int keyboardY = screenHeight - keyboardHeight;
+  drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
+
+  // Clear WiFi window area and restore radio window
+  drawCheckeredPatternArea(lcd, wifiWindow.x, wifiWindow.y, wifiWindow.w + 5, wifiWindow.h + 5);
+  radioWindow.visible = true;
+  radioWindow.active = true;
+  drawWindow(lcd, radioWindow);
+}
+
+void onWifiWindowClose() {
+  extern MacComponent* wifiKeyboard;
+
+  if (wifiKeyboard) {
+    MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+    keyboard->visible = false;
+  }
+
+  wifiWindow.visible = false;
+  wifiWindow.active = false;
+
+  // Clear keyboard area if it was visible
+  int keyboardHeight = screenHeight / 2;
+  int keyboardY = screenHeight - keyboardHeight;
+  drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
+
+  // Clear WiFi window area and restore radio window
+  drawCheckeredPatternArea(lcd, wifiWindow.x, wifiWindow.y, wifiWindow.w + 5, wifiWindow.h + 5);
+  radioWindow.visible = true;
+  radioWindow.active = true;
+  drawWindow(lcd, radioWindow);
+}
+
+void onWifiWindowContentClick(int relativeX, int relativeY) {
+  extern MacComponent* wifiKeyboard;
+  extern const int INPUT_WIFI_PASSWORD;
+
+  MacComponent* passwordInputComp = findComponentById(wifiWindow, INPUT_WIFI_PASSWORD);
+
+  if (wifiKeyboard && passwordInputComp && passwordInputComp->visible) {
+    MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+
+    // Check if clicking on password input field
+    if (relativeX >= passwordInputComp->x && relativeX <= passwordInputComp->x + passwordInputComp->w &&
+        relativeY >= passwordInputComp->y && relativeY <= passwordInputComp->y + passwordInputComp->h) {
+      MacInputField* passwordInput = (MacInputField*)passwordInputComp->customData;
+      passwordInput->focused = true;
+      keyboard->targetInputId = INPUT_WIFI_PASSWORD;
+      keyboard->visible = true;
+
+      drawComponent(lcd, *passwordInputComp, wifiWindow.x, wifiWindow.y);
+      drawComponent(lcd, *wifiKeyboard, 0, 0);
+
+      int tx, ty;
+      delay(150);
+      while (lcd.getTouch(&tx, &ty)) {
+        delay(10);
+      }
+      return;
+    }
+  }
+
+  handleWindowContentClick(lcd, wifiWindow, relativeX, relativeY);
+}
+
+void onWifiWindowMoved() {
+  handleWindowMoved(lcd, wifiWindow);
+}
+
+void onWifiSignalClick() {
+  extern MacComponent* wifiKeyboard;
+  extern const int WIFI_KEYBOARD_COMPONENT;
+  extern const int INPUT_WIFI_PASSWORD;
+
+  // Initialize WiFi window if not already done
+  initializeWifiWindow();
+
+  // Create WiFi keyboard if not exists
+  if (wifiKeyboard == nullptr) {
+    int keyboardHeight = screenHeight / 2;
+    int keyboardY = screenHeight - keyboardHeight;
+    wifiKeyboard = createKeyboardComponent(0, keyboardY, screenWidth, keyboardHeight,
+                                           WIFI_KEYBOARD_COMPONENT, INPUT_WIFI_PASSWORD);
+    MacKeyboard* kb = (MacKeyboard*)wifiKeyboard->customData;
+    kb->visible = false;
+  }
+
+  // Hide radio window and show WiFi window
+  radioWindow.visible = false;
+  radioWindow.active = false;
+  wifiWindow.visible = true;
+  wifiWindow.active = true;
+
+  lcd.startWrite();
+  drawCheckeredPatternArea(lcd, radioWindow.x, radioWindow.y, radioWindow.w + 5, radioWindow.h + 5);
+  drawWindow(lcd, wifiWindow);
+  lcd.endWrite();
+
+  // Start scanning for networks
+  scanWifiNetworks();
 }
 
 MacComponent* findComponentById(const MacWindow& window, int id);

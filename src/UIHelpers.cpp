@@ -11,6 +11,7 @@
 #include "StationManager.h"
 #include "RadioWindow.h"
 #include "AddStationWindow.h"
+#include "WifiWindow.h"
 #include "wt32_sc01_plus.h"
 #include <time.h>
 #include <WiFi.h>
@@ -599,6 +600,113 @@ void handleKeyboardInteraction() {
   }
 }
 
+// Check if touch is on WiFi signal icon in menu bar
+bool isInsideWifiSignal(int tx, int ty) {
+  // WiFi signal is at screenWidth - 100, height 0-20
+  int wifiX = screenWidth - 100;
+  return tx >= wifiX - 5 && tx <= wifiX + 20 && ty >= 0 && ty <= 20;
+}
+
+static bool menuBarTouchActive = false;
+static unsigned long lastMenuBarTouch = 0;
+
+void checkMenuBarTouch() {
+  uint16_t tx, ty;
+  bool touching = lcd.getTouch(&tx, &ty);
+
+  if (touching && !menuBarTouchActive) {
+    // Check if in menu bar area (top 20 pixels)
+    if (ty <= 20) {
+      // Check if on WiFi signal
+      if (isInsideWifiSignal(tx, ty)) {
+        menuBarTouchActive = true;
+        lastMenuBarTouch = millis();
+
+        // Debounce
+        delay(100);
+
+        // Call WiFi signal click handler
+        extern void onWifiSignalClick();
+        onWifiSignalClick();
+      }
+    }
+  } else if (!touching) {
+    menuBarTouchActive = false;
+  }
+}
+
+void handleWifiKeyboardInteraction() {
+  extern MacComponent* wifiKeyboard;
+  extern MacWindow wifiWindow;
+  extern const int INPUT_WIFI_PASSWORD;
+
+  if (!wifiKeyboard) return;
+
+  MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+  if (!keyboard->visible) return;
+
+  // Find the target input field component
+  MacComponent* targetInputComp = nullptr;
+  for (int i = 0; i < wifiWindow.childComponentCount; i++) {
+    MacComponent* comp = wifiWindow.childComponents[i];
+    if (comp && comp->id == keyboard->targetInputId && comp->type == COMPONENT_INPUT_FIELD) {
+      targetInputComp = comp;
+      break;
+    }
+  }
+
+  if (!targetInputComp) return;
+
+  uint16_t tx, ty;
+  bool isTouching = lcd.getTouch(&tx, &ty);
+
+  if (!isTouching) {
+    // No touch detected - reset key press state and restore key appearance
+    if (keyboard->isKeyPressed) {
+      // Restore just the pressed key to normal state
+      extern void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int y, int w, int h);
+      restorePressedKey(lcd, keyboard, wifiKeyboard->x, wifiKeyboard->y, wifiKeyboard->w, wifiKeyboard->h);
+
+      keyboard->isKeyPressed = false;
+      keyboard->isBackspace = false;
+      keyboard->isSpace = false;
+      keyboard->lastPressedChar = '\0';
+    }
+    return;
+  }
+
+  // Check if touch is within keyboard area
+  bool touchInKeyboard = (tx >= wifiKeyboard->x &&
+                          tx <= wifiKeyboard->x + wifiKeyboard->w &&
+                          ty >= wifiKeyboard->y &&
+                          ty <= wifiKeyboard->y + wifiKeyboard->h);
+
+  // Check if touch is within the WiFi window (but not keyboard)
+  bool touchInWindow = (tx >= wifiWindow.x &&
+                        tx <= wifiWindow.x + wifiWindow.w &&
+                        ty >= wifiWindow.y &&
+                        ty <= wifiWindow.y + wifiWindow.h);
+
+  if (touchInKeyboard) {
+    // Handle keyboard touch with absolute coordinates
+    bool textChanged = handleKeyboardTouch(lcd, wifiKeyboard, targetInputComp, tx, ty, &wifiWindow);
+
+    if (textChanged) {
+      // Only redraw the input field to show the updated text
+      lcd.startWrite();
+      drawComponent(lcd, *targetInputComp, wifiWindow.x, wifiWindow.y);
+      lcd.endWrite();
+    }
+
+    // Handle key repeat while key is held
+    handleKeyboardRepeat(lcd, wifiKeyboard, targetInputComp, &wifiWindow);
+  } else if (!touchInWindow) {
+    // Touch is completely outside the window - hide keyboard and restore list view
+    extern void hideWifiPasswordEntry();
+    hideWifiPasswordEntry();
+  }
+}
+
 void uiTask(void* parameter) {
   extern SemaphoreHandle_t metadataMutex;
   extern StreamMetadata streamMetadata;
@@ -616,10 +724,24 @@ void uiTask(void* parameter) {
     updateWifiSignal();
     updateNotification();
 
+    // Check WiFi connection status (non-blocking)
+    updateWifiConnectionStatus();
+
+    // Check for menu bar touch (WiFi signal click)
+    checkMenuBarTouch();
+
     bool keyboardActive = false;
+    bool wifiKeyboardActive = false;
+
     if (globalKeyboard) {
       MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
       keyboardActive = keyboard->visible;
+    }
+
+    extern MacComponent* wifiKeyboard;
+    if (wifiKeyboard) {
+      MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+      wifiKeyboardActive = keyboard->visible;
     }
 
     // Handle keyboard touch input when keyboard is visible
@@ -632,27 +754,48 @@ void uiTask(void* parameter) {
       }
     }
 
-    if (!keyboardActive) {
+    // Handle WiFi keyboard input when visible
+    if (wifiKeyboardActive) {
+      handleWifiKeyboardInteraction();
+
+      // Update input field cursor blinking
+      if (wifiWindow.visible) {
+        updateInputFieldComponents(lcd, wifiWindow);
+      }
+    }
+
+    if (!keyboardActive && !wifiKeyboardActive) {
       // Set active flag based on window priority (top window is active)
-      if (confirmDeleteWindow.visible) {
+      if (wifiWindow.visible) {
+        wifiWindow.active = true;
+        confirmDeleteWindow.active = false;
+        addStationWindow.active = false;
+        stationWindow.active = false;
+        radioWindow.active = false;
+        interactiveWindow(lcd, wifiWindow);
+      } else if (confirmDeleteWindow.visible) {
+        wifiWindow.active = false;
         confirmDeleteWindow.active = true;
         addStationWindow.active = false;
         stationWindow.active = false;
         radioWindow.active = false;
         interactiveWindow(lcd, confirmDeleteWindow);
       } else if (addStationWindow.visible) {
+        wifiWindow.active = false;
         confirmDeleteWindow.active = false;
         addStationWindow.active = true;
         stationWindow.active = false;
         radioWindow.active = false;
         interactiveWindow(lcd, addStationWindow);
       } else if (stationWindow.visible) {
+        wifiWindow.active = false;
         confirmDeleteWindow.active = false;
         addStationWindow.active = false;
         stationWindow.active = true;
         radioWindow.active = false;
         interactiveWindow(lcd, stationWindow);
       } else if (radioWindow.visible) {
+        wifiWindow.active = false;
         confirmDeleteWindow.active = false;
         addStationWindow.active = false;
         stationWindow.active = false;

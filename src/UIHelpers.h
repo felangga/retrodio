@@ -31,6 +31,12 @@ void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window);
 void handleKeyboardInteraction();
 void adjustWindowForKeyboard(MacWindow& window, MacComponent* inputComponent, bool show);
 
+// WiFi keyboard interaction handling
+void handleWifiKeyboardInteraction();
+
+// Menu bar touch detection
+void checkMenuBarTouch();
+
 // UI task
 void uiTask(void* parameter);
 

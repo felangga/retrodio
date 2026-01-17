@@ -27,6 +27,7 @@
 #include "RadioWindow.h"
 #include "AddStationWindow.h"
 #include "ConfirmDeleteWindow.h"
+#include "WifiWindow.h"
 #include "UIHelpers.h"
 #include "OTAHandler.h"
 
@@ -85,6 +86,18 @@ const int BTN_DELETE_STATION = 12;
 const int BTN_CONFIRM_YES = 13;
 const int BTN_CONFIRM_NO = 14;
 
+// WiFi Window Components
+const int WIFI_LIST_COMPONENT = 500;
+const int BTN_WIFI_CONNECT = 501;
+const int BTN_WIFI_CANCEL = 502;
+const int BTN_WIFI_REFRESH = 503;
+const int LBL_WIFI_TITLE = 504;
+const int INPUT_WIFI_PASSWORD = 505;
+const int LBL_WIFI_PASSWORD = 506;
+const int BTN_WIFI_PASSWORD_OK = 507;
+const int BTN_WIFI_PASSWORD_CANCEL = 508;
+const int WIFI_KEYBOARD_COMPONENT = 509;
+
 // ===== GLOBAL OBJECTS =====
 
 LGFX lcd;
@@ -135,10 +148,15 @@ MacWindow confirmDeleteWindow{100, 100, 280, 120, "Confirm Delete", false, false
                               onConfirmDeleteWindowContentClick, onConfirmDeleteWindowMoved,
                               nullptr, 0, false, 0, 0};
 
+MacWindow wifiWindow{60, 40, 310, 225, "WiFi Networks", false, false, false,
+                     onWifiWindowMinimize, onWifiWindowClose,
+                     onWifiWindowContentClick, onWifiWindowMoved,
+                     nullptr, 0, false, 0, 0};
 
 DesktopIcon radioIcon{50, 60, "Radio", "window", false, false, &radioWindow, onRadioIconClick};
 
 MacComponent* globalKeyboard = nullptr;
+MacComponent* wifiKeyboard = nullptr;
 int stationToDeleteIndex = -1;  // Track which station to delete
 bool isEditMode = false;  // Track if we're in edit mode
 int stationToEditIndex = -1;  // Track which station to edit
@@ -214,9 +232,9 @@ void setup() {
   initWiFiAsync();
 
   // Wait for WiFi connection before proceeding
-  while (isWiFiConnecting()) {
-    vTaskDelay(pdMS_TO_TICKS(100));
-  }
+  // while (isWiFiConnecting()) {
+  //   vTaskDelay(pdMS_TO_TICKS(100));
+  // }
 
   if (isWiFiConnected()) {
     DEBUG_PRINTLN("WiFi connected!");
@@ -251,9 +269,9 @@ void setup() {
   }
 
   xTaskCreatePinnedToCore(uiTask, "UI_Task", 8192, NULL, 1, &uiTaskHandle, 1);
-  xTaskCreatePinnedToCore(audioTask, "Audio_Task", 16384, NULL, 2, &audioTaskHandle, 0);
+  // xTaskCreatePinnedToCore(audioTask, "Audio_Task", 16384, NULL, 2, &audioTaskHandle, 0);
 
-  if (RadioURL.length() > 0) {
+  if (RadioURL.length() > 0 && isWiFiConnected()) {
     delay(1000);
     AudioCommandMsg msg = {CMD_CONNECT, ""};
     strncpy(msg.url, RadioURL.c_str(), sizeof(msg.url) - 1);
@@ -267,6 +285,6 @@ void setup() {
 }
 
 void loop() {
-  handleOTA();
+  // handleOTA();
   vTaskDelay(10);
 }

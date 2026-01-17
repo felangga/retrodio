@@ -11,8 +11,8 @@
 #define CONFIG_H
 
 // ===== WiFi Configuration =====
-#define WIFI_SSID "KENARI"
-#define WIFI_PASSWORD "tamankenari"
+#define WIFI_SSID "felangga"
+#define WIFI_PASSWORD "88888888"
 
 // ===== Audio Settings =====
 #define DEFAULT_VOLUME 10 // Range: 0-21
