@@ -117,11 +117,14 @@ void scanWifiNetworks() {
 
   isScanning = true;
 
-  // Show scanning notification
-  showNotification("Scanning WiFi...");
-
   // Clean up previous scan results
   cleanupWifiList();
+
+  // Update display to show empty list
+  updateWifiListDisplay();
+
+  // Show scanning notification
+  showNotification("Scanning WiFi...");
 
   // Start WiFi scan
   WiFi.mode(WIFI_STA);

@@ -113,61 +113,20 @@ void updateWifiSignal() {
   }
 }
 
-// Notification bar state
+// Bottom bar notification state
 static bool notificationVisible = false;
 static String notificationMessage = "";
 static unsigned long notificationStartTime = 0;
 static unsigned long notificationDuration = 0;  // 0 = permanent until hidden
-static int notificationWidth = 0;
-static int notificationX = 0;
-static int notificationY = 21;  // Below menu bar
-static int notificationH = 18;
-static uint16_t* notificationBackupBuffer = nullptr;
-static int notificationBackupSize = 0;
-
-// Forward declaration
-static void drawNotification();
 
 void showNotification(const String& message, unsigned long duration) {
-  // Hide previous notification first if visible
-  if (notificationVisible) {
-    hideNotification();
-  }
-
   notificationMessage = message;
   notificationDuration = duration;
   notificationStartTime = millis();
-
-  // Calculate notification width based on text
-  lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
-  notificationWidth = lcd.textWidth(message) + 16;
-  lcd.setFont(nullptr);
-
-  // Calculate position (top-right, below menu bar)
-  notificationX = screenWidth - notificationWidth - 5;
-
-  // Save the background pixels before drawing
-  int backupW = notificationWidth + 2;
-  int backupH = notificationH + 2;
-  int newSize = backupW * backupH;
-
-  // Reallocate buffer if needed
-  if (notificationBackupBuffer == nullptr || notificationBackupSize < newSize) {
-    if (notificationBackupBuffer != nullptr) {
-      free(notificationBackupBuffer);
-    }
-    notificationBackupBuffer = (uint16_t*)malloc(newSize * sizeof(uint16_t));
-    notificationBackupSize = newSize;
-  }
-
-  if (notificationBackupBuffer != nullptr) {
-    lcd.readRect(notificationX - 1, notificationY - 1, backupW, backupH, notificationBackupBuffer);
-  }
-
   notificationVisible = true;
 
-  // Draw the notification
-  drawNotification();
+  // Update the bottom bar with the notification message
+  drawBottomBar(lcd, message);
 }
 
 MacWindow** getVisibleWindows(int& windowCount) {
@@ -197,44 +156,10 @@ void hideNotification() {
     return;
 
   notificationVisible = false;
+  notificationMessage = "";
 
-  // Calculate the notification area
-  int clearX = notificationX - 1;
-  int clearY = notificationY - 1;
-  int clearW = notificationWidth + 2;
-  int clearH = notificationH + 2;
-
-  // Redraw the checkered pattern as background
-  drawCheckeredPatternArea(lcd, clearX, clearY, clearW, clearH);
-
-  // Get all visible windows and check for overlap
-  int windowCount = 0;
-  MacWindow** windows = getVisibleWindows(windowCount);
-
-  for (int i = 0; i < windowCount; i++) {
-    MacWindow* window = windows[i];
-    // Check if window (including shadow) overlaps with notification area
-    if (window->x <= clearX + clearW && window->x + window->w + 3 >= clearX &&
-        window->y <= clearY + clearH && window->y + window->h + 3 >= clearY) {
-      drawWindow(lcd, *window);
-    }
-  }
-}
-
-static void drawNotification() {
-  if (!notificationVisible)
-    return;
-
-  lcd.fillRoundRect(notificationX, notificationY, notificationWidth, notificationH, 4, MAC_WHITE);
-  lcd.drawRoundRect(notificationX, notificationY, notificationWidth, notificationH, 4, MAC_BLACK);
-
-  lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
-  lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  lcd.setTextDatum(textdatum_t::middle_center);
-  lcd.drawString(notificationMessage, notificationX + notificationWidth / 2,
-                 notificationY + notificationH / 2);
-  lcd.setFont(nullptr);
-  lcd.setTextDatum(textdatum_t::top_left);
+  // Clear the bottom bar by redrawing it with empty message
+  drawBottomBar(lcd, "");
 }
 
 void updateNotification() {
@@ -303,6 +228,7 @@ void drawInterface(lgfx::LGFX_Device& lcd) {
   lcd.fillScreen(MAC_WHITE);
   drawCheckeredPattern(lcd);
   drawMenuBar(lcd, "Retrodio");
+  drawBottomBar(lcd, "");
 
   initializeRadioWindow();
   initializeStationWindow();

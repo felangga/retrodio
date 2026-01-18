@@ -86,15 +86,13 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
     thumbY = scrollbarY;
   }
 
-  if (abs(thumbY - listView.lastScrollbarThumbY) > 2 || listView.needsFullRedraw) {
-    lcd.fillRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_LIGHT_GRAY);
-    lcd.drawRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_DARK_GRAY);
+  lcd.fillRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_LIGHT_GRAY);
+  lcd.drawRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_DARK_GRAY);
 
-    lcd.fillRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_GRAY);
-    lcd.drawRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_BLACK);
+  lcd.fillRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_GRAY);
+  lcd.drawRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_BLACK);
 
-    listView.lastScrollbarThumbY = thumbY;
-  }
+  listView.lastScrollbarThumbY = thumbY;
 }
 
 MacComponent* createListViewComponent(int x, int y, int w, int h, int id, MacListViewItem* items,
