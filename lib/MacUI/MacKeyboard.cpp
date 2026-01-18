@@ -327,7 +327,7 @@ MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int ta
   MacComponent* component = createComponent(COMPONENT_KEYBOARD, x, y, w, h, id);
 
   MacKeyboard* keyboard = new MacKeyboard();
-  keyboard->visible = false;  // Start hidden
+  keyboard->visible = false;  
   keyboard->x = x;
   keyboard->y = y;
   keyboard->w = w;

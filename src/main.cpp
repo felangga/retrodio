@@ -298,9 +298,9 @@ void setup() {
   initWiFiAsync();
 
   // Wait for WiFi connection before proceeding
-  while (isWiFiConnecting()) {
-    vTaskDelay(pdMS_TO_TICKS(100));
-  }
+  // while (isWiFiConnecting()) {
+  //   vTaskDelay(pdMS_TO_TICKS(100));
+  // }
 
   if (isWiFiConnected()) {
     DEBUG_PRINTLN("WiFi connected!");
