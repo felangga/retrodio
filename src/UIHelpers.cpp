@@ -7,14 +7,14 @@
  */
 
 #include "UIHelpers.h"
-#include "GlobalState.h"
-#include "StationManager.h"
-#include "RadioWindow.h"
+#include <WiFi.h>
+#include <time.h>
 #include "AddStationWindow.h"
+#include "GlobalState.h"
+#include "RadioWindow.h"
+#include "StationManager.h"
 #include "WifiWindow.h"
 #include "wt32_sc01_plus.h"
-#include <time.h>
-#include <WiFi.h>
 
 #define ENABLE_DEBUG 0
 
@@ -54,6 +54,11 @@ void updateClock() {
   lastClockUpdate = now;
 
   struct tm timeinfo;
+  if (WiFi.status() != WL_CONNECTED) {
+    drawClock(lcd, "--:--:--");
+    return;
+  }
+
   if (!getLocalTime(&timeinfo)) {
     return;
   }
@@ -92,14 +97,14 @@ void updateWifiSignal() {
   lcd.setFont(nullptr);
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
   lcd.setTextSize(1);
-  lcd.setCursor(328,11);
+  lcd.setCursor(328, 11);
   lcd.println(String(rssi) + " dBm");
 
   // RSSI returns 0 if not available, treat as no signal
   if (rssi == 0) {
     rssi = -100;
   }
-  
+
   // Redraw if first time (lastRssi > 0) or signal changed significantly (by 5 dBm)
   if (lastRssi > 0 || abs(rssi - lastRssi) >= 5) {
     lastRssi = rssi;
@@ -165,7 +170,8 @@ void showNotification(const String& message, unsigned long duration) {
 }
 
 void hideNotification() {
-  if (!notificationVisible) return;
+  if (!notificationVisible)
+    return;
 
   notificationVisible = false;
 
@@ -198,15 +204,18 @@ void hideNotification() {
   }
 
   if (addStationWindow.visible && !addStationWindow.minimized) {
-    if (addStationWindow.x <= clearX + clearW && addStationWindow.x + addStationWindow.w + 3 >= clearX &&
-        addStationWindow.y <= clearY + clearH && addStationWindow.y + addStationWindow.h + 3 >= clearY) {
+    if (addStationWindow.x <= clearX + clearW &&
+        addStationWindow.x + addStationWindow.w + 3 >= clearX &&
+        addStationWindow.y <= clearY + clearH &&
+        addStationWindow.y + addStationWindow.h + 3 >= clearY) {
       drawWindow(lcd, addStationWindow);
     }
   }
 }
 
 static void drawNotification() {
-  if (!notificationVisible) return;
+  if (!notificationVisible)
+    return;
 
   lcd.fillRoundRect(notificationX, notificationY, notificationWidth, notificationH, 4, MAC_WHITE);
   lcd.drawRoundRect(notificationX, notificationY, notificationWidth, notificationH, 4, MAC_BLACK);
@@ -214,13 +223,15 @@ static void drawNotification() {
   lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
   lcd.setTextDatum(textdatum_t::middle_center);
-  lcd.drawString(notificationMessage, notificationX + notificationWidth / 2, notificationY + notificationH / 2);
+  lcd.drawString(notificationMessage, notificationX + notificationWidth / 2,
+                 notificationY + notificationH / 2);
   lcd.setFont(nullptr);
   lcd.setTextDatum(textdatum_t::top_left);
 }
 
 void updateNotification() {
-  if (!notificationVisible) return;
+  if (!notificationVisible)
+    return;
 
   // Check if notification should auto-hide
   if (notificationDuration > 0) {
@@ -270,10 +281,10 @@ void updateCPUUsage() {
     if (cpuLabel && cpuLabel->customData) {
       MacLabel* label = (MacLabel*)cpuLabel->customData;
       char cpuText[128];
-      snprintf(cpuText, sizeof(cpuText), "CPU0: %.0f%% CPU1: %.0f%% | RAM: %dKB/%dKB (%.0f%%) | PSRAM: %dKB/%dKB",
-               cpuUsage0, cpuUsage1,
-               usedHeap / 1024, totalHeap / 1024, ramUsagePercent,
-               usedPsram / 1024, totalPsram / 1024);
+      snprintf(cpuText, sizeof(cpuText),
+               "CPU0: %.0f%% CPU1: %.0f%% | RAM: %dKB/%dKB (%.0f%%) | PSRAM: %dKB/%dKB", cpuUsage0,
+               cpuUsage1, usedHeap / 1024, totalHeap / 1024, ramUsagePercent, usedPsram / 1024,
+               totalPsram / 1024);
       label->text = String(cpuText);
       drawComponent(lcd, *cpuLabel, radioWindow.x, radioWindow.y);
     }
@@ -294,7 +305,8 @@ void drawInterface(lgfx::LGFX_Device& lcd) {
     extern const int INPUT_STATION_NAME;
     int keyboardHeight = screenHeight / 2;
     int keyboardY = screenHeight - keyboardHeight;
-    globalKeyboard = createKeyboardComponent(0, keyboardY, screenWidth, keyboardHeight, KEYBOARD_COMPONENT, INPUT_STATION_NAME);
+    globalKeyboard = createKeyboardComponent(0, keyboardY, screenWidth, keyboardHeight,
+                                             KEYBOARD_COMPONENT, INPUT_STATION_NAME);
     MacKeyboard* kb = (MacKeyboard*)globalKeyboard->customData;
     kb->visible = false;
   }
@@ -336,7 +348,7 @@ void adjustWindowForKeyboard(MacWindow& window, MacComponent* inputComponent, bo
     // Check if input field would be covered by keyboard
     if (inputBottom > keyboardY) {
       // Calculate how much we need to move the window up
-      int overlap = inputBottom - keyboardY + 10; // +10 for some padding
+      int overlap = inputBottom - keyboardY + 10;  // +10 for some padding
 
       // Calculate new window position
       int newY = window.y - overlap;
@@ -406,10 +418,8 @@ void handleKeyboardInteraction() {
     if (keyboard->isKeyPressed) {
       // Check if we need to deactivate shift after typing a character
       // Only deactivate if shift is not locked (caps lock mode)
-      bool needShiftDeactivation = keyboard->shiftActive &&
-                                    !keyboard->shiftLocked &&
-                                    keyboard->selectedKey != -2 &&
-                                    keyboard->lastPressedChar != '\0';
+      bool needShiftDeactivation = keyboard->shiftActive && !keyboard->shiftLocked &&
+                                   keyboard->selectedKey != -2 && keyboard->lastPressedChar != '\0';
 
       // Deactivate shift if it was active (but not locked) and a character was typed
       if (needShiftDeactivation) {
@@ -417,18 +427,22 @@ void handleKeyboardInteraction() {
       }
 
       // Restore just the pressed key to normal state (not the whole keyboard)
-      extern void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int y, int w, int h);
-      restorePressedKey(lcd, keyboard, globalKeyboard->x, globalKeyboard->y, globalKeyboard->w, globalKeyboard->h);
+      extern void restorePressedKey(lgfx::LGFX_Device & lcd, MacKeyboard * keyboard, int x, int y,
+                                    int w, int h);
+      restorePressedKey(lcd, keyboard, globalKeyboard->x, globalKeyboard->y, globalKeyboard->w,
+                        globalKeyboard->h);
 
       // If shift was deactivated, we need to redraw the shift button too
       if (needShiftDeactivation) {
         // Only redraw the shift key button, not the whole keyboard
-        int rowHeight = (globalKeyboard->h - (2 * 5) - 28 - 2) / 4;  // KEYBOARD_MARGIN=5, SPECIAL_ROW_HEIGHT=28, KEY_SPACING=2
+        int rowHeight = (globalKeyboard->h - (2 * 5) - 28 - 2) /
+                        4;  // KEYBOARD_MARGIN=5, SPECIAL_ROW_HEIGHT=28, KEY_SPACING=2
         int row3Y = globalKeyboard->y + 5 + 3 * rowHeight;
         int shiftX = globalKeyboard->x + 5;
 
         lcd.startWrite();
-        lcd.fillRoundRect(shiftX, row3Y, 45, rowHeight - 2, 4, MAC_WHITE);  // SHIFT_WIDTH=45, radius=4
+        lcd.fillRoundRect(shiftX, row3Y, 45, rowHeight - 2, 4,
+                          MAC_WHITE);  // SHIFT_WIDTH=45, radius=4
         lcd.drawRoundRect(shiftX, row3Y, 45, rowHeight - 2, 4, MAC_BLACK);
         lcd.drawRoundRect(shiftX + 1, row3Y + 1, 45 - 2, rowHeight - 2 - 2, 2, MAC_BLACK);
         lcd.setTextColor(MAC_BLACK, MAC_WHITE);
@@ -450,20 +464,17 @@ void handleKeyboardInteraction() {
   }
 
   // Check if touch is within keyboard area
-  bool touchInKeyboard = (tx >= globalKeyboard->x &&
-                          tx <= globalKeyboard->x + globalKeyboard->w &&
-                          ty >= globalKeyboard->y &&
-                          ty <= globalKeyboard->y + globalKeyboard->h);
+  bool touchInKeyboard = (tx >= globalKeyboard->x && tx <= globalKeyboard->x + globalKeyboard->w &&
+                          ty >= globalKeyboard->y && ty <= globalKeyboard->y + globalKeyboard->h);
 
   // Check if touch is within the add station window (but not keyboard)
-  bool touchInWindow = (tx >= addStationWindow.x &&
-                        tx <= addStationWindow.x + addStationWindow.w &&
-                        ty >= addStationWindow.y &&
-                        ty <= addStationWindow.y + addStationWindow.h);
+  bool touchInWindow = (tx >= addStationWindow.x && tx <= addStationWindow.x + addStationWindow.w &&
+                        ty >= addStationWindow.y && ty <= addStationWindow.y + addStationWindow.h);
 
   if (touchInKeyboard) {
     // Handle keyboard touch with absolute coordinates
-    bool textChanged = handleKeyboardTouch(lcd, globalKeyboard, targetInputComp, tx, ty, &addStationWindow);
+    bool textChanged =
+        handleKeyboardTouch(lcd, globalKeyboard, targetInputComp, tx, ty, &addStationWindow);
 
     if (textChanged) {
       // Only redraw the input field to show the updated text
@@ -497,14 +508,12 @@ void handleKeyboardInteraction() {
     }
 
     // Check if user clicked on a different input field
-    bool clickedNameInput = nameInputComp &&
-                            relativeX >= nameInputComp->x &&
+    bool clickedNameInput = nameInputComp && relativeX >= nameInputComp->x &&
                             relativeX <= nameInputComp->x + nameInputComp->w &&
                             relativeY >= nameInputComp->y &&
                             relativeY <= nameInputComp->y + nameInputComp->h;
 
-    bool clickedUrlInput = urlInputComp &&
-                           relativeX >= urlInputComp->x &&
+    bool clickedUrlInput = urlInputComp && relativeX >= urlInputComp->x &&
                            relativeX <= urlInputComp->x + urlInputComp->w &&
                            relativeY >= urlInputComp->y &&
                            relativeY <= urlInputComp->y + urlInputComp->h;
@@ -640,10 +649,12 @@ void handleWifiKeyboardInteraction() {
   extern MacWindow wifiWindow;
   extern const int INPUT_WIFI_PASSWORD;
 
-  if (!wifiKeyboard) return;
+  if (!wifiKeyboard)
+    return;
 
   MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
-  if (!keyboard->visible) return;
+  if (!keyboard->visible)
+    return;
 
   // Find the target input field component
   MacComponent* targetInputComp = nullptr;
@@ -655,7 +666,8 @@ void handleWifiKeyboardInteraction() {
     }
   }
 
-  if (!targetInputComp) return;
+  if (!targetInputComp)
+    return;
 
   uint16_t tx, ty;
   bool isTouching = lcd.getTouch(&tx, &ty);
@@ -664,8 +676,10 @@ void handleWifiKeyboardInteraction() {
     // No touch detected - reset key press state and restore key appearance
     if (keyboard->isKeyPressed) {
       // Restore just the pressed key to normal state
-      extern void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int y, int w, int h);
-      restorePressedKey(lcd, keyboard, wifiKeyboard->x, wifiKeyboard->y, wifiKeyboard->w, wifiKeyboard->h);
+      extern void restorePressedKey(lgfx::LGFX_Device & lcd, MacKeyboard * keyboard, int x, int y,
+                                    int w, int h);
+      restorePressedKey(lcd, keyboard, wifiKeyboard->x, wifiKeyboard->y, wifiKeyboard->w,
+                        wifiKeyboard->h);
 
       keyboard->isKeyPressed = false;
       keyboard->isBackspace = false;
@@ -676,16 +690,12 @@ void handleWifiKeyboardInteraction() {
   }
 
   // Check if touch is within keyboard area
-  bool touchInKeyboard = (tx >= wifiKeyboard->x &&
-                          tx <= wifiKeyboard->x + wifiKeyboard->w &&
-                          ty >= wifiKeyboard->y &&
-                          ty <= wifiKeyboard->y + wifiKeyboard->h);
+  bool touchInKeyboard = (tx >= wifiKeyboard->x && tx <= wifiKeyboard->x + wifiKeyboard->w &&
+                          ty >= wifiKeyboard->y && ty <= wifiKeyboard->y + wifiKeyboard->h);
 
   // Check if touch is within the WiFi window (but not keyboard)
-  bool touchInWindow = (tx >= wifiWindow.x &&
-                        tx <= wifiWindow.x + wifiWindow.w &&
-                        ty >= wifiWindow.y &&
-                        ty <= wifiWindow.y + wifiWindow.h);
+  bool touchInWindow = (tx >= wifiWindow.x && tx <= wifiWindow.x + wifiWindow.w &&
+                        ty >= wifiWindow.y && ty <= wifiWindow.y + wifiWindow.h);
 
   if (touchInKeyboard) {
     // Handle keyboard touch with absolute coordinates
@@ -762,6 +772,20 @@ void uiTask(void* parameter) {
       if (wifiWindow.visible) {
         updateInputFieldComponents(lcd, wifiWindow);
       }
+      // Only redraw the WiFi keyboard if its state changed (dirty flag)
+      static bool lastKeyboardVisible = false;
+      MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+      if (keyboard->visible && !lastKeyboardVisible) {
+        int keyboardHeight = screenHeight / 2;
+        int keyboardY = screenHeight - keyboardHeight;
+        drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
+        drawKeyboard(lcd, keyboard->x, keyboard->y, keyboard->w, keyboard->h, *keyboard);
+      } else if (!keyboard->visible && lastKeyboardVisible) {
+        int keyboardHeight = screenHeight / 2;
+        int keyboardY = screenHeight - keyboardHeight;
+        drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
+      }
+      lastKeyboardVisible = keyboard->visible;
     }
 
     if (!keyboardActive && !wifiKeyboardActive) {

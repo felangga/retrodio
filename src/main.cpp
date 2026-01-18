@@ -19,17 +19,17 @@
 #include "esp_task_wdt.h"
 #include "wt32_sc01_plus.h"
 
-#include "GlobalState.h"
-#include "WindowCallbacks.h"
-#include "AudioHandlers.h"
-#include "NetworkHandlers.h"
-#include "StationManager.h"
-#include "RadioWindow.h"
 #include "AddStationWindow.h"
+#include "AudioHandlers.h"
 #include "ConfirmDeleteWindow.h"
-#include "WifiWindow.h"
-#include "UIHelpers.h"
+#include "GlobalState.h"
+#include "NetworkHandlers.h"
 #include "OTAHandler.h"
+#include "RadioWindow.h"
+#include "StationManager.h"
+#include "UIHelpers.h"
+#include "WifiWindow.h"
+#include "WindowCallbacks.h"
 
 // ===== DEBUG CONFIGURATION =====
 #define ENABLE_SERIAL_DEBUG 0
@@ -129,37 +129,103 @@ String lastDisplayedDescription = "";
 String lastDisplayedLyrics = "";
 String lastDisplayedLog = "";
 
-MacWindow radioWindow{30,  40,  420, 240, "Radio", true, false, true,
-                      nullptr, onWindowClose, onWindowContentClick, onWindowMoved,
-                      nullptr, 0, false, 0, 0};
+MacWindow radioWindow{30,
+                      40,
+                      420,
+                      240,
+                      "Radio",
+                      true,
+                      false,
+                      true,
+                      nullptr,
+                      onWindowClose,
+                      onWindowContentClick,
+                      onWindowMoved,
+                      nullptr,
+                      0,
+                      false,
+                      0,
+                      0};
 
-MacWindow stationWindow{20, 40, 420, 240, "Station List", false, false, false,
-                        onStationWindowMinimize, onStationWindowClose,
-                        onStationWindowContentClick, onStationWindowMoved,
-                        nullptr, 0, false, 0, 0};
+MacWindow stationWindow{20,
+                        40,
+                        420,
+                        240,
+                        "Station List",
+                        false,
+                        false,
+                        false,
+                        onStationWindowMinimize,
+                        onStationWindowClose,
+                        onStationWindowContentClick,
+                        onStationWindowMoved,
+                        nullptr,
+                        0,
+                        false,
+                        0,
+                        0};
 
-MacWindow addStationWindow{60, 40, 360, 160, "Add Station", false, false, false,
-                           onAddStationWindowMinimize, onAddStationWindowClose,
-                           onAddStationWindowContentClick, onAddStationWindowMoved,
-                           nullptr, 0, false, 0, 0};
+MacWindow addStationWindow{60,
+                           40,
+                           360,
+                           160,
+                           "Add Station",
+                           false,
+                           false,
+                           false,
+                           onAddStationWindowMinimize,
+                           onAddStationWindowClose,
+                           onAddStationWindowContentClick,
+                           onAddStationWindowMoved,
+                           nullptr,
+                           0,
+                           false,
+                           0,
+                           0};
 
-MacWindow confirmDeleteWindow{100, 100, 280, 120, "Confirm Delete", false, false, false,
-                              nullptr, onConfirmDeleteWindowClose,
-                              onConfirmDeleteWindowContentClick, onConfirmDeleteWindowMoved,
-                              nullptr, 0, false, 0, 0};
+MacWindow confirmDeleteWindow{100,
+                              100,
+                              280,
+                              120,
+                              "Confirm Delete",
+                              false,
+                              false,
+                              false,
+                              nullptr,
+                              onConfirmDeleteWindowClose,
+                              onConfirmDeleteWindowContentClick,
+                              onConfirmDeleteWindowMoved,
+                              nullptr,
+                              0,
+                              false,
+                              0,
+                              0};
 
-MacWindow wifiWindow{60, 40, 310, 225, "WiFi Networks", false, false, false,
-                     onWifiWindowMinimize, onWifiWindowClose,
-                     onWifiWindowContentClick, onWifiWindowMoved,
-                     nullptr, 0, false, 0, 0};
+MacWindow wifiWindow{60,
+                     40,
+                     310,
+                     225,
+                     "WiFi Networks",
+                     false,
+                     false,
+                     false,
+                     onWifiWindowMinimize,
+                     onWifiWindowClose,
+                     onWifiWindowContentClick,
+                     onWifiWindowMoved,
+                     nullptr,
+                     0,
+                     false,
+                     0,
+                     0};
 
 DesktopIcon radioIcon{50, 60, "Radio", "window", false, false, &radioWindow, onRadioIconClick};
 
 MacComponent* globalKeyboard = nullptr;
 MacComponent* wifiKeyboard = nullptr;
 int stationToDeleteIndex = -1;  // Track which station to delete
-bool isEditMode = false;  // Track if we're in edit mode
-int stationToEditIndex = -1;  // Track which station to edit
+bool isEditMode = false;        // Track if we're in edit mode
+int stationToEditIndex = -1;    // Track which station to edit
 
 // ===== HELPER FUNCTIONS =====
 
@@ -203,7 +269,6 @@ void setup() {
   metadataMutex = xSemaphoreCreateMutex();
   audioCommandQueue = xQueueCreate(5, sizeof(AudioCommandMsg));
 
-
   lcd.init();
   tft.initDMA();
   tft.startWrite();
@@ -216,6 +281,7 @@ void setup() {
   registerWindow(&stationWindow);
   registerWindow(&addStationWindow);
   registerWindow(&confirmDeleteWindow);
+  registerWindow(&wifiWindow);
 
   if (!ConfigManager::begin()) {
     DEBUG_PRINTLN("ERROR: ConfigManager initialization failed!");
@@ -251,7 +317,7 @@ void setup() {
   initializeAudio();
 
   audio.setVolume(ConfigManager::getVolume());
-  audio.setAudioTaskCore(0);  
+  audio.setAudioTaskCore(0);
 
   LastStation lastStation = ConfigManager::getLastStation();
   if (lastStation.name.length() > 0 && lastStation.url.length() > 0) {
@@ -269,7 +335,7 @@ void setup() {
   }
 
   xTaskCreatePinnedToCore(uiTask, "UI_Task", 8192, NULL, 1, &uiTaskHandle, 1);
-  // xTaskCreatePinnedToCore(audioTask, "Audio_Task", 16384, NULL, 2, &audioTaskHandle, 0);
+  xTaskCreatePinnedToCore(audioTask, "Audio_Task", 16384, NULL, 2, &audioTaskHandle, 0);
 
   if (RadioURL.length() > 0 && isWiFiConnected()) {
     delay(1000);
@@ -285,6 +351,6 @@ void setup() {
 }
 
 void loop() {
-  // handleOTA();
+  handleOTA();
   vTaskDelay(10);
 }

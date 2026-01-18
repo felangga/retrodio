@@ -10,7 +10,7 @@
     "C_Cpp.configurationWarnings": "disabled",
     "editor.formatOnSave": true,
     "C_Cpp.formatting": "clangFormat",
-    "C_Cpp.clang_format_path": "/Users/macbookair/.espressif/tools/esp-clang/16.0.1-fe4f10a809/esp-clang/bin/clang-format",
+    "C_Cpp.clang_format_path": "/opt/homebrew/bin/clang-format",
     "[cpp]": {
         "editor.defaultFormatter": "ms-vscode.cpptools",
         "editor.formatOnSave": true
