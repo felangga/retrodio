@@ -52,12 +52,10 @@ void initWiFiAsync() {
   WiFi.mode(WIFI_STA);
   delay(100);
 
-  // Load WiFi credentials from config
   String savedSSID = ConfigManager::getWifiSSID();
   String savedPassword = ConfigManager::getWifiPassword();
 
   if (savedSSID.length() > 0) {
-    // Use saved credentials
     if (savedPassword.length() > 0) {
       WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
     } else {
@@ -66,7 +64,6 @@ void initWiFiAsync() {
     wifiConnecting = true;
     wifiConnected = false;
   } else {
-    // No saved credentials, don't attempt to connect
     wifiConnecting = false;
     wifiConnected = false;
   }

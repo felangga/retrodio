@@ -24,7 +24,6 @@
 #endif
 
 void setupOTA() {
-  // Set OTA hostname
   ArduinoOTA.setHostname("retrodio");
 
   // Set OTA password (optional but recommended for security)
@@ -33,7 +32,6 @@ void setupOTA() {
   // Set OTA port (default is 3232)
   // ArduinoOTA.setPort(3232);
 
-  // OTA callbacks for status updates
   ArduinoOTA.onStart([]() {
     String type;
     if (ArduinoOTA.getCommand() == U_FLASH) {
@@ -67,7 +65,6 @@ void setupOTA() {
     }
   });
 
-  // Start OTA service
   ArduinoOTA.begin();
 
   OTA_DEBUG_PRINTLN("OTA Ready");

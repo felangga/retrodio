@@ -33,19 +33,15 @@ void initializeConfirmDeleteWindow() {
 }
 
 void onConfirmYesButtonClick() {
-  // User confirmed deletion
   if (stationToDeleteIndex >= 0 && stationToDeleteIndex < ConfigManager::getStationCount()) {
-    // Delete the station
     if (ConfigManager::removeStation(stationToDeleteIndex)) {
       reloadStationList();
       initializeStationWindow();
     }
   }
 
-  // Reset the deletion index
   stationToDeleteIndex = -1;
 
-  // Hide confirmation dialog and show station window
   confirmDeleteWindow.visible = false;
   confirmDeleteWindow.active = false;
   stationWindow.visible = true;
@@ -56,10 +52,8 @@ void onConfirmYesButtonClick() {
 }
 
 void onConfirmNoButtonClick() {
-  // User cancelled deletion
   stationToDeleteIndex = -1;
 
-  // Hide confirmation dialog and show station window
   confirmDeleteWindow.visible = false;
   confirmDeleteWindow.active = false;
   stationWindow.visible = true;

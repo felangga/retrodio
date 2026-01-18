@@ -298,20 +298,18 @@ void setup() {
   initWiFiAsync();
 
   // Wait for WiFi connection before proceeding
-  // while (isWiFiConnecting()) {
-  //   vTaskDelay(pdMS_TO_TICKS(100));
-  // }
+  while (isWiFiConnecting()) {
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
 
   if (isWiFiConnected()) {
     DEBUG_PRINTLN("WiFi connected!");
-    showNotification("WiFi Connected!", 2000);  // Show for 2 seconds
+    showNotification("WiFi Connected!", 2000);
   } else {
     DEBUG_PRINTLN("WiFi connection failed!");
-    showNotification("WiFi Failed!", 3000);  // Show for 3 seconds
+    showNotification("WiFi Failed!", 3000);
   }
 
-  // Initialize OTA after WiFi connection
-  DEBUG_PRINTLN("=== Setting up OTA ===");
   setupOTA();
 
   initializeAudio();

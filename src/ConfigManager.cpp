@@ -14,7 +14,6 @@ Station ConfigManager::stations[MAX_STATIONS];
 int ConfigManager::stationCount = 0;
 
 bool ConfigManager::begin() {
-  // Initialize LittleFS
   if (!LittleFS.begin(true)) {  // true = format on failure
     return false;
   }
@@ -39,7 +38,6 @@ bool ConfigManager::loadSettings() {
     return false;
   }
 
-  // Parse JSON
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, file);
   file.close();
@@ -48,7 +46,6 @@ bool ConfigManager::loadSettings() {
     return false;
   }
 
-  // Read settings
   volume = doc["volume"] | 5;
   lastStation.name = doc["lastStationName"] | "";
   lastStation.url = doc["lastStationURL"] | "";
@@ -62,7 +59,6 @@ bool ConfigManager::loadSettings() {
  * Save settings to file
  */
 bool ConfigManager::saveSettings() {
-  // Create JSON document
   JsonDocument doc;
   doc["volume"] = volume;
   doc["lastStationName"] = lastStation.name;
@@ -70,7 +66,6 @@ bool ConfigManager::saveSettings() {
   doc["wifiSSID"] = wifiSSID;
   doc["wifiPassword"] = wifiPassword;
 
-  // Write to file
   File file = LittleFS.open(SETTINGS_FILE, "w");
   if (!file) {
     return false;
@@ -91,7 +86,6 @@ bool ConfigManager::loadStations() {
     return false;
   }
 
-  // Parse JSON
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, file);
   file.close();
@@ -100,7 +94,6 @@ bool ConfigManager::loadStations() {
     return false;
   }
 
-  // Read stations array
   JsonArray stationsArray = doc["stations"];
   stationCount = 0;
 
@@ -120,7 +113,6 @@ bool ConfigManager::loadStations() {
  * Save stations to file
  */
 bool ConfigManager::saveStations() {
-  // Create JSON document
   JsonDocument doc;
   JsonArray stationsArray = doc["stations"].to<JsonArray>();
 
@@ -130,7 +122,6 @@ bool ConfigManager::saveStations() {
     station["url"] = stations[i].url;
   }
 
-  // Write to file
   File file = LittleFS.open(STATIONS_FILE, "w");
   if (!file) {
     return false;
@@ -212,7 +203,6 @@ bool ConfigManager::removeStation(int index) {
     return false;
   }
 
-  // Shift stations down
   for (int i = index; i < stationCount - 1; i++) {
     stations[i] = stations[i + 1];
   }

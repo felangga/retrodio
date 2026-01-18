@@ -117,16 +117,12 @@ void scanWifiNetworks() {
 
   isScanning = true;
 
-  // Clean up previous scan results
   cleanupWifiList();
 
-  // Update display to show empty list
   updateWifiListDisplay();
 
-  // Show scanning notification
   showNotification("Scanning WiFi...");
 
-  // Start WiFi scan
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(100);
@@ -266,13 +262,12 @@ void onWifiItemClick(int index, void* itemData) {
   if (index < 0 || index >= wifiItemCount)
     return;
   if (wifiSSIDs[index].length() == 0)
-    return;  // "No networks found"
+    return;
 
   selectedWifiIndex = index;
   selectedSSID = wifiSSIDs[index];
   selectedIsSecure = wifiSecure[index];
 
-  // Enable connect button
   if (wifiComponent && wifiComponent->btnConnect) {
     wifiComponent->btnConnect->enabled = true;
     lcd.startWrite();
@@ -392,12 +387,10 @@ void showWifiPasswordEntry() {
   if (wifiComponent->btnPasswordCancel)
     wifiComponent->btnPasswordCancel->visible = true;
 
-  // Redraw window only (keyboard will be drawn in main UI loop)
   lcd.startWrite();
   drawWindow(lcd, wifiWindow);
   lcd.endWrite();
 
-  // Show keyboard (set visible, do not draw here)
   extern MacComponent* wifiKeyboard;
   extern const int WIFI_KEYBOARD_COMPONENT;
   if (!wifiKeyboard) {
@@ -488,10 +481,8 @@ void onWifiCancelButtonClick() {
   wifiWindow.visible = false;
   wifiWindow.active = false;
 
-  // Clean up
   cleanupWifiList();
 
-  // Try to connect to saved WiFi credentials if available
   String savedSSID = ConfigManager::getWifiSSID();
   String savedPassword = ConfigManager::getWifiPassword();
 
@@ -507,7 +498,6 @@ void onWifiCancelButtonClick() {
       WiFi.begin(savedSSID.c_str());
     }
 
-    // Wait briefly for connection (non-blocking approach)
     unsigned long startTime = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - startTime < 5000) {
       delay(100);
@@ -523,7 +513,6 @@ void onWifiCancelButtonClick() {
     }
   }
 
-  // Redraw and restore radio window
   lcd.startWrite();
   drawCheckeredPatternArea(lcd, wifiWindow.x, wifiWindow.y, wifiWindow.w + 5, wifiWindow.h + 5);
   radioWindow.visible = true;
@@ -645,24 +634,19 @@ void updateWifiConnectionStatus() {
     WiFi.disconnect();
     hideNotification();
 
-    // Hide WiFi keyboard if visible
     if (wifiKeyboard && wifiKeyboard->customData) {
       MacKeyboard* kb = (MacKeyboard*)wifiKeyboard->customData;
       kb->visible = false;
     }
 
-    // Close WiFi window
     wifiWindow.visible = false;
     wifiWindow.active = false;
 
-    // Clean up
     cleanupWifiList();
 
-    // Clear keyboard area if it was visible
     int keyboardHeight = screenHeight / 2;
     int keyboardY = screenHeight - keyboardHeight;
 
-    // Redraw and restore radio window
     lcd.startWrite();
     drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
     drawCheckeredPatternArea(lcd, wifiWindow.x, wifiWindow.y, wifiWindow.w + 5, wifiWindow.h + 5);
