@@ -49,6 +49,7 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
     // Draw item background excluding scrollbar area
     lcd.fillRect(x + 2, itemY, w - 4 - scrollbarWidth, listView.itemHeight, bgColor);
 
+    lcd.setTextDatum(textdatum_t::middle_left);
     lcd.setTextColor(txtColor, bgColor);
     lcd.setFont(getFontFromType(listView.font));
     lcd.setTextSize(listView.textSize);

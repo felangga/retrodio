@@ -82,6 +82,7 @@ void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, 
   int textX = x + (w - textWidth) / 2;
   int textY = y + h / 2;
 
+  lcd.setTextDatum(textdatum_t::middle_left);
   lcd.setCursor(textX, textY);
   lcd.print(text);
 
