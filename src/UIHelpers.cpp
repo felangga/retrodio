@@ -22,6 +22,7 @@ extern LGFX lcd;
 extern MacWindow radioWindow;
 extern MacWindow stationWindow;
 extern MacWindow addStationWindow;
+extern MacWindow wifiWindow;
 extern DesktopIcon radioIcon;
 extern MacComponent* globalKeyboard;
 
@@ -169,6 +170,28 @@ void showNotification(const String& message, unsigned long duration) {
   drawNotification();
 }
 
+MacWindow** getVisibleWindows(int& windowCount) {
+  static MacWindow* visibleWindows[10];
+  windowCount = 0;
+
+  // Get all registered windows from the window manager
+  int totalWindows = 0;
+  MacWindow** allWindows = getRegisteredWindows(totalWindows);
+
+  if (allWindows == nullptr) {
+    return visibleWindows;
+  }
+
+  // Filter only visible and non-minimized windows
+  for (int i = 0; i < totalWindows; i++) {
+    if (allWindows[i] != nullptr && allWindows[i]->visible && !allWindows[i]->minimized) {
+      visibleWindows[windowCount++] = allWindows[i];
+    }
+  }
+
+  return visibleWindows;
+}
+
 void hideNotification() {
   if (!notificationVisible)
     return;
@@ -181,34 +204,19 @@ void hideNotification() {
   int clearW = notificationWidth + 2;
   int clearH = notificationH + 2;
 
-  // First, redraw the checkered pattern as background
+  // Redraw the checkered pattern as background
   drawCheckeredPatternArea(lcd, clearX, clearY, clearW, clearH);
 
-  // Check if any visible windows overlap with the notification area and redraw them
-  // Windows are checked in z-order (back to front)
-  // Note: Window shadow extends 3 pixels beyond window bounds, so include that in overlap check
-  // Use <= for boundary checks to include windows that touch exactly at the boundary
-  if (radioWindow.visible && !radioWindow.minimized) {
+  // Get all visible windows and check for overlap
+  int windowCount = 0;
+  MacWindow** windows = getVisibleWindows(windowCount);
+
+  for (int i = 0; i < windowCount; i++) {
+    MacWindow* window = windows[i];
     // Check if window (including shadow) overlaps with notification area
-    if (radioWindow.x <= clearX + clearW && radioWindow.x + radioWindow.w + 3 >= clearX &&
-        radioWindow.y <= clearY + clearH && radioWindow.y + radioWindow.h + 3 >= clearY) {
-      drawWindow(lcd, radioWindow);
-    }
-  }
-
-  if (stationWindow.visible && !stationWindow.minimized) {
-    if (stationWindow.x <= clearX + clearW && stationWindow.x + stationWindow.w + 3 >= clearX &&
-        stationWindow.y <= clearY + clearH && stationWindow.y + stationWindow.h + 3 >= clearY) {
-      drawWindow(lcd, stationWindow);
-    }
-  }
-
-  if (addStationWindow.visible && !addStationWindow.minimized) {
-    if (addStationWindow.x <= clearX + clearW &&
-        addStationWindow.x + addStationWindow.w + 3 >= clearX &&
-        addStationWindow.y <= clearY + clearH &&
-        addStationWindow.y + addStationWindow.h + 3 >= clearY) {
-      drawWindow(lcd, addStationWindow);
+    if (window->x <= clearX + clearW && window->x + window->w + 3 >= clearX &&
+        window->y <= clearY + clearH && window->y + window->h + 3 >= clearY) {
+      drawWindow(lcd, *window);
     }
   }
 }

@@ -3,7 +3,6 @@
  *
  * Copyright (c) 2025 felangga
  *
- * This file implements WiFi window for scanning and connecting to WiFi networks
  */
 
 #include "WifiWindow.h"
@@ -42,7 +41,6 @@ struct WiFiWindowComponents {
   MacComponent* listComp;
   MacComponent* btnRefresh;
   MacComponent* btnConnect;
-  MacComponent* btnCancel;
   MacComponent* lblTitle;
   MacComponent* lblPassword;
   MacComponent* txtPassword;
@@ -101,7 +99,6 @@ void initializeWifiComponentCache() {
   wifiComponent->listComp = findComponentById(wifiWindow, WIFI_LIST_COMPONENT);
   wifiComponent->btnRefresh = findComponentById(wifiWindow, BTN_WIFI_REFRESH);
   wifiComponent->btnConnect = findComponentById(wifiWindow, BTN_WIFI_CONNECT);
-  wifiComponent->btnCancel = findComponentById(wifiWindow, BTN_WIFI_CANCEL);
   wifiComponent->lblTitle = findComponentById(wifiWindow, LBL_WIFI_TITLE);
   wifiComponent->lblPassword = findComponentById(wifiWindow, LBL_WIFI_PASSWORD);
   wifiComponent->txtPassword = findComponentById(wifiWindow, INPUT_WIFI_PASSWORD);
@@ -285,7 +282,6 @@ void initializeWifiWindow() {
   extern MacWindow wifiWindow;
   extern const int WIFI_LIST_COMPONENT;
   extern const int BTN_WIFI_CONNECT;
-  extern const int BTN_WIFI_CANCEL;
   extern const int BTN_WIFI_REFRESH;
   extern const int LBL_WIFI_TITLE;
   extern const int INPUT_WIFI_PASSWORD;
@@ -312,23 +308,15 @@ void initializeWifiWindow() {
   }
   addChildComponent(wifiWindow, wifiList);
 
-  // Refresh button
-  MacComponent* btnRefresh = createButtonComponent(10, 185, 80, 28, BTN_WIFI_REFRESH, "Refresh");
+  MacComponent* btnRefresh = createButtonComponent(10, 185, 90, 28, BTN_WIFI_REFRESH, "Refresh");
   btnRefresh->onClick = [](int componentId) { onWifiRefreshButtonClick(); };
   addChildComponent(wifiWindow, btnRefresh);
 
-  // Connect button (initially disabled until network selected)
-  MacComponent* btnConnect = createButtonComponent(120, 185, 80, 28, BTN_WIFI_CONNECT, "Connect");
+  MacComponent* btnConnect = createButtonComponent(200, 185, 90, 28, BTN_WIFI_CONNECT, "Connect");
   btnConnect->onClick = [](int componentId) { onWifiConnectButtonClick(); };
   btnConnect->enabled = false;
   addChildComponent(wifiWindow, btnConnect);
 
-  // Cancel button
-  MacComponent* btnCancel = createButtonComponent(210, 185, 80, 28, BTN_WIFI_CANCEL, "Cancel");
-  btnCancel->onClick = [](int componentId) { onWifiCancelButtonClick(); };
-  addChildComponent(wifiWindow, btnCancel);
-
-  // Password entry components (initially hidden - will be shown when needed)
   MacComponent* lblPassword =
       createLabelComponent(10, 42, 280, 20, LBL_WIFI_PASSWORD, "Enter password for:");
   labelData = (MacLabel*)lblPassword->customData;
@@ -375,9 +363,6 @@ void showWifiPasswordEntry() {
 
   if (wifiComponent->btnConnect)
     wifiComponent->btnConnect->visible = false;
-
-  if (wifiComponent->btnCancel)
-    wifiComponent->btnCancel->visible = false;
 
   if (wifiComponent->lblTitle)
     wifiComponent->lblTitle->visible = false;
@@ -469,9 +454,6 @@ void hideWifiPasswordEntry() {
   if (wifiComponent->btnConnect)
     wifiComponent->btnConnect->visible = true;
 
-  if (wifiComponent->btnCancel)
-    wifiComponent->btnCancel->visible = true;
-
   if (wifiComponent->lblTitle)
     wifiComponent->lblTitle->visible = true;
 
@@ -539,13 +521,11 @@ void connectToSelectedWifi(const String& password) {
   if (selectedSSID.length() == 0)
     return;
 
-  // Store connection details
   connectingSSID = selectedSSID;
   connectingPassword = password;
   isConnecting = true;
   connectionStartTime = millis();
 
-  // Stop radio if playing before attempting connection
   extern volatile bool isPlaying;
   extern QueueHandle_t audioCommandQueue;
 

@@ -6,9 +6,6 @@
 
 #include "MacUI.h"
 
-/**
- * Draw a symbol (play, pause, stop, etc.) at the specified position
- */
 void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbol, uint16_t color) {
   switch (symbol) {
     case SYMBOL_PLAY:
@@ -21,8 +18,8 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
     case SYMBOL_PAUSE: {
       int barWidth = size / 4;
       int spacing = size / 3;
-      lcd.fillRect(x+2, y, barWidth, size, color);
-      lcd.fillRect(x+2  + barWidth + spacing, y, barWidth, size, color);
+      lcd.fillRect(x + 2, y, barWidth, size, color);
+      lcd.fillRect(x + 2 + barWidth + spacing, y, barWidth, size, color);
     } break;
 
     case SYMBOL_STOP:
@@ -47,24 +44,6 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
       lcd.fillRect(x + size - 2, y, 2, size, color);
     } break;
 
-    case SYMBOL_VOL_UP:
-      lcd.fillRect(x, y + size / 3, size / 3, size / 3, color);
-      lcd.fillRect(x + size / 3, y + size / 4, size / 6, size / 2, color);
-      // Sound waves
-      for (int i = 1; i <= 3; i++) {
-        int waveX = x + size / 2 + i * size / 8;
-        int waveY = y + size / 2 - i * size / 12;
-        int waveH = i * size / 6;
-        lcd.drawFastVLine(waveX, waveY, waveH, color);
-      }
-      break;
-
-    case SYMBOL_VOL_DOWN:
-      lcd.fillRect(x, y + size / 3, size / 3, size / 3, color);
-      lcd.fillRect(x + size / 3, y + size / 4, size / 6, size / 2, color);
-      lcd.fillRect(x + size / 2 + 2, y + size / 2 - 1, size / 4, 2, color);
-      break;
-
     case SYMBOL_LIST: {
       int lineHeight = 2;
       int spacing = size / 4;
@@ -81,7 +60,7 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
   }
 }
 
-void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, const String& text, 
+void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, const String& text,
                 bool pressed, FontType font) {
   // Choose colors based on pressed state - inverted when pressed
   uint16_t bgColor = pressed ? MAC_BLACK : MAC_WHITE;
@@ -101,7 +80,7 @@ void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, 
   int16_t textWidth = lcd.textWidth(text);
 
   int textX = x + (w - textWidth) / 2;
-  int textY = y + h  / 2;
+  int textY = y + h / 2;
 
   lcd.setCursor(textX, textY);
   lcd.print(text);
@@ -113,8 +92,8 @@ void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, 
 /**
  * Draw a button with a symbol instead of text
  */
-void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, SymbolType symbol,
-                      bool pressed) {
+void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius,
+                      SymbolType symbol, bool pressed) {
   // Inverted colors when pressed
   uint16_t bgColor = pressed ? MAC_BLACK : MAC_WHITE;
   uint16_t borderColor = MAC_BLACK;
@@ -142,7 +121,7 @@ MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const St
   buttonData->pressed = false;
   buttonData->radius = BUTTON_DEFAULT_RADIUS;
   buttonData->font = FONT_CHICAGO_11PT;
-  
+
   component->customData = buttonData;
   return component;
 }

@@ -77,10 +77,10 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
   lgfx::LGFX_Device* drawTarget = useSprite ? (lgfx::LGFX_Device*)componentSprite : &lcd;
 
   // Set text properties
-  drawTarget->setTextColor(runningText.textColor, runningText.backgroundColor);  
+  drawTarget->setTextColor(runningText.textColor, runningText.backgroundColor);
   drawTarget->setFont(getFontFromType(runningText.font));
   drawTarget->setTextSize(runningText.textSize);
-  drawTarget->setTextWrap(false);  
+  drawTarget->setTextWrap(false);
   drawTarget->setTextDatum(lgfx::textdatum_t::middle_left);
 
   // Calculate text position
@@ -124,10 +124,10 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
 }
 
 MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, const String& text,
-                                         int scrollSpeed, uint16_t textColor, int textSize, FontType font) {
+                                         int scrollSpeed, uint16_t textColor, int textSize,
+                                         FontType font) {
   MacComponent* component = createComponent(COMPONENT_RUNNING_TEXT, x, y, w, h, id);
 
-  // Create running text-specific data
   MacRunningText* runningTextData = new MacRunningText();
   runningTextData->text = text;
   runningTextData->textColor = textColor;
@@ -147,10 +147,6 @@ MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, con
   return component;
 }
 
-/**
- * Helper function to update running text properties dynamically
- * Pass nullptr for parameters you don't want to change
- */
 void updateRunningTextProperties(MacComponent* component, const String* newText, int* newTextSize,
                                  uint16_t* newTextColor, uint16_t* newBgColor, int* newScrollSpeed,
                                  int* newPauseDuration, FontType* newFont) {
@@ -193,10 +189,6 @@ void updateRunningTextProperties(MacComponent* component, const String* newText,
   }
 }
 
-/**
- * Update and redraw running text components for animation
- * Call this in your UI loop to keep running text scrolling
- */
 void updateRunningTextComponents(lgfx::LGFX_Device& lcd, MacWindow& window) {
   if (!window.visible || window.childComponents == nullptr || window.childComponentCount == 0) {
     return;

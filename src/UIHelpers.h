@@ -40,4 +40,7 @@ void checkMenuBarTouch();
 // UI task
 void uiTask(void* parameter);
 
+// Helper function to get all visible windows
+MacWindow** getVisibleWindows(int& windowCount);
+
 #endif

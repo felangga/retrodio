@@ -78,7 +78,7 @@ void drawMenuBar(lgfx::LGFX_Device& lcd, const String& appName) {
   lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
   lcd.setTextDatum(textdatum_t::middle_left);
   lcd.drawString(appName, 30, 10);
-  lcd.setFont(nullptr);  
+  lcd.setFont(nullptr);
 }
 
 void drawClock(lgfx::LGFX_Device& lcd, const String& time) {
@@ -1044,9 +1044,6 @@ void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int rel
 }
 
 void handleWindowMoved(lgfx::LGFX_Device& lcd, MacWindow& window) {
-  // During dragging, don't constantly redraw - the drawing happens in interactiveWindow
-  // This callback is just for notification purposes
-  // Components are positioned relative to window, so no updates needed
 }
 
 // ===== WINDOW MANAGER IMPLEMENTATION =====
@@ -1113,6 +1110,15 @@ void redrawAllWindowsExcept(lgfx::LGFX_Device& lcd, MacWindow* exceptWindow) {
       drawWindow(lcd, *registeredWindows[i]);
     }
   }
+}
+
+/**
+ * Get all registered windows
+ * Returns array of registered windows (caller must check nullptr, visible, minimized)
+ */
+MacWindow** getRegisteredWindows(int& windowCount) {
+  windowCount = MAX_WINDOWS;
+  return registeredWindows;
 }
 
 /**

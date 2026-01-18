@@ -201,9 +201,9 @@ MacWindow confirmDeleteWindow{100,
                               0,
                               0};
 
-MacWindow wifiWindow{60,
+MacWindow wifiWindow{80,
                      40,
-                     310,
+                     300,
                      225,
                      "WiFi Networks",
                      false,
