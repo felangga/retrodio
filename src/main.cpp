@@ -297,11 +297,6 @@ void setup() {
   showNotification("Connecting to WiFi...");
   initWiFiAsync();
 
-  // Wait for WiFi connection before proceeding
-  // while (isWiFiConnecting()) {
-  //   vTaskDelay(pdMS_TO_TICKS(100));
-  // }
-
   if (isWiFiConnected()) {
     DEBUG_PRINTLN("WiFi connected!");
     showNotification("WiFi Connected!", 2000);
