@@ -9,6 +9,7 @@
 #include "NetworkHandlers.h"
 #include <WiFi.h>
 #include <time.h>
+#include "ConfigManager.h"
 #include "config.h"
 
 #define ENABLE_SERIAL_DEBUG 0
@@ -50,9 +51,25 @@ void initWiFiAsync() {
   WiFi.onEvent(onWiFiEvent);
   WiFi.mode(WIFI_STA);
   delay(100);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  wifiConnecting = true;
-  wifiConnected = false;
+
+  // Load WiFi credentials from config
+  String savedSSID = ConfigManager::getWifiSSID();
+  String savedPassword = ConfigManager::getWifiPassword();
+
+  if (savedSSID.length() > 0) {
+    // Use saved credentials
+    if (savedPassword.length() > 0) {
+      WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
+    } else {
+      WiFi.begin(savedSSID.c_str());
+    }
+    wifiConnecting = true;
+    wifiConnected = false;
+  } else {
+    // No saved credentials, don't attempt to connect
+    wifiConnecting = false;
+    wifiConnected = false;
+  }
 }
 
 bool isWiFiConnecting() {
@@ -61,24 +78,4 @@ bool isWiFiConnecting() {
 
 bool isWiFiConnected() {
   return wifiConnected && (WiFi.status() == WL_CONNECTED);
-}
-
-bool connectToWiFi() {
-  WiFi.mode(WIFI_STA);
-  delay(100);
-
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
-    delay(1000);
-    attempts++;
-  }
-
-  if (WiFi.status() == WL_CONNECTED) {
-    configTime(GMT_OFFSET_SEC, DST_OFFSET_SEC, NTP_SERVER);
-    return true;
-  } else {
-    return false;
-  }
 }

@@ -491,6 +491,38 @@ void onWifiCancelButtonClick() {
   // Clean up
   cleanupWifiList();
 
+  // Try to connect to saved WiFi credentials if available
+  String savedSSID = ConfigManager::getWifiSSID();
+  String savedPassword = ConfigManager::getWifiPassword();
+
+  if (savedSSID.length() > 0) {
+    showNotification("Connecting to WiFi...");
+    WiFi.disconnect();
+    WiFi.mode(WIFI_STA);
+    delay(100);
+
+    if (savedPassword.length() > 0) {
+      WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
+    } else {
+      WiFi.begin(savedSSID.c_str());
+    }
+
+    // Wait briefly for connection (non-blocking approach)
+    unsigned long startTime = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - startTime < 5000) {
+      delay(100);
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+      hideNotification();
+      showNotification("WiFi Connected!", 2000);
+      drawWifiSignal(lcd, WiFi.RSSI());
+    } else {
+      hideNotification();
+      showNotification("WiFi connection failed", 3000);
+    }
+  }
+
   // Redraw and restore radio window
   lcd.startWrite();
   drawCheckeredPatternArea(lcd, wifiWindow.x, wifiWindow.y, wifiWindow.w + 5, wifiWindow.h + 5);
