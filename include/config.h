@@ -3,19 +3,13 @@
  *
  * Copyright (c) 2025 felangga
  *
- * This file contains all configuration settings for the radio application.
- * Modify these values according to your setup.
  */
 
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// ===== WiFi Configuration =====
-#define WIFI_SSID "felangga"
-#define WIFI_PASSWORD "88888888"
-
 // ===== Audio Settings =====
-#define DEFAULT_VOLUME 10 // Range: 0-21
+#define DEFAULT_VOLUME 10  // Range: 0-21
 
 // ===== NTP Configuration =====
 #define NTP_SERVER "pool.ntp.org"
