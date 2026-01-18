@@ -100,7 +100,6 @@ void onPlay() {
     isPlaying = false;
     updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
   } else {
-    // Check WiFi connection before trying to play
     if (!isWiFiConnected()) {
       showNotification("No WiFi connection!", 2000);
       return;

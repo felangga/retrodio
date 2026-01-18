@@ -79,13 +79,11 @@ static int lastRssi = 1;  // Use 1 as "not yet initialized" (valid RSSI is alway
 
 void updateWifiSignal() {
   unsigned long now = millis();
-  // Update every 2 seconds to avoid frequent redraws
   if (now - lastWifiUpdate < 2000)
     return;
   lastWifiUpdate = now;
 
   if (WiFi.status() != WL_CONNECTED) {
-    // Not connected - show no signal
     if (lastRssi != -100) {
       lastRssi = -100;
       drawWifiSignal(lcd, lastRssi);
@@ -101,12 +99,10 @@ void updateWifiSignal() {
   lcd.setCursor(328, 11);
   lcd.println(String(rssi) + " dBm");
 
-  // RSSI returns 0 if not available, treat as no signal
   if (rssi == 0) {
     rssi = -100;
   }
 
-  // Redraw if first time (lastRssi > 0) or signal changed significantly (by 5 dBm)
   if (lastRssi > 0 || abs(rssi - lastRssi) >= 5) {
     lastRssi = rssi;
     drawWifiSignal(lcd, rssi);
@@ -125,7 +121,6 @@ void showNotification(const String& message, unsigned long duration) {
   notificationStartTime = millis();
   notificationVisible = true;
 
-  // Update the bottom bar with the notification message
   drawBottomBar(lcd, message);
 }
 
@@ -133,7 +128,6 @@ MacWindow** getVisibleWindows(int& windowCount) {
   static MacWindow* visibleWindows[10];
   windowCount = 0;
 
-  // Get all registered windows from the window manager
   int totalWindows = 0;
   MacWindow** allWindows = getRegisteredWindows(totalWindows);
 
@@ -141,7 +135,6 @@ MacWindow** getVisibleWindows(int& windowCount) {
     return visibleWindows;
   }
 
-  // Filter only visible and non-minimized windows
   for (int i = 0; i < totalWindows; i++) {
     if (allWindows[i] != nullptr && allWindows[i]->visible && !allWindows[i]->minimized) {
       visibleWindows[windowCount++] = allWindows[i];
@@ -158,7 +151,6 @@ void hideNotification() {
   notificationVisible = false;
   notificationMessage = "";
 
-  // Clear the bottom bar by redrawing it with empty message
   drawBottomBar(lcd, "");
 }
 
@@ -166,7 +158,6 @@ void updateNotification() {
   if (!notificationVisible)
     return;
 
-  // Check if notification should auto-hide
   if (notificationDuration > 0) {
     unsigned long elapsed = millis() - notificationStartTime;
     if (elapsed >= notificationDuration) {
@@ -262,60 +253,43 @@ void adjustWindowForKeyboard(MacWindow& window, MacComponent* inputComponent, bo
     return;
   }
 
-  // Store original window position
   static int originalWindowY = -1;
 
   if (show) {
-    // Save original position if not already saved
     if (originalWindowY == -1) {
       originalWindowY = window.y;
     }
 
-    // Calculate keyboard Y position
     int keyboardHeight = screenHeight / 2;
     int keyboardY = screenHeight - keyboardHeight;
 
-    // Calculate input field's absolute bottom position
     int inputAbsoluteY = window.y + inputComponent->y;
     int inputBottom = inputAbsoluteY + inputComponent->h;
 
-    // Check if input field would be covered by keyboard
     if (inputBottom > keyboardY) {
-      // Calculate how much we need to move the window up
-      int overlap = inputBottom - keyboardY + 10;  // +10 for some padding
+      int overlap = inputBottom - keyboardY + 10;
 
-      // Calculate new window position
       int newY = window.y - overlap;
 
-      // Make sure window doesn't go above menu bar (y >= 21)
       newY = max(21, newY);
 
-      // Only move if position changed
       if (newY != window.y) {
-        // Clear old window position
         drawCheckeredPatternArea(lcd, window.x, window.y, window.w + 5, window.h + 5);
 
-        // Update window position
         window.y = newY;
 
-        // Redraw window at new position
         drawWindow(lcd, window);
       }
     }
   } else {
-    // Restore original position when keyboard is hidden
     if (originalWindowY != -1 && window.y != originalWindowY) {
-      // Clear current window position
       drawCheckeredPatternArea(lcd, window.x, window.y, window.w + 5, window.h + 5);
 
-      // Restore original position
       window.y = originalWindowY;
 
-      // Redraw window at original position
       drawWindow(lcd, window);
     }
 
-    // Reset saved position
     originalWindowY = -1;
   }
 }

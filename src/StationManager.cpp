@@ -226,7 +226,6 @@ void onAddStationButtonClick() {
   isEditMode = false;
   stationToEditIndex = -1;
 
-  // Clear input fields
   MacComponent* nameInputComp = findComponentById(addStationWindow, INPUT_STATION_NAME);
   MacComponent* urlInputComp = findComponentById(addStationWindow, INPUT_STATION_URL);
 
@@ -256,7 +255,6 @@ void onEditStationButtonClick() {
   extern const int INPUT_STATION_NAME;
   extern const int INPUT_STATION_URL;
 
-  // Find the station list component to get selected index
   MacComponent* stationListComp = findComponentById(stationWindow, 300);
 
   if (stationListComp && stationListComp->customData) {
@@ -266,7 +264,6 @@ void onEditStationButtonClick() {
       isEditMode = true;
       stationToEditIndex = listViewData->selectedIndex;
 
-      // Load station data into input fields
       Station station = ConfigManager::getStation(stationToEditIndex);
 
       MacComponent* nameInputComp = findComponentById(addStationWindow, INPUT_STATION_NAME);
@@ -314,10 +311,8 @@ void onSaveStationButtonClick() {
       bool success = false;
 
       if (isEditMode && stationToEditIndex >= 0) {
-        // Update existing station
         success = ConfigManager::updateStation(stationToEditIndex, stationName, stationURL);
       } else {
-        // Add new station
         success = ConfigManager::addStation(stationName, stationURL);
       }
 
@@ -330,7 +325,6 @@ void onSaveStationButtonClick() {
         urlInput->text = "";
         urlInput->cursorPos = 0;
 
-        // Reset edit mode
         isEditMode = false;
         stationToEditIndex = -1;
       } else {
@@ -344,7 +338,6 @@ void onSaveStationButtonClick() {
     keyboard->visible = false;
   }
 
-  // Restore window position before hiding
   adjustWindowForKeyboard(addStationWindow, nullptr, false);
 
   addStationWindow.visible = false;
@@ -362,7 +355,6 @@ void onCancelAddStationButtonClick() {
     keyboard->visible = false;
   }
 
-  // Restore window position before hiding
   adjustWindowForKeyboard(addStationWindow, nullptr, false);
 
   addStationWindow.visible = false;
@@ -375,17 +367,14 @@ void onCancelAddStationButtonClick() {
 }
 
 void onDeleteStationButtonClick() {
-  // Find the station list component to get selected index
   MacComponent* stationListComp = findComponentById(stationWindow, 300);
 
   if (stationListComp && stationListComp->customData) {
     MacListView* listViewData = (MacListView*)stationListComp->customData;
 
     if (listViewData->selectedIndex >= 0 && listViewData->selectedIndex < ConfigManager::getStationCount()) {
-      // Store the station index to delete
       stationToDeleteIndex = listViewData->selectedIndex;
 
-      // Show confirmation dialog
       stationWindow.visible = false;
       stationWindow.active = false;
 
