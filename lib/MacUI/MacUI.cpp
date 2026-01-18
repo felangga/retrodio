@@ -81,6 +81,24 @@ void drawMenuBar(lgfx::LGFX_Device& lcd, const String& appName) {
   lcd.setFont(nullptr);
 }
 
+void drawBottomBar(lgfx::LGFX_Device& lcd, const String& message) {
+  int barHeight = 20;
+  int barY = screenHeight - barHeight;
+
+  // Draw bar background and border
+  lcd.fillRect(0, barY, screenWidth, barHeight, MAC_WHITE);
+  lcd.drawFastHLine(0, barY, screenWidth, MAC_BLACK);
+
+  // Draw message if provided
+  if (message.length() > 0) {
+    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+    lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+    lcd.setTextDatum(textdatum_t::middle_center);
+    lcd.drawString(message, screenWidth / 2, barY + barHeight / 2);
+    lcd.setFont(nullptr);
+  }
+}
+
 void drawClock(lgfx::LGFX_Device& lcd, const String& time) {
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
   lcd.fillRect(screenWidth - 80, 0, 80, 20, MAC_WHITE);
@@ -130,7 +148,19 @@ void drawWifiSignal(lgfx::LGFX_Device& lcd, int rssi) {
 
 void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& title,
                 bool active, bool showMinimizeButton) {
-  lcd.fillRect(x + 3, y + 3, w, h, MAC_DARK_GRAY);
+  // Draw shadow, but clip it to not overlap the bottom bar
+  int shadowY = y + 3;
+  int shadowHeight = h;
+  int bottomBarY = screenHeight - 20;
+
+  // If shadow would extend into bottom bar, clip it
+  if (shadowY + shadowHeight > bottomBarY) {
+    shadowHeight = max(0, bottomBarY - shadowY);
+  }
+
+  if (shadowHeight > 0) {
+    lcd.fillRect(x + 3, shadowY, w, shadowHeight, MAC_DARK_GRAY);
+  }
 
   lcd.fillRect(x, y, w, h, MAC_WHITE);
 
@@ -428,7 +458,7 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
 
         // Constrain window to screen bounds
         newX = max(0, min(newX, (int)screenWidth - window.w));
-        newY = max(21, min(newY, (int)screenHeight - window.h));  // 21 to leave menu bar visible
+        newY = max(21, min(newY, (int)screenHeight - 20 - window.h));  // 21 for menu bar, 20 for bottom bar
 
         // Only update if position actually changed significantly (reduce micro-movements)
         if (abs(newX - lastDrawnX) > 8 || abs(newY - lastDrawnY) > 8) {
@@ -530,7 +560,7 @@ void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window) {
  */
 void drawCheckeredPattern(lgfx::LGFX_Device& lcd) {
   int patternSize = 3;
-  for (int y = 21; y < screenHeight; y += patternSize) {
+  for (int y = 21; y < screenHeight - 20; y += patternSize) {  // Stop 20px before bottom for bottom bar
     for (int x = 0; x < screenWidth; x += patternSize) {
       if ((x / patternSize + y / patternSize) % 2 == 0) {
         lcd.fillRect(x, y, patternSize, patternSize, MAC_LIGHT_GRAY);
@@ -548,7 +578,7 @@ void drawCheckeredPatternArea(lgfx::LGFX_Device& lcd, int startX, int startY, in
   // Constrain to valid screen area
   startY = max(21, startY);  // Don't draw over menu bar
   int endX = min((int)screenWidth, startX + w);
-  int endY = min((int)screenHeight, startY + h);
+  int endY = min((int)screenHeight - 20, startY + h);  // Don't draw over bottom bar
 
   // Align to pattern grid for seamless appearance
   int gridStartX = (startX / patternSize) * patternSize;
@@ -596,8 +626,19 @@ void renderToSprite(MacWindow* draggedWindow) {
         // Adjust coordinates for sprite (sprite starts at y=21 on screen)
         int spriteY = win->y - 21;
 
-        // Draw window shadow
-        windowSprite->fillRect(win->x + 3, spriteY + 3, win->w, win->h, MAC_DARK_GRAY);
+        // Draw window shadow, but clip it to not overlap the bottom bar
+        int shadowSpriteY = spriteY + 3;
+        int shadowHeight = win->h;
+        int bottomBarSpriteY = (screenHeight - 20) - 21;  // Bottom bar position in sprite coords
+
+        // If shadow would extend into bottom bar, clip it
+        if (shadowSpriteY + shadowHeight > bottomBarSpriteY) {
+          shadowHeight = max(0, bottomBarSpriteY - shadowSpriteY);
+        }
+
+        if (shadowHeight > 0) {
+          windowSprite->fillRect(win->x + 3, shadowSpriteY, win->w, shadowHeight, MAC_DARK_GRAY);
+        }
 
         // Draw window background
         windowSprite->fillRect(win->x, spriteY, win->w, win->h, MAC_WHITE);
