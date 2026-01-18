@@ -386,6 +386,7 @@ void registerWindow(MacWindow* window);
 void unregisterWindow(MacWindow* window);
 void redrawAllWindows(lgfx::LGFX_Device& lcd);
 void redrawAllWindowsExcept(lgfx::LGFX_Device& lcd, MacWindow* exceptWindow);
+MacWindow** getRegisteredWindows(int& windowCount);
 void showWindowOnTop(lgfx::LGFX_Device& lcd, MacWindow& window);
 
 // ===== DOUBLE BUFFERING =====

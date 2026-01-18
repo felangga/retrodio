@@ -77,5 +77,7 @@ void setupOTA() {
 }
 
 void handleOTA() {
-  ArduinoOTA.handle();
+  if (WiFi.isConnected()) {
+    ArduinoOTA.handle();
+  }
 }

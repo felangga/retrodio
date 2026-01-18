@@ -112,7 +112,6 @@ void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInput
     lcd.drawRect(x, y, w, h, MAC_BLACK);
   }
 
-  // Reset font to default
   lcd.setFont(nullptr);
 }
 

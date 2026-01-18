@@ -36,6 +36,12 @@ void onConfirmDeleteWindowClose();
 void onConfirmDeleteWindowContentClick(int relativeX, int relativeY);
 void onConfirmDeleteWindowMoved();
 
+// WiFi window callbacks
+void onWifiWindowMinimize();
+void onWifiWindowClose();
+void onWifiWindowContentClick(int relativeX, int relativeY);
+void onWifiWindowMoved();
+void onWifiSignalClick();
 
 // Station window button callbacks
 void onStationButtonClick();

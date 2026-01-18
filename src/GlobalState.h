@@ -54,6 +54,18 @@ extern const int BTN_DELETE_STATION;
 extern const int BTN_CONFIRM_YES;
 extern const int BTN_CONFIRM_NO;
 
+// WiFi Window Components
+extern const int WIFI_LIST_COMPONENT;
+extern const int BTN_WIFI_CONNECT;
+extern const int BTN_WIFI_CANCEL;
+extern const int BTN_WIFI_REFRESH;
+extern const int LBL_WIFI_TITLE;
+extern const int INPUT_WIFI_PASSWORD;
+extern const int LBL_WIFI_PASSWORD;
+extern const int BTN_WIFI_PASSWORD_OK;
+extern const int BTN_WIFI_PASSWORD_CANCEL;
+extern const int WIFI_KEYBOARD_COMPONENT;
+
 // Global Objects
 extern LGFX lcd;
 extern Audio audio;
@@ -119,8 +131,10 @@ extern MacWindow radioWindow;
 extern MacWindow stationWindow;
 extern MacWindow addStationWindow;
 extern MacWindow confirmDeleteWindow;
+extern MacWindow wifiWindow;
 extern DesktopIcon radioIcon;
 extern MacComponent* globalKeyboard;
+extern MacComponent* wifiKeyboard;
 extern int stationToDeleteIndex;
 extern bool isEditMode;
 extern int stationToEditIndex;

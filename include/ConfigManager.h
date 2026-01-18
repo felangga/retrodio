@@ -52,6 +52,11 @@ class ConfigManager {
   static bool updateStation(int index, const String& name, const String& url);
   static void clearStations();
 
+  // WiFi credentials management
+  static String getWifiSSID();
+  static String getWifiPassword();
+  static void setWifiCredentials(const String& ssid, const String& password);
+
   // Utility functions
   static void factoryReset();
   static void printDebugInfo();
@@ -60,6 +65,8 @@ class ConfigManager {
   // Current settings
   static int volume;
   static LastStation lastStation;
+  static String wifiSSID;
+  static String wifiPassword;
 
   // Station list
   static Station stations[MAX_STATIONS];

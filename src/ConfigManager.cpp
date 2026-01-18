@@ -6,22 +6,19 @@
 
 #include "ConfigManager.h"
 
-// Static member initialization
 int ConfigManager::volume = 5;
 LastStation ConfigManager::lastStation = {"", ""};
+String ConfigManager::wifiSSID = "";
+String ConfigManager::wifiPassword = "";
 Station ConfigManager::stations[MAX_STATIONS];
 int ConfigManager::stationCount = 0;
 
-/**
- * Initialize the file system and load configurations
- */
 bool ConfigManager::begin() {
   // Initialize LittleFS
   if (!LittleFS.begin(true)) {  // true = format on failure
     return false;
   }
 
-  // Load settings and stations
   if (!loadSettings()) {
     createDefaultSettings();
   }
@@ -55,6 +52,8 @@ bool ConfigManager::loadSettings() {
   volume = doc["volume"] | 5;
   lastStation.name = doc["lastStationName"] | "";
   lastStation.url = doc["lastStationURL"] | "";
+  wifiSSID = doc["wifiSSID"] | "";
+  wifiPassword = doc["wifiPassword"] | "";
 
   return true;
 }
@@ -68,6 +67,8 @@ bool ConfigManager::saveSettings() {
   doc["volume"] = volume;
   doc["lastStationName"] = lastStation.name;
   doc["lastStationURL"] = lastStation.url;
+  doc["wifiSSID"] = wifiSSID;
+  doc["wifiPassword"] = wifiPassword;
 
   // Write to file
   File file = LittleFS.open(SETTINGS_FILE, "w");
@@ -243,6 +244,29 @@ void ConfigManager::clearStations() {
 }
 
 /**
+ * Get saved WiFi SSID
+ */
+String ConfigManager::getWifiSSID() {
+  return wifiSSID;
+}
+
+/**
+ * Get saved WiFi password
+ */
+String ConfigManager::getWifiPassword() {
+  return wifiPassword;
+}
+
+/**
+ * Set WiFi credentials and save
+ */
+void ConfigManager::setWifiCredentials(const String& ssid, const String& password) {
+  wifiSSID = ssid;
+  wifiPassword = password;
+  saveSettings();
+}
+
+/**
  * Reset to factory defaults
  */
 void ConfigManager::factoryReset() {
@@ -278,8 +302,8 @@ bool ConfigManager::createDefaultStations() {
   addStation("Sonora FM", "https://cast3.asurahosting.com/proxy/radios28/stream");
   addStation("BBC World Service",
              "https://radio.garden/api/ara/content/listen/FXyhz9Xk/channel.mp3?1766930004566");
-  addStation("TEST",
-             "https://streamcdnb4-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S97044836/tbbP8T1ZRPBL/playlist_audio.m3u8");
+  addStation("TEST", "https://streamcdnb4-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/"
+                     "S97044836/tbbP8T1ZRPBL/playlist_audio.m3u8");
   return true;
 }
 
