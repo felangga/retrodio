@@ -670,6 +670,36 @@ void uiTask(void* parameter) {
     updateNotification();
     updateVolumeDisplay();
 
+    // Check for UI redraw requests from web server
+    extern volatile bool needsVolumeSliderRedraw;
+    extern volatile bool needsStationListReload;
+    extern const int CMP_VOLUME_SLIDER;
+
+    if (needsVolumeSliderRedraw) {
+      needsVolumeSliderRedraw = false;
+      if (radioWindow.visible && !radioWindow.minimized) {
+        MacComponent* volumeSlider = findComponentById(radioWindow, CMP_VOLUME_SLIDER);
+        if (volumeSlider) {
+          lcd.startWrite();
+          drawComponent(lcd, *volumeSlider, radioWindow.x, radioWindow.y);
+          lcd.endWrite();
+        }
+      }
+    }
+
+    if (needsStationListReload) {
+      needsStationListReload = false;
+      reloadStationList();
+      // Always reinitialize the station window to update the list view with the new stationItems pointer
+      initializeStationWindow();
+      // Only redraw if the window is visible
+      if (stationWindow.visible && !stationWindow.minimized) {
+        lcd.startWrite();
+        drawWindow(lcd, stationWindow);
+        lcd.endWrite();
+      }
+    }
+
     // Check WiFi connection status (non-blocking)
     updateWifiConnectionStatus();
 

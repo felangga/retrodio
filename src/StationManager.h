@@ -14,6 +14,7 @@
 // Station list management
 extern MacListViewItem* stationItems;
 extern int stationItemCount;
+extern SemaphoreHandle_t stationListMutex;
 
 void reloadStationList();
 void switchToStation(int index);

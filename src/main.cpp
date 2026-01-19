@@ -30,6 +30,7 @@
 #include "UIHelpers.h"
 #include "WifiWindow.h"
 #include "WindowCallbacks.h"
+#include "WebServer.h"
 
 // ===== DEBUG CONFIGURATION =====
 #define ENABLE_SERIAL_DEBUG 1
@@ -118,6 +119,9 @@ float cpuUsage1 = 0.0;
 unsigned long volumeChangeTime = 0;
 bool volumeDisplayActive = false;
 String savedStationName = "";
+
+volatile bool needsVolumeSliderRedraw = false;
+volatile bool needsStationListReload = false;
 
 volatile bool isPlaying = false;
 String currentStationName = "Retrodio";
@@ -318,6 +322,15 @@ void setup() {
 
   initializeAudio();
 
+  // Initialize web server if WiFi is connected
+  if (isWiFiConnected()) {
+    initWebServer();
+    String ipAddress = WiFi.localIP().toString();
+    DEBUG_PRINT("Web server available at: http://");
+    DEBUG_PRINTLN(ipAddress);
+    showNotification("Web: " + ipAddress, 5000);
+  }
+
   audio.setVolume(ConfigManager::getVolume());
   audio.setAudioTaskCore(0);
 
@@ -354,5 +367,6 @@ void setup() {
 
 void loop() {
   handleOTA();
+  handleWebServer();
   vTaskDelay(10);
 }

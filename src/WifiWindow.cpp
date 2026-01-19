@@ -14,6 +14,16 @@
 #include "WindowCallbacks.h"
 #include "wt32_sc01_plus.h"
 
+#if ENABLE_SERIAL_DEBUG
+#define DEBUG_PRINT(x) Serial.print(x)
+#define DEBUG_PRINTLN(x) Serial.println(x)
+#define DEBUG_PRINTF(...) Serial.printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(x)
+#define DEBUG_PRINTLN(x)
+#define DEBUG_PRINTF(...)
+#endif
+
 // WiFi network list items
 static MacListViewItem* wifiItems = nullptr;
 static int wifiItemCount = 0;
@@ -642,6 +652,17 @@ void updateWifiConnectionStatus() {
 
     drawWifiSignal(lcd, WiFi.RSSI());
     triggerPlayAudioOnConnect();
+
+    // Initialize web server when WiFi connects (if not already initialized)
+    extern void initWebServer();
+    initWebServer();
+
+    // Always show the IP address notification when WiFi connects
+    String ipAddress = WiFi.localIP().toString();
+    DEBUG_PRINT("Web server available at: http://");
+    DEBUG_PRINTLN(ipAddress);
+    showNotification("Web: " + ipAddress, 5000);
+
     return;
   }
 
