@@ -12,8 +12,8 @@
 
 #include <LovyanGFX.hpp>
 #include "Arduino.h"
-#include "wt32_sc01_plus.h"
 #include "ChicagoFont.h"
+#include "wt32_sc01_plus.h"
 
 // Forward declarations for screen dimensions (defined in wt32_sc01_plus.h)
 extern const uint32_t screenWidth;
@@ -33,7 +33,7 @@ extern lgfx::LGFX_Sprite* componentSprite;
 // ===== CHICAGO FONT =====
 #define CHICAGO14_FONT &Chicago14pt
 #define CHICAGO11_FONT &Chicago11pt
-#define CHICAGO9_FONT  &Chicago9pt
+#define CHICAGO9_FONT &Chicago9pt
 
 enum FontType {
   FONT_CHICAGO_9PT,
@@ -51,7 +51,9 @@ const GFXfont* getFontFromType(FontType fontType);
 // ===== WINDOW LAYOUT CONSTANTS =====
 #define TITLE_BAR_HEIGHT 32
 #define TITLE_BAR_BORDER 2
-#define CONTENT_START_Y (TITLE_BAR_BORDER + TITLE_BAR_HEIGHT + 8)  // Start Y position for window content (border + title bar + margin)
+#define CONTENT_START_Y                  \
+  (TITLE_BAR_BORDER + TITLE_BAR_HEIGHT + \
+   8)  // Start Y position for window content (border + title bar + margin)
 
 // ===== COMPONENT TYPES =====
 enum ComponentType {
@@ -93,9 +95,9 @@ struct MacComponent {
   int radius;
   bool visible;
   bool enabled;
-  void (*onClick)(int componentId);  // Generic callback with component ID
+  void (*onClick)(int componentId);                    // Generic callback with component ID
   void (*onValueChanged)(int componentId, int value);  // Callback for value changes (e.g., sliders)
-  void* customData;                  // Pointer to component-specific data
+  void* customData;                                    // Pointer to component-specific data
 };
 
 // ===== BUTTON STRUCT =====
@@ -105,7 +107,7 @@ struct MacButton {
   String text;
   SymbolType symbol;  // symbol to draw instead of text (SYMBOL_NONE for text buttons)
   bool pressed;       // current pressed state
-  int radius; 
+  int radius;
   FontType font;
 };
 
@@ -151,20 +153,20 @@ struct MacKeyboard {
   int y;
   int w;
   int h;
-  int targetInputId;  // ID of the input field this keyboard is linked to
-  bool shiftActive;   // Shift key state (for uppercase)
-  bool shiftLocked;   // Shift lock state (caps lock mode via double-tap)
+  int targetInputId;                 // ID of the input field this keyboard is linked to
+  bool shiftActive;                  // Shift key state (for uppercase)
+  bool shiftLocked;                  // Shift lock state (caps lock mode via double-tap)
   unsigned long lastShiftPressTime;  // Timestamp of last shift press for double-tap detection
-  int selectedKey;    // Currently highlighted key (-1 for none)
+  int selectedKey;                   // Currently highlighted key (-1 for none)
   // Key repeat tracking
-  bool isKeyPressed;           // Is a key currently being held
-  unsigned long keyPressStart; // When the key was first pressed
-  unsigned long lastRepeat;    // Last time the key was repeated
-  int pressedRow;              // Which row is being pressed (-1 for special keys)
-  int pressedKeyIndex;         // Which key in the row is being pressed
-  char lastPressedChar;        // The character of the last pressed key
-  bool isBackspace;            // Is backspace being held
-  bool isSpace;                // Is space being held
+  bool isKeyPressed;            // Is a key currently being held
+  unsigned long keyPressStart;  // When the key was first pressed
+  unsigned long lastRepeat;     // Last time the key was repeated
+  int pressedRow;               // Which row is being pressed (-1 for special keys)
+  int pressedKeyIndex;          // Which key in the row is being pressed
+  char lastPressedChar;         // The character of the last pressed key
+  bool isBackspace;             // Is backspace being held
+  bool isSpace;                 // Is space being held
 };
 
 // ===== CHECKBOX STRUCT =====
@@ -222,7 +224,7 @@ struct MacListView {
   int visibleItemCount;    // Number of items visible at once
   uint16_t textColor;
   uint16_t backgroundColor;
-  uint16_t selectedColor;                          // Background color for selected item
+  uint16_t selectedColor;  // Background color for selected item
   int textSize;
   FontType font;
   void (*onItemClick)(int index, void* itemData);  // Callback when item is clicked
@@ -245,8 +247,8 @@ struct MacWindow {
   bool active;
   bool minimized;
   bool visible;
-  void (*onMinimize)();                   // callback when minimize button is clicked
-  void (*onClose)();                      // callback when close button is clicked
+  void (*onMinimize)();  // callback when minimize button is clicked
+  void (*onClose)();     // callback when close button is clicked
   void (*onContentClick)(int relativeX,
                          int relativeY);  // callback for content clicks with relative coordinates
   void (*onWindowMoved)();                // callback when window position changes
@@ -277,11 +279,12 @@ struct DesktopIcon {
 
 // Main UI drawing functions
 void drawMenuBar(lgfx::LGFX_Device& lcd, const String& appName);
-void drawBottomBar(lgfx::LGFX_Device& lcd, const String& message = "");  // Bottom notification bar
+void drawBottomBar(lgfx::LGFX_Device& lcd, const String& message = "",
+                   bool highlight = false);  // Bottom notification bar
 void drawCheckeredPattern(lgfx::LGFX_Device& lcd);
 void drawCheckeredPatternArea(lgfx::LGFX_Device& lcd, int x, int y, int w, int h);
 void drawClock(lgfx::LGFX_Device& lcd, const String& time);  // added clock drawing
-void drawWifiSignal(lgfx::LGFX_Device& lcd, int rssi);  // WiFi signal strength indicator
+void drawWifiSignal(lgfx::LGFX_Device& lcd, int rssi);       // WiFi signal strength indicator
 
 // Window and dialog functions
 void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& title,
@@ -290,8 +293,8 @@ void drawWindow(lgfx::LGFX_Device& lcd,
                 const MacWindow& window);  // overloaded version for MacWindow struct
 void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, const String& text,
                 bool pressed = false, FontType font = FONT_DEFAULT);
-void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, SymbolType symbol,
-                      bool pressed = false);
+void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius,
+                      SymbolType symbol, bool pressed = false);
 void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbol,
                 uint16_t color = MAC_BLACK);
 void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h);
@@ -342,7 +345,7 @@ MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, con
 MacComponent* createListViewComponent(int x, int y, int w, int h, int id, MacListViewItem* items,
                                       int itemCount, int itemHeight = 30);
 MacComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
-                                        const String& placeholder = "", int maxLength = 50, 
+                                        const String& placeholder = "", int maxLength = 50,
                                         const String& defaultText = "");
 MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int targetInputId);
 MacComponent* createSliderComponent(int x, int y, int w, int h, int id, int minVal, int maxVal,
@@ -359,7 +362,8 @@ void updateInputFieldComponents(lgfx::LGFX_Device& lcd, MacWindow& window);
 
 // Helper to handle keyboard touch input
 bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent,
-                         MacComponent* inputComponent, int touchX, int touchY, MacWindow* window = nullptr);
+                         MacComponent* inputComponent, int touchX, int touchY,
+                         MacWindow* window = nullptr);
 
 // Helper to handle keyboard key repeat (call this continuously in the UI loop)
 void handleKeyboardRepeat(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent,
@@ -371,7 +375,8 @@ void handleWindowClose(lgfx::LGFX_Device& lcd, MacWindow& window,
                        DesktopIcon* associatedIcon = nullptr);
 void handleWindowMinimize(lgfx::LGFX_Device& lcd, MacWindow& window,
                           DesktopIcon* associatedIcon = nullptr);
-void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window, DesktopIcon* associatedIcon = nullptr);
+void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window,
+                     DesktopIcon* associatedIcon = nullptr);
 void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int relativeX,
                               int relativeY);
 void handleWindowMoved(lgfx::LGFX_Device& lcd, MacWindow& window);

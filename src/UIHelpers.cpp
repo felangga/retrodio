@@ -121,7 +121,7 @@ void showNotification(const String& message, unsigned long duration) {
   notificationStartTime = millis();
   notificationVisible = true;
 
-  drawBottomBar(lcd, message);
+  drawBottomBar(lcd, message, true);
 }
 
 MacWindow** getVisibleWindows(int& windowCount) {
@@ -151,7 +151,7 @@ void hideNotification() {
   notificationVisible = false;
   notificationMessage = "";
 
-  drawBottomBar(lcd, "");
+  drawBottomBar(lcd, "", false);
 }
 
 void updateNotification() {
@@ -219,7 +219,7 @@ void drawInterface(lgfx::LGFX_Device& lcd) {
   lcd.fillScreen(MAC_WHITE);
   drawCheckeredPattern(lcd);
   drawMenuBar(lcd, "Retrodio");
-  drawBottomBar(lcd, "");
+  drawBottomBar(lcd, "", false);
 
   initializeRadioWindow();
   initializeStationWindow();
@@ -555,7 +555,6 @@ void checkMenuBarTouch() {
 void handleWifiKeyboardInteraction() {
   extern MacComponent* wifiKeyboard;
   extern MacWindow wifiWindow;
-  extern const int INPUT_WIFI_PASSWORD;
 
   if (!wifiKeyboard)
     return;
@@ -620,8 +619,8 @@ void handleWifiKeyboardInteraction() {
     handleKeyboardRepeat(lcd, wifiKeyboard, targetInputComp, &wifiWindow);
   } else if (!touchInWindow) {
     // Touch is completely outside the window - hide keyboard and restore list view
-    extern void hideWifiPasswordEntry();
-    hideWifiPasswordEntry();
+    extern void hideWifiKeyboard();
+    hideWifiKeyboard();
   }
 }
 
@@ -680,20 +679,6 @@ void uiTask(void* parameter) {
       if (wifiWindow.visible) {
         updateInputFieldComponents(lcd, wifiWindow);
       }
-      // Only redraw the WiFi keyboard if its state changed (dirty flag)
-      static bool lastKeyboardVisible = false;
-      MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
-      if (keyboard->visible && !lastKeyboardVisible) {
-        int keyboardHeight = screenHeight / 2;
-        int keyboardY = screenHeight - keyboardHeight;
-        drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
-        drawKeyboard(lcd, keyboard->x, keyboard->y, keyboard->w, keyboard->h, *keyboard);
-      } else if (!keyboard->visible && lastKeyboardVisible) {
-        int keyboardHeight = screenHeight / 2;
-        int keyboardY = screenHeight - keyboardHeight;
-        drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
-      }
-      lastKeyboardVisible = keyboard->visible;
     }
 
     if (!keyboardActive && !wifiKeyboardActive) {

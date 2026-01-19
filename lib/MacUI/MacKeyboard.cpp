@@ -50,7 +50,8 @@ void drawMacKey(lgfx::LGFX_Device& lcd, int keyX, int keyY, int keyWidth, int ke
 
 // Helper function to restore a single pressed key to normal state
 void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int y, int w, int h) {
-  if (!keyboard->isKeyPressed) return;
+  if (!keyboard->isKeyPressed)
+    return;
 
   int rowHeight = (h - (2 * KEYBOARD_MARGIN) - SPECIAL_ROW_HEIGHT - KEY_SPACING) / rowCount;
 
@@ -59,27 +60,33 @@ void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int
     int row3Y = y + KEYBOARD_MARGIN + 3 * rowHeight;
 
     bool inSymbolMode = (keyboard->selectedKey == -2);
-    const char* row3Keys = inSymbolMode ? keyboardRowsSymbol[3] :
-                           (keyboard->shiftActive ? keyboardRowsShift[3] : keyboardRows[3]);
+    const char* row3Keys = inSymbolMode
+                               ? keyboardRowsSymbol[3]
+                               : (keyboard->shiftActive ? keyboardRowsShift[3] : keyboardRows[3]);
     int row3KeyCount = strlen(row3Keys);
 
-    int availableWidth = inSymbolMode ?
-                        (w - (2 * KEYBOARD_MARGIN) - BACKSPACE_WIDTH - KEY_SPACING) :
-                        (w - (2 * KEYBOARD_MARGIN) - SHIFT_WIDTH - BACKSPACE_WIDTH - (2 * KEY_SPACING));
+    int availableWidth =
+        inSymbolMode
+            ? (w - (2 * KEYBOARD_MARGIN) - BACKSPACE_WIDTH - KEY_SPACING)
+            : (w - (2 * KEYBOARD_MARGIN) - SHIFT_WIDTH - BACKSPACE_WIDTH - (2 * KEY_SPACING));
     int row3StartX = inSymbolMode ? KEYBOARD_MARGIN : (KEYBOARD_MARGIN + SHIFT_WIDTH + KEY_SPACING);
     int row3KeyWidth = (availableWidth - (row3KeyCount - 1) * KEY_SPACING) / row3KeyCount;
 
     int backspaceX = x + row3StartX + row3KeyCount * (row3KeyWidth + KEY_SPACING);
 
     lcd.startWrite();
-    lcd.fillRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, MAC_WHITE);
-    lcd.drawRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, MAC_BLACK);
-    lcd.drawRoundRect(backspaceX + 1, row3Y + 1, BACKSPACE_WIDTH - 2, rowHeight - KEY_SPACING - 2, radius, MAC_BLACK);
+    lcd.fillRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius,
+                      MAC_WHITE);
+    lcd.drawRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius,
+                      MAC_BLACK);
+    lcd.drawRoundRect(backspaceX + 1, row3Y + 1, BACKSPACE_WIDTH - 2, rowHeight - KEY_SPACING - 2,
+                      radius, MAC_BLACK);
     lcd.setTextColor(MAC_BLACK, MAC_WHITE);
     lcd.setTextSize(1);
     lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
     int deleteTextW = lcd.textWidth("Del");
-    lcd.setCursor(backspaceX + (BACKSPACE_WIDTH - deleteTextW) / 2, row3Y + (rowHeight - KEY_SPACING) / 2);
+    lcd.setCursor(backspaceX + (BACKSPACE_WIDTH - deleteTextW) / 2,
+                  row3Y + (rowHeight - KEY_SPACING) / 2);
     lcd.print("Del");
     lcd.endWrite();
     return;
@@ -89,13 +96,15 @@ void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int
   if (keyboard->isSpace) {
     int specialRowY = y + h - KEYBOARD_MARGIN - SPECIAL_ROW_HEIGHT;
     int spaceStartX = KEYBOARD_MARGIN + SPECIAL_KEY_WIDTH + SPECIAL_KEY_SPACING;
-    int spaceW = w - (2 * KEYBOARD_MARGIN) - SPECIAL_KEY_WIDTH - DONE_KEY_WIDTH - (2 * SPECIAL_KEY_SPACING);
+    int spaceW =
+        w - (2 * KEYBOARD_MARGIN) - SPECIAL_KEY_WIDTH - DONE_KEY_WIDTH - (2 * SPECIAL_KEY_SPACING);
     int spaceX = x + spaceStartX;
 
     lcd.startWrite();
     lcd.fillRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_WHITE);
     lcd.drawRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
-    lcd.drawRoundRect(spaceX + 1, specialRowY + 1, spaceW - 2, SPECIAL_ROW_HEIGHT - 2, radius - 1, MAC_BLACK);
+    lcd.drawRoundRect(spaceX + 1, specialRowY + 1, spaceW - 2, SPECIAL_ROW_HEIGHT - 2, radius - 1,
+                      MAC_BLACK);
     lcd.setTextColor(MAC_BLACK, MAC_WHITE);
     lcd.setTextSize(1);
     lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
@@ -115,15 +124,17 @@ void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int
     const char* keys;
     if (row == 3) {
       bool inSymbolMode = (keyboard->selectedKey == -2);
-      keys = inSymbolMode ? keyboardRowsSymbol[3] :
-             (keyboard->shiftActive ? keyboardRowsShift[3] : keyboardRows[3]);
+      keys = inSymbolMode ? keyboardRowsSymbol[3]
+                          : (keyboard->shiftActive ? keyboardRowsShift[3] : keyboardRows[3]);
 
       int row3Y = y + KEYBOARD_MARGIN + 3 * rowHeight;
       int row3KeyCount = strlen(keys);
-      int availableWidth = inSymbolMode ?
-                          (w - (2 * KEYBOARD_MARGIN) - BACKSPACE_WIDTH - KEY_SPACING) :
-                          (w - (2 * KEYBOARD_MARGIN) - SHIFT_WIDTH - BACKSPACE_WIDTH - (2 * KEY_SPACING));
-      int row3StartX = inSymbolMode ? KEYBOARD_MARGIN : (KEYBOARD_MARGIN + SHIFT_WIDTH + KEY_SPACING);
+      int availableWidth =
+          inSymbolMode
+              ? (w - (2 * KEYBOARD_MARGIN) - BACKSPACE_WIDTH - KEY_SPACING)
+              : (w - (2 * KEYBOARD_MARGIN) - SHIFT_WIDTH - BACKSPACE_WIDTH - (2 * KEY_SPACING));
+      int row3StartX =
+          inSymbolMode ? KEYBOARD_MARGIN : (KEYBOARD_MARGIN + SHIFT_WIDTH + KEY_SPACING);
       int row3KeyWidth = (availableWidth - (row3KeyCount - 1) * KEY_SPACING) / row3KeyCount;
       int keyX = x + row3StartX + keyIndex * (row3KeyWidth + KEY_SPACING);
 
@@ -133,8 +144,9 @@ void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int
       lcd.endWrite();
     } else {
       // Rows 0-2
-      keys = (keyboard->selectedKey == -2) ? keyboardRowsSymbol[row] :
-             (keyboard->shiftActive ? keyboardRowsShift[row] : keyboardRows[row]);
+      keys = (keyboard->selectedKey == -2)
+                 ? keyboardRowsSymbol[row]
+                 : (keyboard->shiftActive ? keyboardRowsShift[row] : keyboardRows[row]);
 
       int keyCount = strlen(keys);
       int rowWidth = w - (2 * KEYBOARD_MARGIN);
@@ -161,7 +173,8 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
   lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
 
   // Uniform margin on all sides
-  int rowHeight = (h - (2 * KEYBOARD_MARGIN) - SPECIAL_ROW_HEIGHT - KEY_SPACING) / rowCount;  // Equal top/bottom margin, reserve space for special row
+  int rowHeight = (h - (2 * KEYBOARD_MARGIN) - SPECIAL_ROW_HEIGHT - KEY_SPACING) /
+                  rowCount;  // Equal top/bottom margin, reserve space for special row
 
   // Draw rows 0-2 (normal letter rows)
   for (int row = 0; row < 3; row++) {
@@ -237,7 +250,8 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
     } else {
       lcd.fillRoundRect(shiftX, row3Y, SHIFT_WIDTH, rowHeight - KEY_SPACING, radius, MAC_WHITE);
       lcd.drawRoundRect(shiftX, row3Y, SHIFT_WIDTH, rowHeight - KEY_SPACING, radius, MAC_BLACK);
-      lcd.drawRoundRect(shiftX + 1, row3Y + 1, SHIFT_WIDTH - 2, rowHeight - KEY_SPACING - 2, 2, MAC_BLACK);
+      lcd.drawRoundRect(shiftX + 1, row3Y + 1, SHIFT_WIDTH - 2, rowHeight - KEY_SPACING - 2, 2,
+                        MAC_BLACK);
       lcd.setTextColor(MAC_BLACK, MAC_WHITE);
     }
     lcd.setTextSize(1);
@@ -266,12 +280,14 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
   int backspaceX = row3StartX + row3KeyCount * (row3KeyWidth + KEY_SPACING);
   lcd.fillRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, MAC_WHITE);
   lcd.drawRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, MAC_BLACK);
-  lcd.drawRoundRect(backspaceX + 1, row3Y + 1, BACKSPACE_WIDTH - 2, rowHeight - KEY_SPACING - 2, radius, MAC_BLACK);
+  lcd.drawRoundRect(backspaceX + 1, row3Y + 1, BACKSPACE_WIDTH - 2, rowHeight - KEY_SPACING - 2,
+                    radius, MAC_BLACK);
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
   lcd.setTextSize(1);
 
   int deleteTextW = lcd.textWidth("Del");
-  lcd.setCursor(backspaceX + (BACKSPACE_WIDTH - deleteTextW) / 2, row3Y + (rowHeight - KEY_SPACING ) / 2);
+  lcd.setCursor(backspaceX + (BACKSPACE_WIDTH - deleteTextW) / 2,
+                row3Y + (rowHeight - KEY_SPACING) / 2);
   lcd.print("Del");
 
   // Draw special keys row at bottom (Sym, Space, Done)
@@ -286,40 +302,44 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
   } else {
     lcd.fillRoundRect(symX, specialRowY, SPECIAL_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_WHITE);
     lcd.drawRoundRect(symX, specialRowY, SPECIAL_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
-    lcd.drawRoundRect(symX + 1, specialRowY + 1, SPECIAL_KEY_WIDTH - 2, SPECIAL_ROW_HEIGHT - 2, radius-1, MAC_BLACK);
+    lcd.drawRoundRect(symX + 1, specialRowY + 1, SPECIAL_KEY_WIDTH - 2, SPECIAL_ROW_HEIGHT - 2,
+                      radius - 1, MAC_BLACK);
     lcd.setTextColor(MAC_BLACK, MAC_WHITE);
   }
   lcd.setTextSize(1);
   // Center-align Sym/ABC text
   const char* symText = keyboard.selectedKey == -2 ? "ABC" : "Sym";
   int symTextW = lcd.textWidth(symText);
-  lcd.setCursor(symX + (SPECIAL_KEY_WIDTH - symTextW) / 2, specialRowY + (SPECIAL_ROW_HEIGHT ) / 2);
+  lcd.setCursor(symX + (SPECIAL_KEY_WIDTH - symTextW) / 2, specialRowY + (SPECIAL_ROW_HEIGHT) / 2);
   lcd.print(symText);
 
   // Space bar (middle, takes remaining space between Sym and Done)
   int spaceX = symX + SPECIAL_KEY_WIDTH + SPECIAL_KEY_SPACING;
-  int spaceW = w - (2 * KEYBOARD_MARGIN) - SPECIAL_KEY_WIDTH - DONE_KEY_WIDTH - (2 * SPECIAL_KEY_SPACING);
+  int spaceW =
+      w - (2 * KEYBOARD_MARGIN) - SPECIAL_KEY_WIDTH - DONE_KEY_WIDTH - (2 * SPECIAL_KEY_SPACING);
   lcd.fillRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_WHITE);
   lcd.drawRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
-  lcd.drawRoundRect(spaceX + 1, specialRowY + 1, spaceW - 2, SPECIAL_ROW_HEIGHT - 2, radius-1, MAC_BLACK);
+  lcd.drawRoundRect(spaceX + 1, specialRowY + 1, spaceW - 2, SPECIAL_ROW_HEIGHT - 2, radius - 1,
+                    MAC_BLACK);
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
   lcd.setTextSize(1);
   // Center-align "Space" text
   int spaceTextW = lcd.textWidth("Space");
-  lcd.setCursor(spaceX + (spaceW - spaceTextW) / 2, specialRowY + (SPECIAL_ROW_HEIGHT ) / 2);
+  lcd.setCursor(spaceX + (spaceW - spaceTextW) / 2, specialRowY + (SPECIAL_ROW_HEIGHT) / 2);
   lcd.print("Space");
 
   // Done button
   int doneX = spaceX + spaceW + SPECIAL_KEY_SPACING;
   lcd.fillRoundRect(doneX, specialRowY, DONE_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_WHITE);
   lcd.drawRoundRect(doneX, specialRowY, DONE_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
-  lcd.drawRoundRect(doneX + 1, specialRowY + 1, DONE_KEY_WIDTH - 2, SPECIAL_ROW_HEIGHT - 2, radius-1, MAC_BLACK);
+  lcd.drawRoundRect(doneX + 1, specialRowY + 1, DONE_KEY_WIDTH - 2, SPECIAL_ROW_HEIGHT - 2,
+                    radius - 1, MAC_BLACK);
   lcd.setTextColor(MAC_BLACK, MAC_WHITE);
   lcd.setTextSize(1);
 
   // Center-align "Done" text
   int doneTextW = lcd.textWidth("Done");
-  lcd.setCursor(doneX + (DONE_KEY_WIDTH - doneTextW) / 2, specialRowY + (SPECIAL_ROW_HEIGHT ) / 2);
+  lcd.setCursor(doneX + (DONE_KEY_WIDTH - doneTextW) / 2, specialRowY + (SPECIAL_ROW_HEIGHT) / 2);
   lcd.print("Done");
 }
 
@@ -327,7 +347,7 @@ MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int ta
   MacComponent* component = createComponent(COMPONENT_KEYBOARD, x, y, w, h, id);
 
   MacKeyboard* keyboard = new MacKeyboard();
-  keyboard->visible = false;  
+  keyboard->visible = false;
   keyboard->x = x;
   keyboard->y = y;
   keyboard->w = w;
@@ -403,7 +423,8 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
 
     // Calculate space bar and done button positions (must match drawKeyboard)
     int spaceStartX = KEYBOARD_MARGIN + SPECIAL_KEY_WIDTH + SPECIAL_KEY_SPACING;
-    int spaceW = w - (2 * KEYBOARD_MARGIN) - SPECIAL_KEY_WIDTH - DONE_KEY_WIDTH - (2 * SPECIAL_KEY_SPACING);
+    int spaceW =
+        w - (2 * KEYBOARD_MARGIN) - SPECIAL_KEY_WIDTH - DONE_KEY_WIDTH - (2 * SPECIAL_KEY_SPACING);
     int spaceEndX = spaceStartX + spaceW;
     int doneStartX = spaceEndX + SPECIAL_KEY_SPACING;
     int doneEndX = doneStartX + DONE_KEY_WIDTH;
@@ -471,6 +492,7 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
       if (window != nullptr) {
         drawWindow(lcd, *window);
       }
+      drawBottomBar(lcd);
       lcd.endWrite();
 
       return true;
@@ -490,7 +512,8 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
       bool inSymbolMode = (keyboard->selectedKey == -2);
 
       // Check Shift button (leftmost in row 3) - only if NOT in symbol mode
-      if (!inSymbolMode && relX >= KEYBOARD_MARGIN && relX <= KEYBOARD_MARGIN + SHIFT_WIDTH && row3RelY >= 0 && row3RelY <= rowHeight - KEY_SPACING) {
+      if (!inSymbolMode && relX >= KEYBOARD_MARGIN && relX <= KEYBOARD_MARGIN + SHIFT_WIDTH &&
+          row3RelY >= 0 && row3RelY <= rowHeight - KEY_SPACING) {
         unsigned long currentTime = millis();
         const unsigned long DOUBLE_TAP_THRESHOLD = 400;  // 400ms window for double-tap
 
@@ -498,7 +521,8 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
           // If shift is locked, single tap unlocks it
           keyboard->shiftLocked = false;
           keyboard->shiftActive = false;
-        } else if (keyboard->shiftActive && (currentTime - keyboard->lastShiftPressTime) < DOUBLE_TAP_THRESHOLD) {
+        } else if (keyboard->shiftActive &&
+                   (currentTime - keyboard->lastShiftPressTime) < DOUBLE_TAP_THRESHOLD) {
           // Double-tap detected while shift is active - lock it
           keyboard->shiftLocked = true;
           keyboard->shiftActive = true;
@@ -537,7 +561,8 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
         row3StartX = KEYBOARD_MARGIN;
       } else {
         // Normal mode, include shift button
-        availableWidth = w - (2 * KEYBOARD_MARGIN) - SHIFT_WIDTH - BACKSPACE_WIDTH - (2 * KEY_SPACING);
+        availableWidth =
+            w - (2 * KEYBOARD_MARGIN) - SHIFT_WIDTH - BACKSPACE_WIDTH - (2 * KEY_SPACING);
         row3StartX = KEYBOARD_MARGIN + SHIFT_WIDTH + KEY_SPACING;
       }
 
@@ -575,7 +600,8 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
                 keyboard->pressedKeyIndex = keyIndex;
 
                 // Add character immediately on first press
-                inputField->text = inputField->text.substring(0, inputField->cursorPos) + String(newChar) +
+                inputField->text = inputField->text.substring(0, inputField->cursorPos) +
+                                   String(newChar) +
                                    inputField->text.substring(inputField->cursorPos);
                 inputField->cursorPos++;
               }
@@ -588,19 +614,22 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
 
       // Check Backspace button (rightmost in row 3)
       int backspaceRelX = row3StartX + row3KeyCount * (row3KeyWidth + KEY_SPACING);
-      if (relX >= backspaceRelX && relX <= backspaceRelX + BACKSPACE_WIDTH &&
-          row3RelY >= 0 && row3RelY <= rowHeight - KEY_SPACING) {
+      if (relX >= backspaceRelX && relX <= backspaceRelX + BACKSPACE_WIDTH && row3RelY >= 0 &&
+          row3RelY <= rowHeight - KEY_SPACING) {
         if (inputField->cursorPos > 0) {
           // Visual feedback for delete/backspace
           int backspaceX = x + backspaceRelX;
           lcd.startWrite();
-          lcd.fillRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, MAC_BLACK);
-          lcd.drawRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, MAC_BLACK);
+          lcd.fillRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius,
+                            MAC_BLACK);
+          lcd.drawRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius,
+                            MAC_BLACK);
           lcd.setTextColor(MAC_WHITE, MAC_BLACK);
           lcd.setTextSize(1);
           lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
           int deleteTextW = lcd.textWidth("Del");
-          lcd.setCursor(backspaceX + (BACKSPACE_WIDTH - deleteTextW) / 2, row3Y + (rowHeight - KEY_SPACING) / 2);
+          lcd.setCursor(backspaceX + (BACKSPACE_WIDTH - deleteTextW) / 2,
+                        row3Y + (rowHeight - KEY_SPACING) / 2);
           lcd.print("Del");
           lcd.endWrite();
 
@@ -673,8 +702,8 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
           keyboard->pressedKeyIndex = keyIndex;
 
           // Add character immediately on first press
-          inputField->text = inputField->text.substring(0, inputField->cursorPos) + String(newChar) +
-                             inputField->text.substring(inputField->cursorPos);
+          inputField->text = inputField->text.substring(0, inputField->cursorPos) +
+                             String(newChar) + inputField->text.substring(inputField->cursorPos);
           inputField->cursorPos++;
         }
 
@@ -701,8 +730,8 @@ void handleKeyboardRepeat(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponen
     return;
 
   unsigned long currentTime = millis();
-  const unsigned long INITIAL_DELAY = 400;  // Wait 400ms before starting repeat
-  const unsigned long REPEAT_INTERVAL = 80; // Repeat every 80ms while held
+  const unsigned long INITIAL_DELAY = 400;   // Wait 400ms before starting repeat
+  const unsigned long REPEAT_INTERVAL = 80;  // Repeat every 80ms while held
 
   // Check if we should trigger a repeat
   unsigned long timeSincePress = currentTime - keyboard->keyPressStart;

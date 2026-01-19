@@ -294,15 +294,24 @@ void setup() {
   delay(100);
 
   DEBUG_PRINTLN("\n=== Starting WiFi (async) ===");
-  showNotification("Connecting to WiFi...");
   initWiFiAsync();
 
-  if (isWiFiConnected()) {
-    DEBUG_PRINTLN("WiFi connected!");
-    showNotification("WiFi Connected!", 2000);
-  } else {
-    DEBUG_PRINTLN("WiFi connection failed!");
-    showNotification("WiFi Failed!", 3000);
+  if (isWiFiConnecting()) {
+    showNotification("Connecting to WiFi...");
+    unsigned long startTime = millis();
+    const unsigned long timeout = 10000;
+
+    while (isWiFiConnecting() && (millis() - startTime < timeout)) {
+      vTaskDelay(pdMS_TO_TICKS(100));
+    }
+
+    if (isWiFiConnected()) {
+      hideNotification();
+      showNotification("WiFi Connected!", 2000);
+    } else {
+      hideNotification();
+      showNotification("WiFi Failed!", 3000);
+    }
   }
 
   setupOTA();
