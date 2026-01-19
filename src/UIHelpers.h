@@ -17,6 +17,7 @@ void updateStationMetadata(const String& stationName, const String& trackInfo);
 void updateClock();
 void updateCPUUsage();
 void updateWifiSignal();
+void updateVolumeDisplay();
 
 // General notification bar (top-right corner)
 void showNotification(const String& message, unsigned long duration = 0);

@@ -115,6 +115,10 @@ unsigned long lastCPUUpdate = 0;
 float cpuUsage0 = 0.0;
 float cpuUsage1 = 0.0;
 
+unsigned long volumeChangeTime = 0;
+bool volumeDisplayActive = false;
+String savedStationName = "";
+
 volatile bool isPlaying = false;
 String currentStationName = "Retrodio";
 String RadioURL = "";

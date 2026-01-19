@@ -29,12 +29,21 @@ extern MacComponent* globalKeyboard;
 void updateStationMetadata(const String& stationName, const String& trackInfo) {
   extern const int TXT_RADIO_NAME;
   extern const int TXT_RADIO_DETAILS;
+  extern bool volumeDisplayActive;
+  extern String savedStationName;
 
   MacComponent* txtRadioName = findComponentById(radioWindow, TXT_RADIO_NAME);
   if (txtRadioName && txtRadioName->customData) {
     MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
-    runningText->text = stationName;
-    runningText->scrollOffset = 0;
+
+    // If volume is being displayed, save the station name for later
+    // but don't update the display yet
+    if (volumeDisplayActive) {
+      savedStationName = stationName;
+    } else {
+      runningText->text = stationName;
+      runningText->scrollOffset = 0;
+    }
   }
 
   MacComponent* txtRadioDetails = findComponentById(radioWindow, TXT_RADIO_DETAILS);
@@ -93,7 +102,7 @@ void updateWifiSignal() {
 
   int rssi = WiFi.RSSI();
 
-    if (rssi == 0) {
+  if (rssi == 0) {
     rssi = -100;
   }
 
@@ -158,6 +167,31 @@ void updateNotification() {
       hideNotification();
       return;
     }
+  }
+}
+
+void updateVolumeDisplay() {
+  extern unsigned long volumeChangeTime;
+  extern bool volumeDisplayActive;
+  extern String savedStationName;
+  extern String currentStationName;
+  extern const int TXT_RADIO_NAME;
+
+  if (!volumeDisplayActive)
+    return;
+
+  unsigned long elapsed = millis() - volumeChangeTime;
+
+  // After 2 seconds (2000ms), restore the radio name
+  if (elapsed >= 2000) {
+    MacComponent* txtRadioName = findComponentById(radioWindow, TXT_RADIO_NAME);
+    if (txtRadioName && txtRadioName->customData) {
+      MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
+      runningText->text = savedStationName;
+      runningText->scrollOffset = 0;
+      currentStationName = savedStationName;
+    }
+    volumeDisplayActive = false;
   }
 }
 
@@ -634,6 +668,7 @@ void uiTask(void* parameter) {
     updateClock();
     updateWifiSignal();
     updateNotification();
+    updateVolumeDisplay();
 
     // Check WiFi connection status (non-blocking)
     updateWifiConnectionStatus();

@@ -10,7 +10,7 @@
 #define SLIDER_TRACK_WIDTH 8
 
 void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSlider& slider) {
-  lcd.fillRect(x, y, w + (SLIDER_THUMB_SIZE/2), h, MAC_WHITE);
+  lcd.fillRect(x, y, w + (SLIDER_THUMB_SIZE / 2), h, MAC_WHITE);
 
   if (slider.vertical) {
     int trackX = x + w / 2 - (SLIDER_TRACK_WIDTH / 2);
@@ -18,28 +18,33 @@ void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSli
     int trackY = y + (SLIDER_THUMB_SIZE / 4);
 
     // Draw track
-    lcd.fillRect(trackX, trackY, SLIDER_TRACK_WIDTH, trackH, MAC_BLACK);
+    lcd.fillRect(trackX, trackY, SLIDER_TRACK_WIDTH, trackH, MAC_GRAY);
 
     // Calculate thumb position
     int range = slider.maxValue - slider.minValue;
-    int thumbY = trackY + trackH - ((slider.currentValue - slider.minValue) * trackH / range) - (SLIDER_THUMB_SIZE / 2);
+    int thumbY = trackY + trackH - ((slider.currentValue - slider.minValue) * trackH / range) -
+                 (SLIDER_THUMB_SIZE / 2);
 
     // Draw thumb
-    lcd.fillRect(trackX - (SLIDER_THUMB_SIZE / 2), thumbY, SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE, MAC_WHITE);
+    lcd.fillRect(trackX - (SLIDER_THUMB_SIZE / 2), thumbY, SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE,
+                 MAC_WHITE);
   } else {
     int trackY = y + h / 2;
     int trackW = w - (SLIDER_THUMB_SIZE / 2);
     int trackX = x + (SLIDER_THUMB_SIZE / 2);
 
     // Draw track
-    lcd.fillRect(trackX, trackY, trackW, SLIDER_TRACK_WIDTH, MAC_BLACK);
+    lcd.fillRect(trackX, trackY, trackW, SLIDER_TRACK_WIDTH, MAC_GRAY);
 
     // Calculate thumb position
     int range = slider.maxValue - slider.minValue;
-    int thumbX = trackX + ((slider.currentValue - slider.minValue) * trackW / range) - (SLIDER_THUMB_SIZE / 2);
+    int thumbX = trackX + ((slider.currentValue - slider.minValue) * trackW / range) -
+                 (SLIDER_THUMB_SIZE / 2);
 
-    lcd.fillRoundRect(thumbX, trackY - (SLIDER_THUMB_SIZE / 2) + (SLIDER_TRACK_WIDTH /2), SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE, 5, MAC_WHITE);
-    lcd.drawRoundRect(thumbX, trackY - (SLIDER_THUMB_SIZE / 2) + (SLIDER_TRACK_WIDTH /2), SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE, 5, MAC_BLACK);
+    lcd.fillRoundRect(thumbX, trackY - (SLIDER_THUMB_SIZE / 2) + (SLIDER_TRACK_WIDTH / 2),
+                      SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE, 5, MAC_WHITE);
+    lcd.drawRoundRect(thumbX, trackY - (SLIDER_THUMB_SIZE / 2) + (SLIDER_TRACK_WIDTH / 2),
+                      SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE, 5, MAC_BLACK);
   }
 }
 

@@ -96,6 +96,11 @@ extern unsigned long lastCPUUpdate;
 extern float cpuUsage0;
 extern float cpuUsage1;
 
+// Volume Display Timeout
+extern unsigned long volumeChangeTime;
+extern bool volumeDisplayActive;
+extern String savedStationName;
+
 // Station State
 extern volatile bool isPlaying;
 extern String currentStationName;

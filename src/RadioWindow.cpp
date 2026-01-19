@@ -163,7 +163,32 @@ void onNext() {
 
 void onVolumeChange(int componentId, int value) {
   extern Audio audio;
+  extern unsigned long volumeChangeTime;
+  extern bool volumeDisplayActive;
+  extern String savedStationName;
+  extern String currentStationName;
+  extern const int TXT_RADIO_NAME;
 
   audio.setVolume(value);
   ConfigManager::setVolume(value);
+
+  // Save current station name if not already displaying volume
+  if (!volumeDisplayActive) {
+    savedStationName = currentStationName;
+  }
+
+  // Calculate volume percentage (0-21 slider range to 0-100%)
+  int volumePercent = (value * 100) / 21;
+
+  // Update the radio name text to show volume percentage
+  MacComponent* txtRadioName = findComponentById(radioWindow, TXT_RADIO_NAME);
+  if (txtRadioName && txtRadioName->customData) {
+    MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
+    runningText->text = "Volume: " + String(volumePercent) + "%";
+    runningText->scrollOffset = 0;
+  }
+
+  // Mark that we're displaying volume and record the time
+  volumeDisplayActive = true;
+  volumeChangeTime = millis();
 }
