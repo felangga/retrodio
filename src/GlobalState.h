@@ -101,6 +101,10 @@ extern unsigned long volumeChangeTime;
 extern bool volumeDisplayActive;
 extern String savedStationName;
 
+// UI Redraw Flags
+extern volatile bool needsVolumeSliderRedraw;
+extern volatile bool needsStationListReload;
+
 // Station State
 extern volatile bool isPlaying;
 extern String currentStationName;

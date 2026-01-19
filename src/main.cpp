@@ -120,6 +120,9 @@ unsigned long volumeChangeTime = 0;
 bool volumeDisplayActive = false;
 String savedStationName = "";
 
+volatile bool needsVolumeSliderRedraw = false;
+volatile bool needsStationListReload = false;
+
 volatile bool isPlaying = false;
 String currentStationName = "Retrodio";
 String RadioURL = "";

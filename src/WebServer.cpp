@@ -51,8 +51,15 @@ void handleRoot() {
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Chicago', 'Geneva', 'Monaco', monospace;
+      background-color: #c0c0c0;
+      background-image:
+        linear-gradient(45deg, #999 25%, transparent 25%),
+        linear-gradient(-45deg, #999 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #999 75%),
+        linear-gradient(-45deg, transparent 75%, #999 75%);
+      background-size: 4px 4px;
+      background-position: 0 0, 0 2px, 2px -2px, -2px 0px;
       min-height: 100vh;
       display: flex;
       justify-content: center;
@@ -61,194 +68,234 @@ void handleRoot() {
     }
 
     .container {
-      background: white;
-      border-radius: 20px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      background: #fff;
+      border: 2px solid #000;
+      box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
       max-width: 500px;
       width: 100%;
-      overflow: hidden;
     }
 
     .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 30px;
-      text-align: center;
+      background: #000;
+      color: #fff;
+      padding: 8px;
+      border-bottom: 2px solid #000;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-info {
+      flex: 1;
+      min-width: 0;
     }
 
     .header h1 {
-      font-size: 28px;
-      margin-bottom: 10px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 4px;
+      text-align: left;
+      letter-spacing: 1px;
     }
 
     .header .station-name {
-      font-size: 18px;
-      opacity: 0.9;
-      margin-bottom: 5px;
+      font-size: 11px;
+      margin-bottom: 2px;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .header .track-info {
-      font-size: 14px;
-      opacity: 0.7;
+      font-size: 10px;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .content {
-      padding: 30px;
+      padding: 16px;
+      background: #fff;
     }
 
     .controls {
       display: flex;
-      justify-content: center;
-      gap: 15px;
-      margin-bottom: 30px;
+      gap: 4px;
+      align-items: center;
     }
 
     .btn {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 60px;
-      height: 60px;
-      font-size: 24px;
+      background: #fff;
+      color: #000;
+      border: 2px solid #000;
+      box-shadow: inset -1px -1px 0px #808080, inset 1px 1px 0px #dfdfdf;
+      width: 50px;
+      height: 50px;
+      font-size: 18px;
       cursor: pointer;
-      transition: all 0.3s;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      font-family: 'Chicago', monospace;
+      font-weight: bold;
+      border-radius: 50%;
     }
 
     .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+      background: #f0f0f0;
     }
 
     .btn:active {
-      transform: translateY(0);
+      box-shadow: inset 1px 1px 0px #808080, inset -1px -1px 0px #dfdfdf;
+      background: #d0d0d0;
     }
 
     .btn.play-pause {
-      width: 80px;
-      height: 80px;
-      font-size: 32px;
+      width: 64px;
+      height: 64px;
+      font-size: 24px;
+      border-radius: 50%;
     }
 
     .volume-control {
-      margin-bottom: 30px;
+      margin-bottom: 16px;
+      padding: 8px;
+      border: 2px solid #000;
+      background: #fff;
     }
 
     .volume-label {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 10px;
-      color: #333;
-      font-weight: 500;
+      margin-bottom: 8px;
+      color: #000;
+      font-size: 11px;
+      font-weight: bold;
     }
 
     .volume-slider {
       width: 100%;
-      height: 8px;
-      border-radius: 5px;
-      background: #e0e0e0;
+      height: 20px;
+      background: #fff;
       outline: none;
       -webkit-appearance: none;
+      border: 2px solid #000;
+      box-shadow: inset 1px 1px 0px #808080;
     }
 
     .volume-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      width: 16px;
+      height: 16px;
+      background: #000;
       cursor: pointer;
-      box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+      border: 1px solid #fff;
     }
 
     .volume-slider::-moz-range-thumb {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      width: 16px;
+      height: 16px;
+      background: #000;
       cursor: pointer;
-      border: none;
-      box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+      border: 1px solid #fff;
     }
 
     .stations {
-      max-height: 300px;
+      max-height: 280px;
       overflow-y: auto;
+      border: 2px solid #000;
+      background: #fff;
     }
 
     .station-item {
-      padding: 15px;
-      border-bottom: 1px solid #f0f0f0;
+      padding: 6px 8px;
+      border-bottom: 1px solid #000;
       cursor: pointer;
-      transition: background 0.2s;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      background: #fff;
+      font-size: 11px;
     }
 
     .station-item:hover {
-      background: #f8f8f8;
+      background: #e0e0e0;
     }
 
     .station-item.active {
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-      border-left: 4px solid #667eea;
+      background: #000;
+      color: #fff;
+    }
+
+    .station-item.active .action-btn {
+      background: #000;
+      color: #fff;
+      border-color: #fff;
     }
 
     .station-item .icon {
-      font-size: 20px;
+      font-size: 12px;
+      width: 16px;
+      text-align: center;
     }
 
     .station-item .name {
       flex: 1;
-      font-weight: 500;
-      color: #333;
+      font-weight: bold;
     }
 
     .station-item .actions {
       display: flex;
-      gap: 5px;
+      gap: 4px;
     }
 
     .station-item .action-btn {
-      background: transparent;
-      border: none;
-      font-size: 18px;
+      background: #fff;
+      border: 1px solid #000;
+      font-size: 10px;
       cursor: pointer;
-      padding: 5px;
-      opacity: 0.6;
-      transition: opacity 0.2s;
+      padding: 2px 4px;
+      font-family: 'Chicago', monospace;
     }
 
     .station-item .action-btn:hover {
-      opacity: 1;
+      background: #d0d0d0;
+    }
+
+    .station-item .action-btn:active {
+      background: #a0a0a0;
     }
 
     .add-station-btn {
       width: 100%;
-      padding: 15px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 500;
+      padding: 8px;
+      background: #fff;
+      color: #000;
+      border: 2px solid #000;
+      box-shadow: inset -1px -1px 0px #808080, inset 1px 1px 0px #dfdfdf;
+      font-size: 11px;
+      font-weight: bold;
       cursor: pointer;
-      margin-bottom: 15px;
-      transition: transform 0.2s;
+      margin-bottom: 12px;
+      font-family: 'Chicago', monospace;
     }
 
     .add-station-btn:hover {
-      transform: translateY(-2px);
+      background: #f0f0f0;
+    }
+
+    .add-station-btn:active {
+      box-shadow: inset 1px 1px 0px #808080, inset -1px -1px 0px #dfdfdf;
+      background: #d0d0d0;
     }
 
     .status {
       text-align: center;
-      padding: 10px;
-      color: #666;
-      font-size: 14px;
+      padding: 12px;
+      color: #000;
+      font-size: 11px;
+      font-style: italic;
     }
 
     .modal {
@@ -258,7 +305,7 @@ void handleRoot() {
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(192, 192, 192, 0.8);
       z-index: 1000;
       align-items: center;
       justify-content: center;
@@ -269,80 +316,96 @@ void handleRoot() {
     }
 
     .modal-content {
-      background: white;
-      border-radius: 15px;
-      padding: 30px;
-      max-width: 500px;
+      background: #fff;
+      border: 2px solid #000;
+      box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
+      padding: 16px;
+      max-width: 400px;
       width: 90%;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
     }
 
     .modal-header {
-      font-size: 24px;
-      font-weight: 600;
-      margin-bottom: 20px;
-      color: #333;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 16px;
+      color: #000;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #000;
     }
 
     .form-group {
-      margin-bottom: 20px;
+      margin-bottom: 12px;
     }
 
     .form-group label {
       display: block;
-      margin-bottom: 8px;
-      color: #555;
-      font-weight: 500;
+      margin-bottom: 4px;
+      color: #000;
+      font-size: 11px;
+      font-weight: bold;
     }
 
     .form-group input {
       width: 100%;
-      padding: 12px;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
-      font-size: 14px;
-      transition: border-color 0.2s;
+      padding: 6px;
+      border: 2px solid #000;
+      box-shadow: inset 1px 1px 0px #808080;
+      font-size: 11px;
+      font-family: 'Chicago', monospace;
+      background: #fff;
     }
 
     .form-group input:focus {
-      outline: none;
-      border-color: #667eea;
+      outline: 2px solid #000;
+      outline-offset: -4px;
     }
 
     .modal-buttons {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       justify-content: flex-end;
-      margin-top: 25px;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #000;
     }
 
     .modal-btn {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
+      padding: 6px 16px;
+      border: 2px solid #000;
+      font-size: 11px;
+      font-weight: bold;
       cursor: pointer;
-      transition: all 0.2s;
+      font-family: 'Chicago', monospace;
+      box-shadow: inset -1px -1px 0px #808080, inset 1px 1px 0px #dfdfdf;
+      background: #fff;
     }
 
     .modal-btn.primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+      background: #fff;
+      color: #000;
     }
 
     .modal-btn.primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      background: #f0f0f0;
+    }
+
+    .modal-btn.primary:active {
+      box-shadow: inset 1px 1px 0px #808080, inset -1px -1px 0px #dfdfdf;
+      background: #d0d0d0;
     }
 
     .modal-btn.secondary {
-      background: #f0f0f0;
-      color: #555;
+      background: #fff;
+      color: #000;
     }
 
     .modal-btn.secondary:hover {
-      background: #e0e0e0;
+      background: #f0f0f0;
+    }
+
+    .modal-btn.secondary:active {
+      box-shadow: inset 1px 1px 0px #808080, inset -1px -1px 0px #dfdfdf;
+      background: #d0d0d0;
     }
 
     .playing-indicator {
@@ -364,17 +427,19 @@ void handleRoot() {
 <body>
   <div class="container">
     <div class="header">
-      <h1>📻 Retrodio</h1>
-      <div class="station-name" id="currentStationName">Loading...</div>
-      <div class="track-info" id="currentTrackInfo">...</div>
-    </div>
-
-    <div class="content">
+      <div class="header-info">
+        <h1>📻 Retrodio</h1>
+        <div class="station-name" id="currentStationName">Loading...</div>
+        <div class="track-info" id="currentTrackInfo">...</div>
+      </div>
       <div class="controls">
         <button class="btn" onclick="previous()">⏮</button>
         <button class="btn play-pause" id="playPauseBtn" onclick="playPause()">▶</button>
         <button class="btn" onclick="next()">⏭</button>
       </div>
+    </div>
+
+    <div class="content">
 
       <div class="volume-control">
         <div class="volume-label">
@@ -669,20 +734,19 @@ void handleSetVolume() {
         extern MacWindow radioWindow;
         extern const int CMP_VOLUME_SLIDER;
 
+        // Set volume in audio system and save to config
         audio.setVolume(volume);
         ConfigManager::setVolume(volume);
 
-        // Update the volume slider component on the radio window
+        // Update the volume slider value and request redraw
         MacComponent* volumeSlider = findComponentById(radioWindow, CMP_VOLUME_SLIDER);
-        if (volumeSlider && volumeSlider->customData) {
+        if (volumeSlider != nullptr && volumeSlider->customData != nullptr) {
           MacSlider* slider = (MacSlider*)volumeSlider->customData;
           slider->currentValue = volume;
 
-          // Redraw the slider if the radio window is visible
-          if (radioWindow.visible && !radioWindow.minimized) {
-            extern LGFX lcd;
-            drawComponent(lcd, *volumeSlider, radioWindow.x, radioWindow.y);
-          }
+          // Set flag to request UI task to redraw the slider
+          extern volatile bool needsVolumeSliderRedraw;
+          needsVolumeSliderRedraw = true;
         }
 
         server.send(200, "application/json", "{\"success\":true}");
@@ -813,8 +877,9 @@ void handleAddStation() {
 
       if (name.length() > 0 && url.length() > 0) {
         if (ConfigManager::addStation(name, url)) {
-          // Reload station list on the device
-          reloadStationList();
+          // Request UI task to reload station list
+          extern volatile bool needsStationListReload;
+          needsStationListReload = true;
 
           server.send(200, "application/json", "{\"success\":true}");
           return;
@@ -843,8 +908,9 @@ void handleEditStation() {
 
       if (index >= 0 && index < stationCount && name.length() > 0 && url.length() > 0) {
         if (ConfigManager::updateStation(index, name, url)) {
-          // Reload station list on the device
-          reloadStationList();
+          // Request UI task to reload station list
+          extern volatile bool needsStationListReload;
+          needsStationListReload = true;
 
           // If editing the current station, update the URL
           extern int currentStationIndex;
@@ -885,8 +951,9 @@ void handleDeleteStation() {
         bool isDeletingCurrent = (index == currentStationIndex);
 
         if (ConfigManager::removeStation(index)) {
-          // Reload station list on the device
-          reloadStationList();
+          // Request UI task to reload station list
+          extern volatile bool needsStationListReload;
+          needsStationListReload = true;
 
           // Adjust current station index if needed
           if (isDeletingCurrent) {
