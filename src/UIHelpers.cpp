@@ -690,8 +690,10 @@ void uiTask(void* parameter) {
     if (needsStationListReload) {
       needsStationListReload = false;
       reloadStationList();
+      // Always reinitialize the station window to update the list view with the new stationItems pointer
+      initializeStationWindow();
+      // Only redraw if the window is visible
       if (stationWindow.visible && !stationWindow.minimized) {
-        initializeStationWindow();
         lcd.startWrite();
         drawWindow(lcd, stationWindow);
         lcd.endWrite();

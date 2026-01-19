@@ -19,14 +19,28 @@ void initializeConfirmDeleteWindow();
 
 MacListViewItem* stationItems = nullptr;
 int stationItemCount = 0;
+SemaphoreHandle_t stationListMutex = nullptr;
 
 void reloadStationList() {
+  // Create mutex if it doesn't exist
+  if (stationListMutex == nullptr) {
+    stationListMutex = xSemaphoreCreateMutex();
+  }
+
+  // Take mutex before modifying station list
+  if (xSemaphoreTake(stationListMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
+    return;  // Couldn't get mutex, skip reload
+  }
+
   MacListViewItem* oldItems = stationItems;
   stationItemCount = ConfigManager::getStationCount();
 
   if (stationItemCount == 0) {
     stationItems = nullptr;
+    xSemaphoreGive(stationListMutex);
+
     if (oldItems != nullptr) {
+      vTaskDelay(pdMS_TO_TICKS(50));  // Wait for any ongoing rendering
       delete[] oldItems;
     }
     return;
@@ -42,6 +56,10 @@ void reloadStationList() {
 
   stationItems = newItems;
 
+  // Release mutex before the delay
+  xSemaphoreGive(stationListMutex);
+
+  // Wait for any ongoing rendering to finish before deleting old items
   vTaskDelay(pdMS_TO_TICKS(50));
 
   if (oldItems != nullptr) {
@@ -204,8 +222,16 @@ void initializeStationWindow() {
   btnDeleteStation->onClick = [](int componentId) { onDeleteStationButtonClick(); };
   addChildComponent(stationWindow, btnDeleteStation);
 
-  MacComponent* stationList = createListViewComponent(10, 42, 290, 188, 300,
-                                                      stationItems, stationItemCount, 30);
+  // Take mutex before accessing station list
+  MacComponent* stationList = nullptr;
+  if (stationListMutex && xSemaphoreTake(stationListMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    stationList = createListViewComponent(10, 42, 290, 188, 300,
+                                          stationItems, stationItemCount, 30);
+    xSemaphoreGive(stationListMutex);
+  } else {
+    // If we can't get the mutex, create an empty list
+    stationList = createListViewComponent(10, 42, 290, 188, 300, nullptr, 0, 30);
+  }
 
   if (stationList && stationList->customData) {
     MacListView* listViewData = (MacListView*)stationList->customData;
