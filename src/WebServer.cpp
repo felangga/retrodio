@@ -11,9 +11,25 @@
 #include "GlobalState.h"
 #include "StationManager.h"
 
+#if ENABLE_SERIAL_DEBUG
+#define DEBUG_PRINT(x) Serial.print(x)
+#define DEBUG_PRINTLN(x) Serial.println(x)
+#define DEBUG_PRINTF(...) Serial.printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(x)
+#define DEBUG_PRINTLN(x)
+#define DEBUG_PRINTF(...)
+#endif
+
 WebServer server(80);
+static bool webServerInitialized = false;
 
 void initWebServer() {
+  // Only initialize once
+  if (webServerInitialized) {
+    return;
+  }
+
   // Define routes
   server.on("/", handleRoot);
   server.on("/api/status", handleGetStatus);
@@ -29,6 +45,7 @@ void initWebServer() {
   server.onNotFound(handleNotFound);
 
   server.begin();
+  webServerInitialized = true;
 }
 
 void handleWebServer() {
@@ -884,7 +901,9 @@ void handleAddStation() {
           server.send(200, "application/json", "{\"success\":true}");
           return;
         } else {
-          server.send(400, "application/json", "{\"success\":false,\"error\":\"Failed to add station (maximum reached or storage error)\"}");
+          server.send(400, "application/json",
+                      "{\"success\":false,\"error\":\"Failed to add station (maximum reached or "
+                      "storage error)\"}");
           return;
         }
       }
@@ -925,7 +944,8 @@ void handleEditStation() {
           server.send(200, "application/json", "{\"success\":true}");
           return;
         } else {
-          server.send(400, "application/json", "{\"success\":false,\"error\":\"Failed to update station\"}");
+          server.send(400, "application/json",
+                      "{\"success\":false,\"error\":\"Failed to update station\"}");
           return;
         }
       }
@@ -979,7 +999,8 @@ void handleDeleteStation() {
           server.send(200, "application/json", "{\"success\":true}");
           return;
         } else {
-          server.send(400, "application/json", "{\"success\":false,\"error\":\"Failed to delete station\"}");
+          server.send(400, "application/json",
+                      "{\"success\":false,\"error\":\"Failed to delete station\"}");
           return;
         }
       }
