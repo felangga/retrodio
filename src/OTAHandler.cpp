@@ -7,9 +7,9 @@
  */
 
 #include "OTAHandler.h"
-#include <WiFi.h>
-#include <ESPmDNS.h>
 #include <ArduinoOTA.h>
+#include <ESPmDNS.h>
+#include <WiFi.h>
 
 #define ENABLE_OTA_DEBUG 1
 
@@ -42,9 +42,7 @@ void setupOTA() {
     OTA_DEBUG_PRINTLN("Start updating " + type);
   });
 
-  ArduinoOTA.onEnd([]() {
-    OTA_DEBUG_PRINTLN("\nOTA Update Complete!");
-  });
+  ArduinoOTA.onEnd([]() { OTA_DEBUG_PRINTLN("\nOTA Update Complete!"); });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     OTA_DEBUG_PRINTF("Progress: %u%%\r", (progress / (total / 100)));

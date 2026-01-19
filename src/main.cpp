@@ -32,8 +32,8 @@
 #include "WindowCallbacks.h"
 
 // ===== DEBUG CONFIGURATION =====
-#define ENABLE_SERIAL_DEBUG 0
-#define ENABLE_DEBUG 0
+#define ENABLE_SERIAL_DEBUG 1
+#define ENABLE_DEBUG 1
 
 #if ENABLE_SERIAL_DEBUG
 #define DEBUG_PRINT(x) Serial.print(x)
@@ -262,12 +262,8 @@ void updateComponentSymbol(const MacWindow& window, int componentId, SymbolType 
 
 void setup() {
 #if ENABLE_SERIAL_DEBUG
-#if ARDUINO_USB_MODE
-  delay(100);
-#else
   Serial.begin(115200);
   delay(100);
-#endif
 #endif
 
   metadataMutex = xSemaphoreCreateMutex();
