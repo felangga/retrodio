@@ -7,15 +7,15 @@
  */
 
 #include "WindowCallbacks.h"
-#include "GlobalState.h"
-#include "StationManager.h"
-#include "ConfirmDeleteWindow.h"
-#include "WifiWindow.h"
 #include "AudioHandlers.h"
-#include "RadioWindow.h"
-#include "wt32_sc01_plus.h"
 #include "ConfigManager.h"
+#include "ConfirmDeleteWindow.h"
+#include "GlobalState.h"
+#include "RadioWindow.h"
+#include "StationManager.h"
 #include "UIHelpers.h"
+#include "WifiWindow.h"
+#include "wt32_sc01_plus.h"
 
 void onWindowMinimize() {
   handleWindowMinimize(lcd, radioWindow, &radioIcon);
@@ -42,7 +42,8 @@ void onStationWindowMinimize() {
   stationWindow.active = false;
   radioWindow.visible = true;
   radioWindow.active = true;
-  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
+  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5,
+                           stationWindow.h + 5);
   drawWindow(lcd, radioWindow);
 }
 
@@ -51,7 +52,8 @@ void onStationWindowClose() {
   stationWindow.active = false;
   radioWindow.visible = true;
   radioWindow.active = true;
-  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
+  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5,
+                           stationWindow.h + 5);
   drawWindow(lcd, radioWindow);
 }
 
@@ -75,7 +77,8 @@ void onAddStationWindowMinimize() {
   addStationWindow.active = false;
   stationWindow.visible = true;
   stationWindow.active = true;
-  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5, addStationWindow.h + 5);
+  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5,
+                           addStationWindow.h + 5);
   drawWindow(lcd, stationWindow);
 }
 
@@ -91,7 +94,8 @@ void onAddStationWindowClose() {
   addStationWindow.active = false;
   stationWindow.visible = true;
   stationWindow.active = true;
-  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5, addStationWindow.h + 5);
+  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5,
+                           addStationWindow.h + 5);
   drawWindow(lcd, stationWindow);
 }
 
@@ -195,7 +199,8 @@ void onConfirmDeleteWindowMinimize() {
   confirmDeleteWindow.active = false;
   stationWindow.visible = true;
   stationWindow.active = true;
-  drawCheckeredPatternArea(lcd, confirmDeleteWindow.x, confirmDeleteWindow.y, confirmDeleteWindow.w + 5, confirmDeleteWindow.h + 5);
+  drawCheckeredPatternArea(lcd, confirmDeleteWindow.x, confirmDeleteWindow.y,
+                           confirmDeleteWindow.w + 5, confirmDeleteWindow.h + 5);
   drawWindow(lcd, stationWindow);
 }
 
@@ -204,7 +209,8 @@ void onConfirmDeleteWindowClose() {
   confirmDeleteWindow.active = false;
   stationWindow.visible = true;
   stationWindow.active = true;
-  drawCheckeredPatternArea(lcd, confirmDeleteWindow.x, confirmDeleteWindow.y, confirmDeleteWindow.w + 5, confirmDeleteWindow.h + 5);
+  drawCheckeredPatternArea(lcd, confirmDeleteWindow.x, confirmDeleteWindow.y,
+                           confirmDeleteWindow.w + 5, confirmDeleteWindow.h + 5);
   drawWindow(lcd, stationWindow);
 }
 
@@ -214,84 +220,6 @@ void onConfirmDeleteWindowContentClick(int relativeX, int relativeY) {
 
 void onConfirmDeleteWindowMoved() {
   handleWindowMoved(lcd, confirmDeleteWindow);
-}
-
-// WiFi Window Callbacks
-void onWifiWindowMinimize() {
-  extern MacComponent* wifiKeyboard;
-
-  if (wifiKeyboard) {
-    MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
-    keyboard->visible = false;
-  }
-
-  wifiWindow.visible = false;
-  wifiWindow.active = false;
-
-  int keyboardHeight = screenHeight / 2;
-  int keyboardY = screenHeight - keyboardHeight;
-  drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
-
-  drawCheckeredPatternArea(lcd, wifiWindow.x, wifiWindow.y, wifiWindow.w + 5, wifiWindow.h + 5);
-  radioWindow.visible = true;
-  radioWindow.active = true;
-  drawWindow(lcd, radioWindow);
-}
-
-void onWifiWindowClose() {
-  extern MacComponent* wifiKeyboard;
-
-  if (wifiKeyboard) {
-    MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
-    keyboard->visible = false;
-  }
-
-  wifiWindow.visible = false;
-  wifiWindow.active = false;
-
-  int keyboardHeight = screenHeight / 2;
-  int keyboardY = screenHeight - keyboardHeight;
-  drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
-
-  drawCheckeredPatternArea(lcd, wifiWindow.x, wifiWindow.y, wifiWindow.w + 5, wifiWindow.h + 5);
-  radioWindow.visible = true;
-  radioWindow.active = true;
-  drawWindow(lcd, radioWindow);
-}
-
-void onWifiWindowContentClick(int relativeX, int relativeY) {
-  extern MacComponent* wifiKeyboard;
-  extern const int INPUT_WIFI_PASSWORD;
-
-  MacComponent* passwordInputComp = findComponentById(wifiWindow, INPUT_WIFI_PASSWORD);
-
-  if (wifiKeyboard && passwordInputComp && passwordInputComp->visible) {
-    MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
-
-    if (relativeX >= passwordInputComp->x && relativeX <= passwordInputComp->x + passwordInputComp->w &&
-        relativeY >= passwordInputComp->y && relativeY <= passwordInputComp->y + passwordInputComp->h) {
-      MacInputField* passwordInput = (MacInputField*)passwordInputComp->customData;
-      passwordInput->focused = true;
-      keyboard->targetInputId = INPUT_WIFI_PASSWORD;
-      keyboard->visible = true;
-
-      drawComponent(lcd, *passwordInputComp, wifiWindow.x, wifiWindow.y);
-      drawComponent(lcd, *wifiKeyboard, 0, 0);
-
-      int tx, ty;
-      delay(150);
-      while (lcd.getTouch(&tx, &ty)) {
-        delay(10);
-      }
-      return;
-    }
-  }
-
-  handleWindowContentClick(lcd, wifiWindow, relativeX, relativeY);
-}
-
-void onWifiWindowMoved() {
-  handleWindowMoved(lcd, wifiWindow);
 }
 
 void onWifiSignalClick() {
@@ -336,4 +264,3 @@ void onStationButtonClick() {
   drawCheckeredPatternArea(lcd, radioWindow.x, radioWindow.y, radioWindow.w + 5, radioWindow.h + 5);
   drawWindow(lcd, stationWindow);
 }
-

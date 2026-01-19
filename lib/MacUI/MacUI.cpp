@@ -109,11 +109,11 @@ void drawClock(lgfx::LGFX_Device& lcd, const String& time) {
 }
 
 void drawWifiSignal(lgfx::LGFX_Device& lcd, int rssi) {
-  int baseX = screenWidth - 100;
+  int baseX = 328;
   int baseY = 4;
 
   // Clear the WiFi area
-  lcd.fillRect(baseX - 2, 0, 20, 20, MAC_WHITE);
+  lcd.fillRect(baseX - 2, 0, 80, 20, MAC_WHITE);
 
   int bars = 0;
   if (rssi >= -50) {
@@ -128,13 +128,21 @@ void drawWifiSignal(lgfx::LGFX_Device& lcd, int rssi) {
     bars = 0;  // No signal / very weak
   }
 
+  if (bars > 0) {
+    lcd.setFont(nullptr);
+    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+    lcd.setTextSize(1);
+    lcd.setCursor(baseX, 11);
+    lcd.println(String(rssi) + " dBm");
+  }
+
   int barWidth = 3;
   int barSpacing = 1;
   int maxHeight = 12;
 
   for (int i = 0; i < 4; i++) {
     int barHeight = 3 + (i * 3);
-    int barX = baseX + (i * (barWidth + barSpacing));
+    int barX = baseX + 52 + (i * (barWidth + barSpacing));
     int barY = baseY + (maxHeight - barHeight);
 
     if (i < bars) {

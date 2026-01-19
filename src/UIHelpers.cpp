@@ -93,13 +93,7 @@ void updateWifiSignal() {
 
   int rssi = WiFi.RSSI();
 
-  lcd.setFont(nullptr);
-  lcd.setTextColor(MAC_BLACK, MAC_WHITE);
-  lcd.setTextSize(1);
-  lcd.setCursor(328, 11);
-  lcd.println(String(rssi) + " dBm");
-
-  if (rssi == 0) {
+    if (rssi == 0) {
     rssi = -100;
   }
 

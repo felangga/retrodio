@@ -72,6 +72,7 @@ static WiFiWindowComponents* wifiComponent = nullptr;
 void onWifiItemClick(int index, void* itemData);
 void onWifiConnectButtonClick();
 void onWifiCancelButtonClick();
+void reconnectWifi(bool& retFlag);
 void onWifiRefreshButtonClick();
 void onWifiPasswordSaveClick();
 void onWifiPasswordCancelClick();
@@ -362,6 +363,16 @@ void initializeWifiWindow() {
   initializeWifiComponentCache();
 }
 
+void triggerPlayAudioOnConnect() {
+  // Send command to audio task to start streaming
+  extern QueueHandle_t audioCommandQueue;
+  extern String RadioURL;
+
+  AudioCommandMsg msg = {CMD_CONNECT, ""};
+  strncpy(msg.url, RadioURL.c_str(), sizeof(msg.url) - 1);
+  xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
+}
+
 void showWifiPasswordEntry() {
   extern MacWindow wifiWindow;
   extern LGFX lcd;
@@ -493,16 +504,7 @@ void onWifiConnectButtonClick() {
   }
 }
 
-void onWifiCancelButtonClick() {
-  extern MacWindow wifiWindow;
-  extern MacWindow radioWindow;
-  extern LGFX lcd;
-
-  wifiWindow.visible = false;
-  wifiWindow.active = false;
-
-  cleanupWifiList();
-
+void reconnectWifi() {
   String savedSSID = ConfigManager::getWifiSSID();
   String savedPassword = ConfigManager::getWifiPassword();
 
@@ -527,12 +529,25 @@ void onWifiCancelButtonClick() {
       hideNotification();
       showNotification("WiFi Connected!", 2000);
       drawWifiSignal(lcd, WiFi.RSSI());
+
+      triggerPlayAudioOnConnect();
     } else {
       hideNotification();
       showNotification("WiFi connection failed", 3000);
       return;
     }
   }
+}
+
+void onWifiCancelButtonClick() {
+  extern MacWindow wifiWindow;
+  extern MacWindow radioWindow;
+  extern LGFX lcd;
+
+  wifiWindow.visible = false;
+  wifiWindow.active = false;
+
+  cleanupWifiList();
 
   lcd.startWrite();
   drawCheckeredPatternArea(lcd, wifiWindow.x, wifiWindow.y, wifiWindow.w + 5, wifiWindow.h + 5);
@@ -540,6 +555,8 @@ void onWifiCancelButtonClick() {
   radioWindow.active = true;
   drawWindow(lcd, radioWindow);
   lcd.endWrite();
+
+  reconnectWifi();
 }
 
 void onWifiPasswordSaveClick() {
@@ -579,7 +596,7 @@ void connectToSelectedWifi(const String& password) {
     WiFi.begin(connectionState.ssid.c_str());
   }
 
-  showNotification("Connecting...");
+  showNotification("Connecting to " + connectionState.ssid + "...");
 }
 
 bool isWifiConnecting() {
@@ -624,6 +641,7 @@ void updateWifiConnectionStatus() {
     lcd.endWrite();
 
     drawWifiSignal(lcd, WiFi.RSSI());
+    triggerPlayAudioOnConnect();
     return;
   }
 
@@ -631,27 +649,91 @@ void updateWifiConnectionStatus() {
   if (now - connectionState.startTime >= WiFiConnectionState::TIMEOUT) {
     connectionState.reset();
     WiFi.disconnect();
-    // hideNotification();
-
-    // if (wifiKeyboard && wifiKeyboard->customData) {
-    //   MacKeyboard* kb = (MacKeyboard*)wifiKeyboard->customData;
-    //   kb->visible = false;
-    // }
-
-    // wifiWindow.visible = false;
-    // wifiWindow.active = false;
-
-    // cleanupWifiList();
-
-    // int keyboardHeight = screenHeight / 2;
-    // int keyboardY = screenHeight - keyboardHeight;
-
-    // lcd.startWrite();
-    // drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
-    // drawCheckeredPatternArea(lcd, wifiWindow.x, wifiWindow.y, wifiWindow.w + 5, wifiWindow.h +
-    // 5); radioWindow.visible = true; radioWindow.active = true; drawWindow(lcd, radioWindow);
-    // lcd.endWrite();
 
     showNotification("Connection failed!", 3000);
   }
+}
+
+// WiFi Window Callbacks
+void onWifiWindowMinimize() {
+  extern MacComponent* wifiKeyboard;
+
+  if (wifiKeyboard) {
+    MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+    keyboard->visible = false;
+  }
+
+  wifiWindow.visible = false;
+  wifiWindow.active = false;
+
+  int keyboardHeight = screenHeight / 2;
+  int keyboardY = screenHeight - keyboardHeight;
+  drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
+
+  drawCheckeredPatternArea(lcd, wifiWindow.x, wifiWindow.y, wifiWindow.w + 5, wifiWindow.h + 5);
+  radioWindow.visible = true;
+  radioWindow.active = true;
+  drawWindow(lcd, radioWindow);
+
+  reconnectWifi();
+}
+
+void onWifiWindowClose() {
+  extern MacComponent* wifiKeyboard;
+
+  if (wifiKeyboard) {
+    MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+    keyboard->visible = false;
+  }
+
+  wifiWindow.visible = false;
+  wifiWindow.active = false;
+
+  int keyboardHeight = screenHeight / 2;
+  int keyboardY = screenHeight - keyboardHeight;
+  drawCheckeredPatternArea(lcd, 0, keyboardY, screenWidth, keyboardHeight);
+
+  drawCheckeredPatternArea(lcd, wifiWindow.x, wifiWindow.y, wifiWindow.w + 5, wifiWindow.h + 5);
+  radioWindow.visible = true;
+  radioWindow.active = true;
+  drawWindow(lcd, radioWindow);
+
+  reconnectWifi();
+}
+
+void onWifiWindowContentClick(int relativeX, int relativeY) {
+  extern MacComponent* wifiKeyboard;
+  extern const int INPUT_WIFI_PASSWORD;
+
+  MacComponent* passwordInputComp = findComponentById(wifiWindow, INPUT_WIFI_PASSWORD);
+
+  if (wifiKeyboard && passwordInputComp && passwordInputComp->visible) {
+    MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+
+    if (relativeX >= passwordInputComp->x &&
+        relativeX <= passwordInputComp->x + passwordInputComp->w &&
+        relativeY >= passwordInputComp->y &&
+        relativeY <= passwordInputComp->y + passwordInputComp->h) {
+      MacInputField* passwordInput = (MacInputField*)passwordInputComp->customData;
+      passwordInput->focused = true;
+      keyboard->targetInputId = INPUT_WIFI_PASSWORD;
+      keyboard->visible = true;
+
+      drawComponent(lcd, *passwordInputComp, wifiWindow.x, wifiWindow.y);
+      drawComponent(lcd, *wifiKeyboard, 0, 0);
+
+      int tx, ty;
+      delay(150);
+      while (lcd.getTouch(&tx, &ty)) {
+        delay(10);
+      }
+      return;
+    }
+  }
+
+  handleWindowContentClick(lcd, wifiWindow, relativeX, relativeY);
+}
+
+void onWifiWindowMoved() {
+  handleWindowMoved(lcd, wifiWindow);
 }
