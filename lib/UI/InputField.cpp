@@ -1,14 +1,14 @@
 /*
- * MacInputField.cpp - Input field component with cursor
- * 
+ * InputField.cpp - Input field component with cursor
+ *
  * Copyright (c) 2025 felangga
  */
 
-#include "MacUI.h"
+#include "UI.h"
 
-void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInputField& inputField) {
+void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, UIInputField& inputField) {
   draw3DFrame(lcd, x, y, w, h);
-  lcd.fillRect(x + 2, y + 2, w - 4, h - 4, MAC_WHITE);
+  lcd.fillRect(x + 2, y + 2, w - 4, h - 4, UI_WHITE);
 
   // Set font and text size BEFORE measuring text widths
   lcd.setTextSize(1);
@@ -92,34 +92,34 @@ void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInput
 
       // Only draw cursor if it's within visible area
       if (cursorScreenX >= x + 5 && cursorScreenX < x + w - 5) {
-        lcd.drawLine(cursorScreenX, y + 5, cursorScreenX, y + h - 5, MAC_BLACK);
+        lcd.drawLine(cursorScreenX, y + 5, cursorScreenX, y + h - 5, UI_BLACK);
       }
     }
   } else {
     // Show placeholder text if empty
-    lcd.setTextColor(MAC_GRAY);
+    lcd.setTextColor(UI_GRAY);
     lcd.setTextSize(1);
     lcd.setCursor(textX, textY);
     lcd.print(inputField.placeholder);
     
     // Draw cursor at start if focused
     if (inputField.focused && inputField.cursorVisible) {
-      lcd.drawLine(textX, y + 5, textX, y + h - 5, MAC_BLACK);
+      lcd.drawLine(textX, y + 5, textX, y + h - 5, UI_BLACK);
     }
   }
 
   if (inputField.focused) {
-    lcd.drawRect(x, y, w, h, MAC_BLACK);
+    lcd.drawRect(x, y, w, h, UI_BLACK);
   }
 
   lcd.setFont(nullptr);
 }
 
-MacComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
+UIComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
                                         const String& placeholder, int maxLength, const String& defaultText) {
-  MacComponent* component = createComponent(COMPONENT_INPUT_FIELD, x, y, w, h, id);
+  UIComponent* component = createComponent(COMPONENT_INPUT_FIELD, x, y, w, h, id);
 
-  MacInputField* inputField = new MacInputField();
+  UIInputField* inputField = new UIInputField();
   inputField->text = defaultText;
   inputField->placeholder = placeholder;
   inputField->focused = false;
@@ -136,7 +136,7 @@ MacComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
 }
 
 // Update all input field components in a window (for cursor blinking)
-void updateInputFieldComponents(lgfx::LGFX_Device& lcd, MacWindow& window) {
+void updateInputFieldComponents(lgfx::LGFX_Device& lcd, UIWindow& window) {
   if (!window.visible || window.childComponents == nullptr || window.childComponentCount == 0) {
     return;
   }
@@ -147,10 +147,10 @@ void updateInputFieldComponents(lgfx::LGFX_Device& lcd, MacWindow& window) {
   }
 
   for (int i = 0; i < window.childComponentCount; i++) {
-    MacComponent* component = window.childComponents[i];
+    UIComponent* component = window.childComponents[i];
     if (component != nullptr && component->visible && component->type == COMPONENT_INPUT_FIELD) {
       if (component->customData != nullptr) {
-        MacInputField* inputFieldData = (MacInputField*)component->customData;
+        UIInputField* inputFieldData = (UIInputField*)component->customData;
 
         // Check if cursor blink state changed
         unsigned long currentTime = millis();

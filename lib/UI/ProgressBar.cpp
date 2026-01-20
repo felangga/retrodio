@@ -1,15 +1,15 @@
 /*
- * MacProgressBar.cpp - ProgressBar Component Implementation
+ * ProgressBar.cpp - ProgressBar Component Implementation
  *
  * Copyright (c) 2025 felangga
  */
 
-#include "MacUI.h"
+#include "UI.h"
 
 void drawProgressBar(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
-                     const MacProgressBar& progressBar) {
+                     const UIProgressBar& progressBar) {
   // Draw background
-  lcd.fillRect(x, y, w, h, MAC_WHITE);
+  lcd.fillRect(x, y, w, h, UI_WHITE);
   draw3DFrame(lcd, x, y, w, h);
 
   // Calculate fill width
@@ -26,7 +26,7 @@ void drawProgressBar(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
     int percentage = ((progressBar.currentValue - progressBar.minValue) * 100) / range;
     String percentText = String(percentage) + "%";
 
-    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+    lcd.setTextColor(UI_BLACK, UI_WHITE);
     lcd.setTextSize(1);
     int textX = x + (w - percentText.length() * 6) / 2;
     int textY = y + (h - 8) / 2;
@@ -35,16 +35,16 @@ void drawProgressBar(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
   }
 }
 
-MacComponent* createProgressBarComponent(int x, int y, int w, int h, int id, int minVal, int maxVal,
-                                         int currentVal) {
-  MacComponent* component = createComponent(COMPONENT_PROGRESS_BAR, x, y, w, h, id);
+UIComponent* createProgressBarComponent(int x, int y, int w, int h, int id, int minVal, int maxVal,
+                                        int currentVal) {
+  UIComponent* component = createComponent(COMPONENT_PROGRESS_BAR, x, y, w, h, id);
 
   // Create progress bar-specific data
-  MacProgressBar* progressData = new MacProgressBar();
+  UIProgressBar* progressData = new UIProgressBar();
   progressData->minValue = minVal;
   progressData->maxValue = maxVal;
   progressData->currentValue = currentVal;
-  progressData->fillColor = MAC_BLUE;
+  progressData->fillColor = UI_BLACK;
   progressData->showPercentage = true;
 
   component->customData = progressData;

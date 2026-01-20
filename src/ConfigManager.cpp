@@ -29,9 +29,6 @@ bool ConfigManager::begin() {
   return true;
 }
 
-/**
- * Load settings from file
- */
 bool ConfigManager::loadSettings() {
   File file = LittleFS.open(SETTINGS_FILE, "r");
   if (!file) {
@@ -55,9 +52,6 @@ bool ConfigManager::loadSettings() {
   return true;
 }
 
-/**
- * Save settings to file
- */
 bool ConfigManager::saveSettings() {
   JsonDocument doc;
   doc["volume"] = volume;
@@ -77,9 +71,6 @@ bool ConfigManager::saveSettings() {
   return true;
 }
 
-/**
- * Load stations from file
- */
 bool ConfigManager::loadStations() {
   File file = LittleFS.open(STATIONS_FILE, "r");
   if (!file) {
@@ -109,9 +100,6 @@ bool ConfigManager::loadStations() {
   return true;
 }
 
-/**
- * Save stations to file
- */
 bool ConfigManager::saveStations() {
   JsonDocument doc;
   JsonArray stationsArray = doc["stations"].to<JsonArray>();
@@ -133,46 +121,28 @@ bool ConfigManager::saveStations() {
   return true;
 }
 
-/**
- * Get current volume setting
- */
 int ConfigManager::getVolume() {
   return volume;
 }
 
-/**
- * Set volume and save
- */
 void ConfigManager::setVolume(int vol) {
   volume = constrain(vol, 0, 21);
   saveSettings();
 }
 
-/**
- * Get last played station
- */
 LastStation ConfigManager::getLastStation() {
   return lastStation;
 }
 
-/**
- * Set last played station and save
- */
 void ConfigManager::setLastStation(const LastStation& station) {
   lastStation = station;
   saveSettings();
 }
 
-/**
- * Get number of stations
- */
 int ConfigManager::getStationCount() {
   return stationCount;
 }
 
-/**
- * Get station by index
- */
 Station ConfigManager::getStation(int index) {
   if (index >= 0 && index < stationCount) {
     return stations[index];
@@ -180,9 +150,6 @@ Station ConfigManager::getStation(int index) {
   return {"", ""};
 }
 
-/**
- * Add a new station
- */
 bool ConfigManager::addStation(const String& name, const String& url) {
   if (stationCount >= MAX_STATIONS) {
     return false;
@@ -195,9 +162,6 @@ bool ConfigManager::addStation(const String& name, const String& url) {
   return saveStations();
 }
 
-/**
- * Remove station by index
- */
 bool ConfigManager::removeStation(int index) {
   if (index < 0 || index >= stationCount) {
     return false;
@@ -211,9 +175,6 @@ bool ConfigManager::removeStation(int index) {
   return saveStations();
 }
 
-/**
- * Update station by index
- */
 bool ConfigManager::updateStation(int index, const String& name, const String& url) {
   if (index < 0 || index >= stationCount) {
     return false;
@@ -225,57 +186,36 @@ bool ConfigManager::updateStation(int index, const String& name, const String& u
   return saveStations();
 }
 
-/**
- * Clear all stations
- */
 void ConfigManager::clearStations() {
   stationCount = 0;
   saveStations();
 }
 
-/**
- * Get saved WiFi SSID
- */
 String ConfigManager::getWifiSSID() {
   return wifiSSID;
 }
 
-/**
- * Get saved WiFi password
- */
 String ConfigManager::getWifiPassword() {
   return wifiPassword;
 }
 
-/**
- * Set WiFi credentials and save
- */
 void ConfigManager::setWifiCredentials(const String& ssid, const String& password) {
   wifiSSID = ssid;
   wifiPassword = password;
   saveSettings();
 }
 
-/**
- * Reset to factory defaults
- */
 void ConfigManager::factoryReset() {
   createDefaultSettings();
   createDefaultStations();
 }
 
-/**
- * Create default settings file
- */
 bool ConfigManager::createDefaultSettings() {
   volume = 5;
   lastStation = {"", ""};
   return saveSettings();
 }
 
-/**
- * Create default stations list
- */
 bool ConfigManager::createDefaultStations() {
   stationCount = 0;
 
@@ -292,15 +232,5 @@ bool ConfigManager::createDefaultStations() {
   addStation("Sonora FM", "https://cast3.asurahosting.com/proxy/radios28/stream");
   addStation("BBC World Service",
              "https://radio.garden/api/ara/content/listen/FXyhz9Xk/channel.mp3?1766930004566");
-  addStation("TEST", "https://streamcdnb4-dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/"
-                     "S97044836/tbbP8T1ZRPBL/playlist_audio.m3u8");
   return true;
-}
-
-/**
- * Print debug information
- */
-void ConfigManager::printDebugInfo() {
-  // Note: Serial prints removed as per user request
-  // This function is kept for future debugging via display
 }

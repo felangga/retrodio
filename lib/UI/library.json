@@ -1,8 +1,8 @@
 {
-  "name": "MacUI",
+  "name": "UI",
   "version": "1.0.0",
-  "description": "Classic Macintosh-style UI library for embedded displays",
-  "keywords": "graphics, ui, mac, display",
+  "description": "Classic UI library for embedded displays",
+  "keywords": "graphics, ui, display",
   "authors": [
     {
       "name": "felangga",

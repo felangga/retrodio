@@ -3,16 +3,15 @@
  *
  * Copyright (c) 2025 felangga
  *
- * This header file contains declarations for station management functions
  */
 
 #ifndef STATION_MANAGER_H
 #define STATION_MANAGER_H
 
-#include "MacUI.h"
+#include "UI.h"
 
 // Station list management
-extern MacListViewItem* stationItems;
+extern UIListViewItem* stationItems;
 extern int stationItemCount;
 extern SemaphoreHandle_t stationListMutex;
 

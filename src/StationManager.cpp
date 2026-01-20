@@ -3,21 +3,20 @@
  *
  * Copyright (c) 2025 felangga
  *
- * This file implements station management functions
  */
 
-#include "ConfirmDeleteWindow.h"
 #include "StationManager.h"
-#include "GlobalState.h"
-#include "UIHelpers.h"
-#include "ConfigManager.h"
-#include "WindowCallbacks.h"
-#include "NetworkHandlers.h"
 #include <WiFi.h>
+#include "ConfigManager.h"
+#include "ConfirmDeleteWindow.h"
+#include "GlobalState.h"
+#include "NetworkHandlers.h"
+#include "UIHelpers.h"
+#include "WindowCallbacks.h"
 
 void initializeConfirmDeleteWindow();
 
-MacListViewItem* stationItems = nullptr;
+UIListViewItem* stationItems = nullptr;
 int stationItemCount = 0;
 SemaphoreHandle_t stationListMutex = nullptr;
 
@@ -32,7 +31,7 @@ void reloadStationList() {
     return;  // Couldn't get mutex, skip reload
   }
 
-  MacListViewItem* oldItems = stationItems;
+  UIListViewItem* oldItems = stationItems;
   stationItemCount = ConfigManager::getStationCount();
 
   if (stationItemCount == 0) {
@@ -46,7 +45,7 @@ void reloadStationList() {
     return;
   }
 
-  MacListViewItem* newItems = new MacListViewItem[stationItemCount];
+  UIListViewItem* newItems = new UIListViewItem[stationItemCount];
 
   for (int i = 0; i < stationItemCount; i++) {
     Station station = ConfigManager::getStation(i);
@@ -130,39 +129,39 @@ void switchToStation(int index) {
   extern const int TXT_INFO;
   extern const int TXT_DESCRIPTION;
 
-  MacComponent* txtRadioName = findComponentById(radioWindow, TXT_RADIO_NAME);
+  UIComponent* txtRadioName = findComponentById(radioWindow, TXT_RADIO_NAME);
   if (txtRadioName && txtRadioName->customData) {
-    MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
+    UIRunningText* runningText = (UIRunningText*)txtRadioName->customData;
     if (runningText) {
       runningText->text = currentStationName;
       runningText->scrollOffset = 0;
     }
   }
 
-  MacComponent* txtRadioDetails = findComponentById(radioWindow, TXT_RADIO_DETAILS);
+  UIComponent* txtRadioDetails = findComponentById(radioWindow, TXT_RADIO_DETAILS);
   if (txtRadioDetails && txtRadioDetails->customData) {
-    MacRunningText* runningText = (MacRunningText*)txtRadioDetails->customData;
+    UIRunningText* runningText = (UIRunningText*)txtRadioDetails->customData;
     runningText->text = "";
     runningText->scrollOffset = 0;
   }
 
-  MacComponent* txtBitRate = findComponentById(radioWindow, TXT_BITRATE);
+  UIComponent* txtBitRate = findComponentById(radioWindow, TXT_BITRATE);
   if (txtBitRate && txtBitRate->customData) {
-    MacRunningText* runningText = (MacRunningText*)txtBitRate->customData;
+    UIRunningText* runningText = (UIRunningText*)txtBitRate->customData;
     runningText->text = "";
     runningText->scrollOffset = 0;
   }
 
-  MacComponent* txtInfo = findComponentById(radioWindow, TXT_INFO);
+  UIComponent* txtInfo = findComponentById(radioWindow, TXT_INFO);
   if (txtInfo && txtInfo->customData) {
-    MacRunningText* runningText = (MacRunningText*)txtInfo->customData;
+    UIRunningText* runningText = (UIRunningText*)txtInfo->customData;
     runningText->text = "";
     runningText->scrollOffset = 0;
   }
 
-  MacComponent* txtDescription = findComponentById(radioWindow, TXT_DESCRIPTION);
+  UIComponent* txtDescription = findComponentById(radioWindow, TXT_DESCRIPTION);
   if (txtDescription && txtDescription->customData) {
-    MacRunningText* runningText = (MacRunningText*)txtDescription->customData;
+    UIRunningText* runningText = (UIRunningText*)txtDescription->customData;
     runningText->text = "";
     runningText->scrollOffset = 0;
     lastDisplayedDescription = "";
@@ -179,9 +178,9 @@ void switchToStation(int index) {
     isPlaying = false;
   }
 
-  MacComponent* playButton = findComponentById(radioWindow, 1);
+  UIComponent* playButton = findComponentById(radioWindow, 1);
   if (playButton && playButton->customData) {
-    MacButton* btnData = (MacButton*)playButton->customData;
+    UIButton* btnData = (UIButton*)playButton->customData;
     if (btnData) {
       AudioCommandMsg msg = {CMD_CONNECT, ""};
       strncpy(msg.url, station.url.c_str(), sizeof(msg.url) - 1);
@@ -210,23 +209,24 @@ void initializeStationWindow() {
 
   clearChildComponents(stationWindow);
 
-  MacComponent* btnAddStation = createButtonComponent(310, 42, 90, 30, BTN_ADD_STATION, "Add");
+  UIComponent* btnAddStation = createButtonComponent(310, 42, 90, 30, BTN_ADD_STATION, "Add");
   btnAddStation->onClick = [](int componentId) { onAddStationButtonClick(); };
   addChildComponent(stationWindow, btnAddStation);
 
-  MacComponent* btnEditStation = createButtonComponent(310, 77, 90, 30, BTN_EDIT_STATION, "Edit");
+  UIComponent* btnEditStation = createButtonComponent(310, 77, 90, 30, BTN_EDIT_STATION, "Edit");
   btnEditStation->onClick = [](int componentId) { onEditStationButtonClick(); };
   addChildComponent(stationWindow, btnEditStation);
 
-  MacComponent* btnDeleteStation = createButtonComponent(310, 112, 90, 30, BTN_DELETE_STATION, "Delete");
+  UIComponent* btnDeleteStation =
+      createButtonComponent(310, 112, 90, 30, BTN_DELETE_STATION, "Delete");
   btnDeleteStation->onClick = [](int componentId) { onDeleteStationButtonClick(); };
   addChildComponent(stationWindow, btnDeleteStation);
 
   // Take mutex before accessing station list
-  MacComponent* stationList = nullptr;
+  UIComponent* stationList = nullptr;
   if (stationListMutex && xSemaphoreTake(stationListMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-    stationList = createListViewComponent(10, 42, 290, 188, 300,
-                                          stationItems, stationItemCount, 30);
+    stationList =
+        createListViewComponent(10, 42, 290, 188, 300, stationItems, stationItemCount, 30);
     xSemaphoreGive(stationListMutex);
   } else {
     // If we can't get the mutex, create an empty list
@@ -234,14 +234,13 @@ void initializeStationWindow() {
   }
 
   if (stationList && stationList->customData) {
-    MacListView* listViewData = (MacListView*)stationList->customData;
+    UIListView* listViewData = (UIListView*)stationList->customData;
     listViewData->onItemClick = onStationItemClick;
     listViewData->font = FONT_CHICAGO_9PT;  // Set Chicago font
   }
 
   addChildComponent(stationWindow, stationList);
 }
-
 
 void onAddStationButtonClick() {
   extern bool isEditMode;
@@ -252,12 +251,12 @@ void onAddStationButtonClick() {
   isEditMode = false;
   stationToEditIndex = -1;
 
-  MacComponent* nameInputComp = findComponentById(addStationWindow, INPUT_STATION_NAME);
-  MacComponent* urlInputComp = findComponentById(addStationWindow, INPUT_STATION_URL);
+  UIComponent* nameInputComp = findComponentById(addStationWindow, INPUT_STATION_NAME);
+  UIComponent* urlInputComp = findComponentById(addStationWindow, INPUT_STATION_URL);
 
   if (nameInputComp && urlInputComp) {
-    MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
-    MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+    UIInputField* nameInput = (UIInputField*)nameInputComp->customData;
+    UIInputField* urlInput = (UIInputField*)urlInputComp->customData;
 
     nameInput->text = "";
     nameInput->cursorPos = 0;
@@ -271,7 +270,8 @@ void onAddStationButtonClick() {
   addStationWindow.active = true;
   addStationWindow.minimized = false;
 
-  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
+  drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5,
+                           stationWindow.h + 5);
   drawWindow(lcd, addStationWindow);
 }
 
@@ -281,23 +281,24 @@ void onEditStationButtonClick() {
   extern const int INPUT_STATION_NAME;
   extern const int INPUT_STATION_URL;
 
-  MacComponent* stationListComp = findComponentById(stationWindow, 300);
+  UIComponent* stationListComp = findComponentById(stationWindow, 300);
 
   if (stationListComp && stationListComp->customData) {
-    MacListView* listViewData = (MacListView*)stationListComp->customData;
+    UIListView* listViewData = (UIListView*)stationListComp->customData;
 
-    if (listViewData->selectedIndex >= 0 && listViewData->selectedIndex < ConfigManager::getStationCount()) {
+    if (listViewData->selectedIndex >= 0 &&
+        listViewData->selectedIndex < ConfigManager::getStationCount()) {
       isEditMode = true;
       stationToEditIndex = listViewData->selectedIndex;
 
       Station station = ConfigManager::getStation(stationToEditIndex);
 
-      MacComponent* nameInputComp = findComponentById(addStationWindow, INPUT_STATION_NAME);
-      MacComponent* urlInputComp = findComponentById(addStationWindow, INPUT_STATION_URL);
+      UIComponent* nameInputComp = findComponentById(addStationWindow, INPUT_STATION_NAME);
+      UIComponent* urlInputComp = findComponentById(addStationWindow, INPUT_STATION_URL);
 
       if (nameInputComp && urlInputComp) {
-        MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
-        MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+        UIInputField* nameInput = (UIInputField*)nameInputComp->customData;
+        UIInputField* urlInput = (UIInputField*)urlInputComp->customData;
 
         nameInput->text = station.name;
         nameInput->cursorPos = station.name.length();
@@ -311,7 +312,8 @@ void onEditStationButtonClick() {
       addStationWindow.active = true;
       addStationWindow.minimized = false;
 
-      drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
+      drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5,
+                               stationWindow.h + 5);
       drawWindow(lcd, addStationWindow);
     }
   }
@@ -323,12 +325,12 @@ void onSaveStationButtonClick() {
   extern bool isEditMode;
   extern int stationToEditIndex;
 
-  MacComponent* nameInputComp = findComponentById(addStationWindow, INPUT_STATION_NAME);
-  MacComponent* urlInputComp = findComponentById(addStationWindow, INPUT_STATION_URL);
+  UIComponent* nameInputComp = findComponentById(addStationWindow, INPUT_STATION_NAME);
+  UIComponent* urlInputComp = findComponentById(addStationWindow, INPUT_STATION_URL);
 
   if (nameInputComp && urlInputComp) {
-    MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
-    MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+    UIInputField* nameInput = (UIInputField*)nameInputComp->customData;
+    UIInputField* urlInput = (UIInputField*)urlInputComp->customData;
 
     String stationName = nameInput->text;
     String stationURL = urlInput->text;
@@ -360,7 +362,7 @@ void onSaveStationButtonClick() {
   }
 
   if (globalKeyboard) {
-    MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+    UIKeyboard* keyboard = (UIKeyboard*)globalKeyboard->customData;
     keyboard->visible = false;
   }
 
@@ -371,13 +373,14 @@ void onSaveStationButtonClick() {
   stationWindow.visible = true;
   stationWindow.active = true;
 
-  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5, addStationWindow.h + 5);
+  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5,
+                           addStationWindow.h + 5);
   drawWindow(lcd, stationWindow);
 }
 
 void onCancelAddStationButtonClick() {
   if (globalKeyboard) {
-    MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+    UIKeyboard* keyboard = (UIKeyboard*)globalKeyboard->customData;
     keyboard->visible = false;
   }
 
@@ -388,17 +391,19 @@ void onCancelAddStationButtonClick() {
   stationWindow.visible = true;
   stationWindow.active = true;
 
-  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5, addStationWindow.h + 5);
+  drawCheckeredPatternArea(lcd, addStationWindow.x, addStationWindow.y, addStationWindow.w + 5,
+                           addStationWindow.h + 5);
   drawWindow(lcd, stationWindow);
 }
 
 void onDeleteStationButtonClick() {
-  MacComponent* stationListComp = findComponentById(stationWindow, 300);
+  UIComponent* stationListComp = findComponentById(stationWindow, 300);
 
   if (stationListComp && stationListComp->customData) {
-    MacListView* listViewData = (MacListView*)stationListComp->customData;
+    UIListView* listViewData = (UIListView*)stationListComp->customData;
 
-    if (listViewData->selectedIndex >= 0 && listViewData->selectedIndex < ConfigManager::getStationCount()) {
+    if (listViewData->selectedIndex >= 0 &&
+        listViewData->selectedIndex < ConfigManager::getStationCount()) {
       stationToDeleteIndex = listViewData->selectedIndex;
 
       stationWindow.visible = false;
@@ -408,7 +413,8 @@ void onDeleteStationButtonClick() {
       confirmDeleteWindow.visible = true;
       confirmDeleteWindow.active = true;
 
-      drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5, stationWindow.h + 5);
+      drawCheckeredPatternArea(lcd, stationWindow.x, stationWindow.y, stationWindow.w + 5,
+                               stationWindow.h + 5);
       drawWindow(lcd, confirmDeleteWindow);
     }
   }

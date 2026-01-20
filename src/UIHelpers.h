@@ -10,12 +10,11 @@
 #define UI_HELPERS_H
 
 #include <Arduino.h>
-#include "MacUI.h"
+#include "UI.h"
 
 // UI update functions
 void updateStationMetadata(const String& stationName, const String& trackInfo);
 void updateClock();
-void updateCPUUsage();
 void updateWifiSignal();
 void updateVolumeDisplay();
 
@@ -26,11 +25,11 @@ void updateNotification();
 
 // Interface drawing
 void drawInterface(lgfx::LGFX_Device& lcd);
-void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window);
+void redrawWindowContent(lgfx::LGFX_Device& lcd, const UIWindow& window);
 
 // Keyboard interaction handling
 void handleKeyboardInteraction();
-void adjustWindowForKeyboard(MacWindow& window, MacComponent* inputComponent, bool show);
+void adjustWindowForKeyboard(UIWindow& window, UIComponent* inputComponent, bool show);
 
 // WiFi keyboard interaction handling
 void handleWifiKeyboardInteraction();
@@ -42,6 +41,6 @@ void checkMenuBarTouch();
 void uiTask(void* parameter);
 
 // Helper function to get all visible windows
-MacWindow** getVisibleWindows(int& windowCount);
+UIWindow** getVisibleWindows(int& windowCount);
 
 #endif

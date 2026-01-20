@@ -3,7 +3,6 @@
  *
  * Copyright (c) 2025 felangga
  *
- * This file implements OTA update functionality for Arduino IDE uploads
  */
 
 #include "OTAHandler.h"

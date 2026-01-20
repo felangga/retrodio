@@ -1,16 +1,16 @@
 /*
- * MacListView.cpp - ListView Component Implementation
+ * ListView.cpp - ListView Component Implementation
  *
  * Copyright (c) 2025 felangga
  */
 
-#include "MacUI.h"
+#include "UI.h"
 
-void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListView& listView) {
+void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, UIListView& listView) {
   if (listView.items == nullptr || listView.itemCount == 0) {
     draw3DFrame(lcd, x, y, w, h);
     lcd.fillRect(x + 2, y + 2, w - 4, h - 4, listView.backgroundColor);
-    lcd.setTextColor(MAC_GRAY, listView.backgroundColor);
+    lcd.setTextColor(UI_GRAY, listView.backgroundColor);
     lcd.setTextSize(1);
     lcd.setCursor(x + 10, y + h / 2);
     lcd.print("No items");
@@ -45,7 +45,7 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
 
     uint16_t bgColor =
         (i == listView.selectedIndex) ? listView.selectedColor : listView.backgroundColor;
-    uint16_t txtColor = (i == listView.selectedIndex) ? MAC_WHITE : listView.textColor;
+    uint16_t txtColor = (i == listView.selectedIndex) ? UI_WHITE : listView.textColor;
     // Draw item background excluding scrollbar area
     lcd.fillRect(x + 2, itemY, w - 4 - scrollbarWidth, listView.itemHeight, bgColor);
 
@@ -86,29 +86,29 @@ void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListVie
     thumbY = scrollbarY;
   }
 
-  lcd.fillRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_LIGHT_GRAY);
-  lcd.drawRect(scrollbarX, scrollbarY, 8, scrollbarHeight, MAC_DARK_GRAY);
+  lcd.fillRect(scrollbarX, scrollbarY, 8, scrollbarHeight, UI_LIGHT_GRAY);
+  lcd.drawRect(scrollbarX, scrollbarY, 8, scrollbarHeight, UI_DARK_GRAY);
 
-  lcd.fillRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_GRAY);
-  lcd.drawRect(scrollbarX + 1, thumbY, 6, thumbHeight, MAC_BLACK);
+  lcd.fillRect(scrollbarX + 1, thumbY, 6, thumbHeight, UI_GRAY);
+  lcd.drawRect(scrollbarX + 1, thumbY, 6, thumbHeight, UI_BLACK);
 
   listView.lastScrollbarThumbY = thumbY;
 }
 
-MacComponent* createListViewComponent(int x, int y, int w, int h, int id, MacListViewItem* items,
+UIComponent* createListViewComponent(int x, int y, int w, int h, int id, UIListViewItem* items,
                                       int itemCount, int itemHeight) {
-  MacComponent* component = createComponent(COMPONENT_LISTVIEW, x, y, w, h, id);
+  UIComponent* component = createComponent(COMPONENT_LISTVIEW, x, y, w, h, id);
 
-  MacListView* listViewData = new MacListView();
+  UIListView* listViewData = new UIListView();
   listViewData->items = items;
   listViewData->itemCount = itemCount;
   listViewData->selectedIndex = -1;
   listViewData->scrollOffset = 0;
   listViewData->itemHeight = itemHeight;
   listViewData->visibleItemCount = (h - 4) / itemHeight;
-  listViewData->textColor = MAC_BLACK;
-  listViewData->backgroundColor = MAC_WHITE;
-  listViewData->selectedColor = MAC_BLACK;
+  listViewData->textColor = UI_BLACK;
+  listViewData->backgroundColor = UI_WHITE;
+  listViewData->selectedColor = UI_BLACK;
   listViewData->textSize = 1;
   listViewData->font = FONT_DEFAULT;
   listViewData->onItemClick = nullptr;

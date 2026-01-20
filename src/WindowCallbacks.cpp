@@ -3,7 +3,6 @@
  *
  * Copyright (c) 2025 felangga
  *
- * This file implements window callback functions
  */
 
 #include "WindowCallbacks.h"
@@ -67,7 +66,7 @@ void onStationWindowMoved() {
 
 void onAddStationWindowMinimize() {
   if (globalKeyboard) {
-    MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+    UIKeyboard* keyboard = (UIKeyboard*)globalKeyboard->customData;
     keyboard->visible = false;
   }
 
@@ -84,7 +83,7 @@ void onAddStationWindowMinimize() {
 
 void onAddStationWindowClose() {
   if (globalKeyboard) {
-    MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+    UIKeyboard* keyboard = (UIKeyboard*)globalKeyboard->customData;
     keyboard->visible = false;
   }
 
@@ -102,11 +101,11 @@ void onAddStationWindowClose() {
 void onAddStationWindowContentClick(int relativeX, int relativeY) {
   extern const int INPUT_STATION_NAME;
   extern const int INPUT_STATION_URL;
-  MacComponent* nameInputComp = nullptr;
-  MacComponent* urlInputComp = nullptr;
+  UIComponent* nameInputComp = nullptr;
+  UIComponent* urlInputComp = nullptr;
 
   for (int i = 0; i < addStationWindow.childComponentCount; i++) {
-    MacComponent* comp = addStationWindow.childComponents[i];
+    UIComponent* comp = addStationWindow.childComponents[i];
     if (comp->id == INPUT_STATION_NAME) {
       nameInputComp = comp;
     } else if (comp->id == INPUT_STATION_URL) {
@@ -115,12 +114,12 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
   }
 
   if (globalKeyboard && nameInputComp && urlInputComp) {
-    MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+    UIKeyboard* keyboard = (UIKeyboard*)globalKeyboard->customData;
 
     if (relativeX >= nameInputComp->x && relativeX <= nameInputComp->x + nameInputComp->w &&
         relativeY >= nameInputComp->y && relativeY <= nameInputComp->y + nameInputComp->h) {
-      MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
-      MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+      UIInputField* nameInput = (UIInputField*)nameInputComp->customData;
+      UIInputField* urlInput = (UIInputField*)urlInputComp->customData;
 
       nameInput->focused = true;
       urlInput->focused = false;
@@ -143,8 +142,8 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
 
     if (relativeX >= urlInputComp->x && relativeX <= urlInputComp->x + urlInputComp->w &&
         relativeY >= urlInputComp->y && relativeY <= urlInputComp->y + urlInputComp->h) {
-      MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
-      MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+      UIInputField* nameInput = (UIInputField*)nameInputComp->customData;
+      UIInputField* urlInput = (UIInputField*)urlInputComp->customData;
 
       nameInput->focused = false;
       urlInput->focused = true;
@@ -169,11 +168,11 @@ void onAddStationWindowContentClick(int relativeX, int relativeY) {
       keyboard->visible = false;
 
       if (nameInputComp && nameInputComp->customData) {
-        MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
+        UIInputField* nameInput = (UIInputField*)nameInputComp->customData;
         nameInput->focused = false;
       }
       if (urlInputComp && urlInputComp->customData) {
-        MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+        UIInputField* urlInput = (UIInputField*)urlInputComp->customData;
         urlInput->focused = false;
       }
 
@@ -223,7 +222,7 @@ void onConfirmDeleteWindowMoved() {
 }
 
 void onWifiSignalClick() {
-  extern MacComponent* wifiKeyboard;
+  extern UIComponent* wifiKeyboard;
   extern const int WIFI_KEYBOARD_COMPONENT;
   extern const int INPUT_WIFI_PASSWORD;
 
@@ -234,7 +233,7 @@ void onWifiSignalClick() {
     int keyboardY = screenHeight - keyboardHeight;
     wifiKeyboard = createKeyboardComponent(0, keyboardY, screenWidth, keyboardHeight,
                                            WIFI_KEYBOARD_COMPONENT, INPUT_WIFI_PASSWORD);
-    MacKeyboard* kb = (MacKeyboard*)wifiKeyboard->customData;
+    UIKeyboard* kb = (UIKeyboard*)wifiKeyboard->customData;
     kb->visible = false;
   }
 
@@ -251,8 +250,8 @@ void onWifiSignalClick() {
   scanWifiNetworks();
 }
 
-MacComponent* findComponentById(const MacWindow& window, int id);
-void updateComponentSymbol(const MacWindow& window, int componentId, SymbolType newSymbol);
+UIComponent* findComponentById(const UIWindow& window, int id);
+void updateComponentSymbol(const UIWindow& window, int componentId, SymbolType newSymbol);
 
 // Individual button click handlers
 void onStationButtonClick() {

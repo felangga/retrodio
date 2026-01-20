@@ -3,13 +3,12 @@
  *
  * Copyright (c) 2025 felangga
  *
- * This header file contains declarations for window callback functions
  */
 
 #ifndef WINDOW_CALLBACKS_H
 #define WINDOW_CALLBACKS_H
 
-#include "MacUI.h"
+#include "UI.h"
 
 // Radio window callbacks
 void onWindowMinimize();

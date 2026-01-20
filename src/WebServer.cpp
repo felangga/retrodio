@@ -748,7 +748,7 @@ void handleSetVolume() {
 
       if (volume >= 0 && volume <= 21) {
         extern Audio audio;
-        extern MacWindow radioWindow;
+        extern UIWindow radioWindow;
         extern const int CMP_VOLUME_SLIDER;
 
         // Set volume in audio system and save to config
@@ -756,9 +756,9 @@ void handleSetVolume() {
         ConfigManager::setVolume(volume);
 
         // Update the volume slider value and request redraw
-        MacComponent* volumeSlider = findComponentById(radioWindow, CMP_VOLUME_SLIDER);
+        UIComponent* volumeSlider = findComponentById(radioWindow, CMP_VOLUME_SLIDER);
         if (volumeSlider != nullptr && volumeSlider->customData != nullptr) {
-          MacSlider* slider = (MacSlider*)volumeSlider->customData;
+          UISlider* slider = (UISlider*)volumeSlider->customData;
           slider->currentValue = volume;
 
           // Set flag to request UI task to redraw the slider
@@ -806,7 +806,7 @@ void handlePlayPause() {
     xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
     isPlaying = false;
 
-    extern MacWindow radioWindow;
+    extern UIWindow radioWindow;
     updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
   } else {
     if (RadioURL.length() > 0) {
@@ -816,7 +816,7 @@ void handlePlayPause() {
       xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
       isPlaying = true;
 
-      extern MacWindow radioWindow;
+      extern UIWindow radioWindow;
       updateComponentSymbol(radioWindow, 1, SYMBOL_PAUSE);
     }
   }
@@ -986,7 +986,7 @@ void handleDeleteStation() {
               xQueueSend(audioCommandQueue, &msg, portMAX_DELAY);
               isPlaying = false;
 
-              extern MacWindow radioWindow;
+              extern UIWindow radioWindow;
               updateComponentSymbol(radioWindow, 1, SYMBOL_PLAY);
             }
 

@@ -1,14 +1,14 @@
 /*
- * MacUI.h - Classic Macintosh OS User Interface Library
+ * UI.h - Classic UI Library
  *
  * Copyright (c) 2025 felangga
  *
- * This header file contains declarations for drawing classic Mac OS UI elements
+ * This header file contains declarations for drawing Classic UI elements
  * using primitive graphics functions with LovyanGFX library.
  */
 
-#ifndef MAC_UI_H
-#define MAC_UI_H
+#ifndef UI_H
+#define UI_H
 
 #include <LovyanGFX.hpp>
 #include "Arduino.h"
@@ -22,13 +22,13 @@ extern const uint32_t screenHeight;
 // Sprite buffer for double buffering (defined in implementation)
 extern lgfx::LGFX_Sprite* componentSprite;
 
-// ===== CLASSIC MAC OS UI COLORS =====
-#define MAC_WHITE 0xFFFF
-#define MAC_BLACK 0x0000
-#define MAC_GRAY 0x8410
-#define MAC_LIGHT_GRAY 0xC618
-#define MAC_DARK_GRAY 0x4208
-#define MAC_BLUE 0x001F
+// ===== CLASSIC UI COLORS =====
+#define UI_WHITE 0xFFFF
+#define UI_BLACK 0x0000
+#define UI_GRAY 0x8410
+#define UI_LIGHT_GRAY 0xC618
+#define UI_DARK_GRAY 0x4208
+#define UI_BLUE 0x001F
 
 // ===== CHICAGO FONT =====
 #define CHICAGO14_FONT &Chicago14pt
@@ -46,7 +46,7 @@ enum FontType {
 };
 
 // Helper function to convert FontType enum to GFXfont pointer
-// This is used internally by MacUI to convert the enum to the actual font pointer
+// This is used internally by UI to convert the enum to the actual font pointer
 const GFXfont* getFontFromType(FontType fontType);
 // ===== WINDOW LAYOUT CONSTANTS =====
 #define TITLE_BAR_HEIGHT 32
@@ -85,7 +85,7 @@ enum SymbolType {
 };
 
 // ===== BASE COMPONENT STRUCT =====
-struct MacComponent {
+struct UIComponent {
   ComponentType type;
   int x;
   int y;
@@ -103,7 +103,7 @@ struct MacComponent {
 // ===== BUTTON STRUCT =====
 #define BUTTON_DEFAULT_RADIUS 10
 
-struct MacButton {
+struct UIButton {
   String text;
   SymbolType symbol;  // symbol to draw instead of text (SYMBOL_NONE for text buttons)
   bool pressed;       // current pressed state
@@ -112,7 +112,7 @@ struct MacButton {
 };
 
 // ===== LABEL STRUCT =====
-struct MacLabel {
+struct UILabel {
   String text;
   uint16_t textColor;
   uint16_t backgroundColor;
@@ -122,7 +122,7 @@ struct MacLabel {
 };
 
 // ===== TEXTBOX STRUCT =====
-struct MacTextBox {
+struct UITextBox {
   String text;
   String placeholder;
   bool focused;
@@ -133,7 +133,7 @@ struct MacTextBox {
 };
 
 // ===== INPUT FIELD STRUCT (Enhanced text input with keyboard support) =====
-struct MacInputField {
+struct UIInputField {
   String text;
   String placeholder;
   bool focused;
@@ -147,7 +147,7 @@ struct MacInputField {
 };
 
 // ===== KEYBOARD STRUCT =====
-struct MacKeyboard {
+struct UIKeyboard {
   bool visible;
   int x;
   int y;
@@ -170,13 +170,13 @@ struct MacKeyboard {
 };
 
 // ===== CHECKBOX STRUCT =====
-struct MacCheckBox {
+struct UICheckBox {
   String label;
   bool checked;
 };
 
 // ===== SLIDER STRUCT =====
-struct MacSlider {
+struct UISlider {
   int minValue;
   int maxValue;
   int currentValue;
@@ -184,7 +184,7 @@ struct MacSlider {
 };
 
 // ===== PROGRESS BAR STRUCT =====
-struct MacProgressBar {
+struct UIProgressBar {
   int minValue;
   int maxValue;
   int currentValue;
@@ -193,7 +193,7 @@ struct MacProgressBar {
 };
 
 // ===== RUNNING TEXT STRUCT =====
-struct MacRunningText {
+struct UIRunningText {
   String text;
   uint16_t textColor;
   uint16_t backgroundColor;
@@ -210,13 +210,13 @@ struct MacRunningText {
 };
 
 // ===== LISTVIEW STRUCT =====
-struct MacListViewItem {
+struct UIListViewItem {
   String text;
   void* data;  // Custom data pointer for each item
 };
 
-struct MacListView {
-  MacListViewItem* items;  // Array of list items
+struct UIListView {
+  UIListViewItem* items;   // Array of list items
   int itemCount;           // Number of items
   int selectedIndex;       // Currently selected item (-1 if none)
   int scrollOffset;        // Vertical scroll offset in pixels
@@ -238,7 +238,7 @@ struct MacListView {
 };
 
 // ===== WINDOW STRUCT =====
-struct MacWindow {
+struct UIWindow {
   int x;
   int y;
   int w;
@@ -254,8 +254,8 @@ struct MacWindow {
   void (*onWindowMoved)();                // callback when window position changes
 
   // Child components (flexible system)
-  MacComponent** childComponents;  // Array of pointers to components
-  int childComponentCount;         // Number of child components
+  UIComponent** childComponents;  // Array of pointers to components
+  int childComponentCount;        // Number of child components
 
   // Dragging state (internal use)
   bool isDragging;
@@ -271,8 +271,8 @@ struct DesktopIcon {
   String iconType;  // "window", "app", "file", etc.
   bool visible;
   bool selected;
-  MacWindow* linkedWindow;  // pointer to associated window
-  void (*onClick)();        // callback when icon is clicked
+  UIWindow* linkedWindow;  // pointer to associated window
+  void (*onClick)();       // callback when icon is clicked
 };
 
 // ===== FUNCTION DECLARATIONS =====
@@ -290,13 +290,13 @@ void drawWifiSignal(lgfx::LGFX_Device& lcd, int rssi);       // WiFi signal stre
 void drawWindow(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const String& title,
                 bool active = true);
 void drawWindow(lgfx::LGFX_Device& lcd,
-                const MacWindow& window);  // overloaded version for MacWindow struct
+                const UIWindow& window);  // overloaded version for UIWindow struct
 void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, const String& text,
                 bool pressed = false, FontType font = FONT_DEFAULT);
 void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius,
                       SymbolType symbol, bool pressed = false);
 void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbol,
-                uint16_t color = MAC_BLACK);
+                uint16_t color = UI_BLACK);
 void draw3DFrame(lgfx::LGFX_Device& lcd, int x, int y, int w, int h);
 
 // Desktop elements
@@ -304,82 +304,82 @@ void drawDesktopIcon(lgfx::LGFX_Device& lcd, int x, int y, const String& name,
                      bool selected = false);
 
 // ===== WINDOW HELPERS =====
-void interactiveWindow(lgfx::LGFX_Device& lcd, MacWindow& window);
-bool isInsideCloseButton(const MacWindow& window, int tx, int ty);
-bool isInsideMinimizeButton(const MacWindow& window, int tx, int ty);
-bool isInsideTitleBar(const MacWindow& window, int tx, int ty);
+void interactiveWindow(lgfx::LGFX_Device& lcd, UIWindow& window);
+bool isInsideCloseButton(const UIWindow& window, int tx, int ty);
+bool isInsideMinimizeButton(const UIWindow& window, int tx, int ty);
+bool isInsideTitleBar(const UIWindow& window, int tx, int ty);
 
 // ===== FLEXIBLE COMPONENT MANAGEMENT =====
-MacComponent* createComponent(ComponentType type, int x, int y, int w, int h, int id);
-void addChildComponent(MacWindow& window, MacComponent* component);
-void clearChildComponents(MacWindow& window);
-void drawWindowChildComponents(lgfx::LGFX_Device& lcd, const MacWindow& window);
-MacComponent* findComponentAt(const MacWindow& window, int x, int y);
-void updateRunningTextComponents(lgfx::LGFX_Device& lcd, MacWindow& window);
+UIComponent* createComponent(ComponentType type, int x, int y, int w, int h, int id);
+void addChildComponent(UIWindow& window, UIComponent* component);
+void clearChildComponents(UIWindow& window);
+void drawWindowChildComponents(lgfx::LGFX_Device& lcd, const UIWindow& window);
+UIComponent* findComponentAt(const UIWindow& window, int x, int y);
+void updateRunningTextComponents(lgfx::LGFX_Device& lcd, UIWindow& window);
 
 // Component-specific drawing functions
-void drawComponent(lgfx::LGFX_Device& lcd, const MacComponent& component, int windowX, int windowY);
+void drawComponent(lgfx::LGFX_Device& lcd, const UIComponent& component, int windowX, int windowY);
 void initComponentBuffer(lgfx::LGFX_Device* lcd, int maxWidth, int maxHeight);
 
 // Individual component drawing functions (implemented in separate files)
-void drawLabel(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacLabel& label);
-void drawTextBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacTextBox& textbox);
-void drawCheckBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacCheckBox& checkbox);
-void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSlider& slider);
+void drawLabel(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const UILabel& label);
+void drawTextBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const UITextBox& textbox);
+void drawCheckBox(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const UICheckBox& checkbox);
+void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const UISlider& slider);
 void drawProgressBar(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
-                     const MacProgressBar& progressBar);
+                     const UIProgressBar& progressBar);
 void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
-                     MacRunningText& runningText);
-void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacListView& listView);
-void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacInputField& inputField);
-void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboard& keyboard);
+                     UIRunningText& runningText);
+void drawListView(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, UIListView& listView);
+void drawInputField(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, UIInputField& inputField);
+void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, UIKeyboard& keyboard);
 
 // Component creation helpers
-MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const String& text,
+UIComponent* createButtonComponent(int x, int y, int w, int h, int id, const String& text,
                                     SymbolType symbol = SYMBOL_NONE);
-MacComponent* createLabelComponent(int x, int y, int w, int h, int id, const String& text,
-                                   uint16_t textColor = MAC_BLACK);
-MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, const String& text,
-                                         int scrollSpeed = 2, uint16_t textColor = MAC_BLACK,
+UIComponent* createLabelComponent(int x, int y, int w, int h, int id, const String& text,
+                                   uint16_t textColor = UI_BLACK);
+UIComponent* createRunningTextComponent(int x, int y, int w, int h, int id, const String& text,
+                                         int scrollSpeed = 2, uint16_t textColor = UI_BLACK,
                                          int textSize = 1, FontType font = FONT_DEFAULT);
-MacComponent* createListViewComponent(int x, int y, int w, int h, int id, MacListViewItem* items,
+UIComponent* createListViewComponent(int x, int y, int w, int h, int id, UIListViewItem* items,
                                       int itemCount, int itemHeight = 30);
-MacComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
+UIComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
                                         const String& placeholder = "", int maxLength = 50,
                                         const String& defaultText = "");
-MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int targetInputId);
-MacComponent* createSliderComponent(int x, int y, int w, int h, int id, int minVal, int maxVal,
+UIComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int targetInputId);
+UIComponent* createSliderComponent(int x, int y, int w, int h, int id, int minVal, int maxVal,
                                     int currentVal, bool vertical = false);
 
 // Helper to update running text properties
-void updateRunningTextProperties(MacComponent* component, const String* newText = nullptr,
+void updateRunningTextProperties(UIComponent* component, const String* newText = nullptr,
                                  int* newTextSize = nullptr, uint16_t* newTextColor = nullptr,
                                  uint16_t* newBgColor = nullptr, int* newScrollSpeed = nullptr,
                                  int* newPauseDuration = nullptr, FontType* newFont = nullptr);
 
 // Helper to update input field components (cursor blinking)
-void updateInputFieldComponents(lgfx::LGFX_Device& lcd, MacWindow& window);
+void updateInputFieldComponents(lgfx::LGFX_Device& lcd, UIWindow& window);
 
 // Helper to handle keyboard touch input
-bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent,
-                         MacComponent* inputComponent, int touchX, int touchY,
-                         MacWindow* window = nullptr);
+bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, UIComponent* keyboardComponent,
+                         UIComponent* inputComponent, int touchX, int touchY,
+                         UIWindow* window = nullptr);
 
 // Helper to handle keyboard key repeat (call this continuously in the UI loop)
-void handleKeyboardRepeat(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent,
-                          MacComponent* inputComponent, MacWindow* window = nullptr);
+void handleKeyboardRepeat(lgfx::LGFX_Device& lcd, UIComponent* keyboardComponent,
+                          UIComponent* inputComponent, UIWindow* window = nullptr);
 
 // ===== GENERIC WINDOW MANAGEMENT HELPERS =====
 // Utility functions that can be called from user-defined callbacks
-void handleWindowClose(lgfx::LGFX_Device& lcd, MacWindow& window,
+void handleWindowClose(lgfx::LGFX_Device& lcd, UIWindow& window,
                        DesktopIcon* associatedIcon = nullptr);
-void handleWindowMinimize(lgfx::LGFX_Device& lcd, MacWindow& window,
+void handleWindowMinimize(lgfx::LGFX_Device& lcd, UIWindow& window,
                           DesktopIcon* associatedIcon = nullptr);
-void handleIconClick(lgfx::LGFX_Device& lcd, MacWindow& window,
+void handleIconClick(lgfx::LGFX_Device& lcd, UIWindow& window,
                      DesktopIcon* associatedIcon = nullptr);
-void handleWindowContentClick(lgfx::LGFX_Device& lcd, MacWindow& window, int relativeX,
+void handleWindowContentClick(lgfx::LGFX_Device& lcd, UIWindow& window, int relativeX,
                               int relativeY);
-void handleWindowMoved(lgfx::LGFX_Device& lcd, MacWindow& window);
+void handleWindowMoved(lgfx::LGFX_Device& lcd, UIWindow& window);
 
 // ===== DESKTOP ICON HELPERS =====
 void interactiveDesktopIcon(lgfx::LGFX_Device& lcd, DesktopIcon& icon);
@@ -388,15 +388,15 @@ void redrawDesktopArea(lgfx::LGFX_Device& lcd);
 
 // ===== WINDOW MANAGER =====
 // Multi-window management for proper layering and refresh
-void registerWindow(MacWindow* window);
-void unregisterWindow(MacWindow* window);
+void registerWindow(UIWindow* window);
+void unregisterWindow(UIWindow* window);
 void redrawAllWindows(lgfx::LGFX_Device& lcd);
-void redrawAllWindowsExcept(lgfx::LGFX_Device& lcd, MacWindow* exceptWindow);
-MacWindow** getRegisteredWindows(int& windowCount);
-void showWindowOnTop(lgfx::LGFX_Device& lcd, MacWindow& window);
+void redrawAllWindowsExcept(lgfx::LGFX_Device& lcd, UIWindow* exceptWindow);
+UIWindow** getRegisteredWindows(int& windowCount);
+void showWindowOnTop(lgfx::LGFX_Device& lcd, UIWindow& window);
 
 // ===== DOUBLE BUFFERING =====
 // Internal helper for flicker-free window dragging
-void renderToSprite(MacWindow* draggedWindow);
+void renderToSprite(UIWindow* draggedWindow);
 
 #endif

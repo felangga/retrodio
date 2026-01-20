@@ -1,10 +1,8 @@
 /*
- * Radio.ino - Internet Radio Player with Classic Mac OS UI
+ * Retrodio main.cpp - Main Application Entry Point
  *
  * Copyright (c) 2025 felangga
  *
- * This Arduino sketch implements an internet radio player with a classic
- * Macintosh OS-style user interface using the MacUI library.
  */
 
 #include <Arduino.h>
@@ -12,7 +10,7 @@
 #include <time.h>
 #include "Audio.h"
 #include "ConfigManager.h"
-#include "MacUI.h"
+#include "UI.h"
 #include "config.h"
 #include "esp32-hal-psram.h"
 #include "esp_heap_caps.h"
@@ -28,9 +26,9 @@
 #include "RadioWindow.h"
 #include "StationManager.h"
 #include "UIHelpers.h"
+#include "WebServer.h"
 #include "WifiWindow.h"
 #include "WindowCallbacks.h"
-#include "WebServer.h"
 
 // ===== DEBUG CONFIGURATION =====
 #define ENABLE_SERIAL_DEBUG 1
@@ -137,113 +135,113 @@ String lastDisplayedDescription = "";
 String lastDisplayedLyrics = "";
 String lastDisplayedLog = "";
 
-MacWindow radioWindow{30,
-                      40,
-                      420,
-                      240,
-                      "Radio",
-                      true,
-                      false,
-                      true,
-                      nullptr,
-                      onWindowClose,
-                      onWindowContentClick,
-                      onWindowMoved,
-                      nullptr,
-                      0,
-                      false,
-                      0,
-                      0};
-
-MacWindow stationWindow{20,
-                        40,
-                        420,
-                        240,
-                        "Station List",
-                        false,
-                        false,
-                        false,
-                        onStationWindowMinimize,
-                        onStationWindowClose,
-                        onStationWindowContentClick,
-                        onStationWindowMoved,
-                        nullptr,
-                        0,
-                        false,
-                        0,
-                        0};
-
-MacWindow addStationWindow{60,
-                           40,
-                           360,
-                           160,
-                           "Add Station",
-                           false,
-                           false,
-                           false,
-                           onAddStationWindowMinimize,
-                           onAddStationWindowClose,
-                           onAddStationWindowContentClick,
-                           onAddStationWindowMoved,
-                           nullptr,
-                           0,
-                           false,
-                           0,
-                           0};
-
-MacWindow confirmDeleteWindow{100,
-                              100,
-                              280,
-                              120,
-                              "Confirm Delete",
-                              false,
-                              false,
-                              false,
-                              nullptr,
-                              onConfirmDeleteWindowClose,
-                              onConfirmDeleteWindowContentClick,
-                              onConfirmDeleteWindowMoved,
-                              nullptr,
-                              0,
-                              false,
-                              0,
-                              0};
-
-MacWindow wifiWindow{80,
+UIWindow radioWindow{30,
                      40,
-                     300,
-                     225,
-                     "WiFi Networks",
+                     420,
+                     240,
+                     "Radio",
+                     true,
                      false,
-                     false,
-                     false,
-                     onWifiWindowMinimize,
-                     onWifiWindowClose,
-                     onWifiWindowContentClick,
-                     onWifiWindowMoved,
+                     true,
+                     nullptr,
+                     onWindowClose,
+                     onWindowContentClick,
+                     onWindowMoved,
                      nullptr,
                      0,
                      false,
                      0,
                      0};
 
+UIWindow stationWindow{20,
+                       40,
+                       420,
+                       240,
+                       "Station List",
+                       false,
+                       false,
+                       false,
+                       onStationWindowMinimize,
+                       onStationWindowClose,
+                       onStationWindowContentClick,
+                       onStationWindowMoved,
+                       nullptr,
+                       0,
+                       false,
+                       0,
+                       0};
+
+UIWindow addStationWindow{60,
+                          40,
+                          360,
+                          160,
+                          "Add Station",
+                          false,
+                          false,
+                          false,
+                          onAddStationWindowMinimize,
+                          onAddStationWindowClose,
+                          onAddStationWindowContentClick,
+                          onAddStationWindowMoved,
+                          nullptr,
+                          0,
+                          false,
+                          0,
+                          0};
+
+UIWindow confirmDeleteWindow{100,
+                             100,
+                             280,
+                             120,
+                             "Confirm Delete",
+                             false,
+                             false,
+                             false,
+                             nullptr,
+                             onConfirmDeleteWindowClose,
+                             onConfirmDeleteWindowContentClick,
+                             onConfirmDeleteWindowMoved,
+                             nullptr,
+                             0,
+                             false,
+                             0,
+                             0};
+
+UIWindow wifiWindow{80,
+                    40,
+                    300,
+                    225,
+                    "WiFi Networks",
+                    false,
+                    false,
+                    false,
+                    onWifiWindowMinimize,
+                    onWifiWindowClose,
+                    onWifiWindowContentClick,
+                    onWifiWindowMoved,
+                    nullptr,
+                    0,
+                    false,
+                    0,
+                    0};
+
 DesktopIcon radioIcon{50, 60, "Radio", "window", false, false, &radioWindow, onRadioIconClick};
 
-MacComponent* globalKeyboard = nullptr;
-MacComponent* wifiKeyboard = nullptr;
+UIComponent* globalKeyboard = nullptr;
+UIComponent* wifiKeyboard = nullptr;
 int stationToDeleteIndex = -1;  // Track which station to delete
 bool isEditMode = false;        // Track if we're in edit mode
 int stationToEditIndex = -1;    // Track which station to edit
 
 // ===== HELPER FUNCTIONS =====
 
-MacComponent* findComponentById(const MacWindow& window, int id) {
+UIComponent* findComponentById(const UIWindow& window, int id) {
   if (window.childComponents == nullptr || window.childComponentCount == 0) {
     return nullptr;
   }
 
   for (int i = 0; i < window.childComponentCount; i++) {
-    MacComponent* component = window.childComponents[i];
+    UIComponent* component = window.childComponents[i];
     if (component != nullptr && component->id == id) {
       return component;
     }
@@ -252,11 +250,11 @@ MacComponent* findComponentById(const MacWindow& window, int id) {
   return nullptr;
 }
 
-void updateComponentSymbol(const MacWindow& window, int componentId, SymbolType newSymbol) {
-  MacComponent* component = findComponentById(window, componentId);
+void updateComponentSymbol(const UIWindow& window, int componentId, SymbolType newSymbol) {
+  UIComponent* component = findComponentById(window, componentId);
   if (component != nullptr && component->type == COMPONENT_BUTTON &&
       component->customData != nullptr) {
-    MacButton* btnData = (MacButton*)component->customData;
+    UIButton* btnData = (UIButton*)component->customData;
     btnData->symbol = newSymbol;
     drawComponent(lcd, *component, window.x, window.y);
   }
@@ -278,7 +276,7 @@ void setup() {
   tft.startWrite();
   lcd.setRotation(lcd.getRotation() ^ 1);
   initComponentBuffer(&lcd, 420, 50);
-  lcd.fillScreen(MAC_WHITE);
+  lcd.fillScreen(UI_WHITE);
   drawInterface(lcd);
 
   registerWindow(&radioWindow);

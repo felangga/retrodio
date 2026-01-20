@@ -3,7 +3,6 @@
  *
  * Copyright (c) 2025 felangga
  *
- * This file implements network system functions
  */
 
 #include "NetworkHandlers.h"

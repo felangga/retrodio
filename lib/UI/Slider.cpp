@@ -1,16 +1,16 @@
 /*
- * MacSlider.cpp - Slider Component Implementation
+ * Slider.cpp - Slider Component Implementation
  *
  * Copyright (c) 2025 felangga
  */
 
-#include "MacUI.h"
+#include "UI.h"
 
 #define SLIDER_THUMB_SIZE 30
 #define SLIDER_TRACK_WIDTH 8
 
-void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSlider& slider) {
-  lcd.fillRect(x, y, w + (SLIDER_THUMB_SIZE / 2), h, MAC_WHITE);
+void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const UISlider& slider) {
+  lcd.fillRect(x, y, w + (SLIDER_THUMB_SIZE / 2), h, UI_WHITE);
 
   if (slider.vertical) {
     int trackX = x + w / 2 - (SLIDER_TRACK_WIDTH / 2);
@@ -18,7 +18,7 @@ void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSli
     int trackY = y + (SLIDER_THUMB_SIZE / 4);
 
     // Draw track
-    lcd.fillRect(trackX, trackY, SLIDER_TRACK_WIDTH, trackH, MAC_GRAY);
+    lcd.fillRect(trackX, trackY, SLIDER_TRACK_WIDTH, trackH, UI_GRAY);
 
     // Calculate thumb position
     int range = slider.maxValue - slider.minValue;
@@ -27,14 +27,14 @@ void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSli
 
     // Draw thumb
     lcd.fillRect(trackX - (SLIDER_THUMB_SIZE / 2), thumbY, SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE,
-                 MAC_WHITE);
+                 UI_WHITE);
   } else {
     int trackY = y + h / 2;
     int trackW = w - (SLIDER_THUMB_SIZE / 2);
     int trackX = x + (SLIDER_THUMB_SIZE / 2);
 
     // Draw track
-    lcd.fillRect(trackX, trackY, trackW, SLIDER_TRACK_WIDTH, MAC_GRAY);
+    lcd.fillRect(trackX, trackY, trackW, SLIDER_TRACK_WIDTH, UI_GRAY);
 
     // Calculate thumb position
     int range = slider.maxValue - slider.minValue;
@@ -42,18 +42,18 @@ void drawSlider(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacSli
                  (SLIDER_THUMB_SIZE / 2);
 
     lcd.fillRoundRect(thumbX, trackY - (SLIDER_THUMB_SIZE / 2) + (SLIDER_TRACK_WIDTH / 2),
-                      SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE, 5, MAC_WHITE);
+                      SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE, 5, UI_WHITE);
     lcd.drawRoundRect(thumbX, trackY - (SLIDER_THUMB_SIZE / 2) + (SLIDER_TRACK_WIDTH / 2),
-                      SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE, 5, MAC_BLACK);
+                      SLIDER_THUMB_SIZE, SLIDER_THUMB_SIZE, 5, UI_BLACK);
   }
 }
 
-MacComponent* createSliderComponent(int x, int y, int w, int h, int id, int minVal, int maxVal,
-                                    int currentVal, bool vertical) {
-  MacComponent* component = createComponent(COMPONENT_SLIDER, x, y, w, h, id);
+UIComponent* createSliderComponent(int x, int y, int w, int h, int id, int minVal, int maxVal,
+                                   int currentVal, bool vertical) {
+  UIComponent* component = createComponent(COMPONENT_SLIDER, x, y, w, h, id);
 
   // Create slider-specific data
-  MacSlider* sliderData = new MacSlider();
+  UISlider* sliderData = new UISlider();
   sliderData->minValue = minVal;
   sliderData->maxValue = maxVal;
   sliderData->currentValue = currentVal;

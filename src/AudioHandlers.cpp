@@ -3,7 +3,6 @@
  *
  * Copyright (c) 2025 felangga
  *
- * This file implements audio system functions
  */
 
 #include "AudioHandlers.h"

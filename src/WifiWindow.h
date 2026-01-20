@@ -9,7 +9,7 @@
 #ifndef WIFI_WINDOW_H
 #define WIFI_WINDOW_H
 
-#include "MacUI.h"
+#include "UI.h"
 
 // Initialize WiFi window components
 void initializeWifiWindow();

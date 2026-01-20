@@ -16,18 +16,18 @@ void initializeConfirmDeleteWindow() {
 
   clearChildComponents(confirmDeleteWindow);
 
-  MacComponent* lblMessage = createLabelComponent(20, 45, 240, 20, 500, "Delete this station?");
+  UIComponent* lblMessage = createLabelComponent(20, 45, 240, 20, 500, "Delete this station?");
   if (lblMessage && lblMessage->customData) {
-    MacLabel* labelData = (MacLabel*)lblMessage->customData;
+    UILabel* labelData = (UILabel*)lblMessage->customData;
     labelData->font = FONT_CHICAGO_9PT;
   }
   addChildComponent(confirmDeleteWindow, lblMessage);
 
-  MacComponent* btnYes = createButtonComponent(50, 75, 80, 30, BTN_CONFIRM_YES, "Yes");
+  UIComponent* btnYes = createButtonComponent(50, 75, 80, 30, BTN_CONFIRM_YES, "Yes");
   btnYes->onClick = [](int componentId) { onConfirmYesButtonClick(); };
   addChildComponent(confirmDeleteWindow, btnYes);
 
-  MacComponent* btnNo = createButtonComponent(150, 75, 80, 30, BTN_CONFIRM_NO, "No");
+  UIComponent* btnNo = createButtonComponent(150, 75, 80, 30, BTN_CONFIRM_NO, "No");
   btnNo->onClick = [](int componentId) { onConfirmNoButtonClick(); };
   addChildComponent(confirmDeleteWindow, btnNo);
 }

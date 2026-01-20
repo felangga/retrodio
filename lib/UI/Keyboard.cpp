@@ -1,9 +1,9 @@
 /*
- * MacKeyboard.cpp - On-screen keyboard component
- * Part of MacUI Library
+ * Keyboard.cpp - On-screen keyboard component
+ * Part of UI Library
  */
 
-#include "MacUI.h"
+#include "UI.h"
 
 // Keyboard layout - 4 rows
 const char* keyboardRows[] = {"1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm"};
@@ -25,20 +25,20 @@ const int SPECIAL_KEY_SPACING = 5;
 const int SHIFT_WIDTH = 45;
 const int BACKSPACE_WIDTH = 55;
 
-// Helper function to draw a single key with Mac Classic style
-void drawMacKey(lgfx::LGFX_Device& lcd, int keyX, int keyY, int keyWidth, int keyHeight,
-                const char* keyChar, bool pressed) {
+// Helper function to draw a single key with Classic UI style
+void drawKey(lgfx::LGFX_Device& lcd, int keyX, int keyY, int keyWidth, int keyHeight,
+             const char* keyChar, bool pressed) {
   if (pressed) {
     // Pressed state: filled black with white text
-    lcd.fillRoundRect(keyX, keyY, keyWidth, keyHeight, radius, MAC_BLACK);
-    lcd.drawRoundRect(keyX, keyY, keyWidth, keyHeight, radius, MAC_BLACK);
-    lcd.setTextColor(MAC_WHITE, MAC_BLACK);
+    lcd.fillRoundRect(keyX, keyY, keyWidth, keyHeight, radius, UI_BLACK);
+    lcd.drawRoundRect(keyX, keyY, keyWidth, keyHeight, radius, UI_BLACK);
+    lcd.setTextColor(UI_WHITE, UI_BLACK);
   } else {
     // Normal state: white with black border and black text
-    lcd.fillRoundRect(keyX, keyY, keyWidth, keyHeight, radius, MAC_WHITE);
-    lcd.drawRoundRect(keyX, keyY, keyWidth, keyHeight, radius, MAC_BLACK);
-    lcd.drawRoundRect(keyX + 1, keyY + 1, keyWidth - 2, keyHeight - 2, radius, MAC_BLACK);
-    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+    lcd.fillRoundRect(keyX, keyY, keyWidth, keyHeight, radius, UI_WHITE);
+    lcd.drawRoundRect(keyX, keyY, keyWidth, keyHeight, radius, UI_BLACK);
+    lcd.drawRoundRect(keyX + 1, keyY + 1, keyWidth - 2, keyHeight - 2, radius, UI_BLACK);
+    lcd.setTextColor(UI_BLACK, UI_WHITE);
   }
 
   lcd.setTextSize(1);
@@ -49,7 +49,7 @@ void drawMacKey(lgfx::LGFX_Device& lcd, int keyX, int keyY, int keyWidth, int ke
 }
 
 // Helper function to restore a single pressed key to normal state
-void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int y, int w, int h) {
+void restorePressedKey(lgfx::LGFX_Device& lcd, UIKeyboard* keyboard, int x, int y, int w, int h) {
   if (!keyboard->isKeyPressed)
     return;
 
@@ -76,12 +76,12 @@ void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int
 
     lcd.startWrite();
     lcd.fillRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius,
-                      MAC_WHITE);
+                      UI_WHITE);
     lcd.drawRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius,
-                      MAC_BLACK);
+                      UI_BLACK);
     lcd.drawRoundRect(backspaceX + 1, row3Y + 1, BACKSPACE_WIDTH - 2, rowHeight - KEY_SPACING - 2,
-                      radius, MAC_BLACK);
-    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+                      radius, UI_BLACK);
+    lcd.setTextColor(UI_BLACK, UI_WHITE);
     lcd.setTextSize(1);
     lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
     int deleteTextW = lcd.textWidth("Del");
@@ -101,11 +101,11 @@ void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int
     int spaceX = x + spaceStartX;
 
     lcd.startWrite();
-    lcd.fillRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_WHITE);
-    lcd.drawRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
+    lcd.fillRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, UI_WHITE);
+    lcd.drawRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, UI_BLACK);
     lcd.drawRoundRect(spaceX + 1, specialRowY + 1, spaceW - 2, SPECIAL_ROW_HEIGHT - 2, radius - 1,
-                      MAC_BLACK);
-    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+                      UI_BLACK);
+    lcd.setTextColor(UI_BLACK, UI_WHITE);
     lcd.setTextSize(1);
     lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
     int spaceTextW = lcd.textWidth("Space");
@@ -140,7 +140,7 @@ void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int
 
       char keyChar[2] = {keys[keyIndex], '\0'};
       lcd.startWrite();
-      drawMacKey(lcd, keyX, row3Y, row3KeyWidth, rowHeight - KEY_SPACING, keyChar, false);
+      drawKey(lcd, keyX, row3Y, row3KeyWidth, rowHeight - KEY_SPACING, keyChar, false);
       lcd.endWrite();
     } else {
       // Rows 0-2
@@ -157,19 +157,19 @@ void restorePressedKey(lgfx::LGFX_Device& lcd, MacKeyboard* keyboard, int x, int
 
       char keyChar[2] = {keys[keyIndex], '\0'};
       lcd.startWrite();
-      drawMacKey(lcd, keyX, rowY, keyWidth, rowHeight - KEY_SPACING, keyChar, false);
+      drawKey(lcd, keyX, rowY, keyWidth, rowHeight - KEY_SPACING, keyChar, false);
       lcd.endWrite();
     }
   }
 }
 
-void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboard& keyboard) {
+void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, UIKeyboard& keyboard) {
   if (!keyboard.visible)
     return;
 
   // Draw keyboard background
-  lcd.fillRect(x, y, w, h, MAC_LIGHT_GRAY);
-  lcd.drawRect(x, y, w, h, MAC_BLACK);
+  lcd.fillRect(x, y, w, h, UI_LIGHT_GRAY);
+  lcd.drawRect(x, y, w, h, UI_BLACK);
   lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
 
   // Uniform margin on all sides
@@ -202,9 +202,7 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
     for (int i = 0; i < keyCount; i++) {
       int keyX = startX + i * (keyWidth + KEY_SPACING);
       char keyChar[2] = {keys[i], '\0'};
-
-      // Draw key with Mac Classic style
-      drawMacKey(lcd, keyX, rowY, keyWidth, rowHeight - KEY_SPACING, keyChar, false);
+      drawKey(lcd, keyX, rowY, keyWidth, rowHeight - KEY_SPACING, keyChar, false);
     }
   }
 
@@ -244,15 +242,15 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
   if (!inSymbolMode) {
     int shiftX = x + KEYBOARD_MARGIN;
     if (keyboard.shiftActive) {
-      lcd.fillRoundRect(shiftX, row3Y, SHIFT_WIDTH, rowHeight - KEY_SPACING, radius, MAC_BLACK);
-      lcd.drawRoundRect(shiftX, row3Y, SHIFT_WIDTH, rowHeight - KEY_SPACING, radius, MAC_BLACK);
-      lcd.setTextColor(MAC_WHITE, MAC_BLACK);
+      lcd.fillRoundRect(shiftX, row3Y, SHIFT_WIDTH, rowHeight - KEY_SPACING, radius, UI_BLACK);
+      lcd.drawRoundRect(shiftX, row3Y, SHIFT_WIDTH, rowHeight - KEY_SPACING, radius, UI_BLACK);
+      lcd.setTextColor(UI_WHITE, UI_BLACK);
     } else {
-      lcd.fillRoundRect(shiftX, row3Y, SHIFT_WIDTH, rowHeight - KEY_SPACING, radius, MAC_WHITE);
-      lcd.drawRoundRect(shiftX, row3Y, SHIFT_WIDTH, rowHeight - KEY_SPACING, radius, MAC_BLACK);
+      lcd.fillRoundRect(shiftX, row3Y, SHIFT_WIDTH, rowHeight - KEY_SPACING, radius, UI_WHITE);
+      lcd.drawRoundRect(shiftX, row3Y, SHIFT_WIDTH, rowHeight - KEY_SPACING, radius, UI_BLACK);
       lcd.drawRoundRect(shiftX + 1, row3Y + 1, SHIFT_WIDTH - 2, rowHeight - KEY_SPACING - 2, 2,
-                        MAC_BLACK);
-      lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+                        UI_BLACK);
+      lcd.setTextColor(UI_BLACK, UI_WHITE);
     }
     lcd.setTextSize(1);
 
@@ -265,7 +263,7 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
     // Draw underline indicator when shift is locked
     if (keyboard.shiftLocked) {
       int underlineY = row3Y + rowHeight - KEY_SPACING - 4;
-      lcd.drawFastHLine(shiftX + 8, underlineY, SHIFT_WIDTH - 16, MAC_WHITE);
+      lcd.drawFastHLine(shiftX + 8, underlineY, SHIFT_WIDTH - 16, UI_WHITE);
     }
   }
 
@@ -273,16 +271,16 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
   for (int i = 0; i < row3KeyCount; i++) {
     int keyX = row3StartX + i * (row3KeyWidth + KEY_SPACING);
     char keyChar[2] = {row3Keys[i], '\0'};
-    drawMacKey(lcd, keyX, row3Y, row3KeyWidth, rowHeight - KEY_SPACING, keyChar, false);
+    drawKey(lcd, keyX, row3Y, row3KeyWidth, rowHeight - KEY_SPACING, keyChar, false);
   }
 
   // Draw Backspace button (right side of row 3)
   int backspaceX = row3StartX + row3KeyCount * (row3KeyWidth + KEY_SPACING);
-  lcd.fillRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, MAC_WHITE);
-  lcd.drawRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, MAC_BLACK);
+  lcd.fillRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, UI_WHITE);
+  lcd.drawRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius, UI_BLACK);
   lcd.drawRoundRect(backspaceX + 1, row3Y + 1, BACKSPACE_WIDTH - 2, rowHeight - KEY_SPACING - 2,
-                    radius, MAC_BLACK);
-  lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+                    radius, UI_BLACK);
+  lcd.setTextColor(UI_BLACK, UI_WHITE);
   lcd.setTextSize(1);
 
   int deleteTextW = lcd.textWidth("Del");
@@ -296,15 +294,15 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
   // Sym/ABC toggle key
   int symX = x + KEYBOARD_MARGIN;
   if (keyboard.selectedKey == -2) {
-    lcd.fillRoundRect(symX, specialRowY, SPECIAL_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
-    lcd.drawRoundRect(symX, specialRowY, SPECIAL_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
-    lcd.setTextColor(MAC_WHITE, MAC_BLACK);
+    lcd.fillRoundRect(symX, specialRowY, SPECIAL_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, UI_BLACK);
+    lcd.drawRoundRect(symX, specialRowY, SPECIAL_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, UI_BLACK);
+    lcd.setTextColor(UI_WHITE, UI_BLACK);
   } else {
-    lcd.fillRoundRect(symX, specialRowY, SPECIAL_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_WHITE);
-    lcd.drawRoundRect(symX, specialRowY, SPECIAL_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
+    lcd.fillRoundRect(symX, specialRowY, SPECIAL_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, UI_WHITE);
+    lcd.drawRoundRect(symX, specialRowY, SPECIAL_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, UI_BLACK);
     lcd.drawRoundRect(symX + 1, specialRowY + 1, SPECIAL_KEY_WIDTH - 2, SPECIAL_ROW_HEIGHT - 2,
-                      radius - 1, MAC_BLACK);
-    lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+                      radius - 1, UI_BLACK);
+    lcd.setTextColor(UI_BLACK, UI_WHITE);
   }
   lcd.setTextSize(1);
   // Center-align Sym/ABC text
@@ -317,11 +315,11 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
   int spaceX = symX + SPECIAL_KEY_WIDTH + SPECIAL_KEY_SPACING;
   int spaceW =
       w - (2 * KEYBOARD_MARGIN) - SPECIAL_KEY_WIDTH - DONE_KEY_WIDTH - (2 * SPECIAL_KEY_SPACING);
-  lcd.fillRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_WHITE);
-  lcd.drawRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
+  lcd.fillRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, UI_WHITE);
+  lcd.drawRoundRect(spaceX, specialRowY, spaceW, SPECIAL_ROW_HEIGHT, radius, UI_BLACK);
   lcd.drawRoundRect(spaceX + 1, specialRowY + 1, spaceW - 2, SPECIAL_ROW_HEIGHT - 2, radius - 1,
-                    MAC_BLACK);
-  lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+                    UI_BLACK);
+  lcd.setTextColor(UI_BLACK, UI_WHITE);
   lcd.setTextSize(1);
   // Center-align "Space" text
   int spaceTextW = lcd.textWidth("Space");
@@ -330,11 +328,11 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
 
   // Done button
   int doneX = spaceX + spaceW + SPECIAL_KEY_SPACING;
-  lcd.fillRoundRect(doneX, specialRowY, DONE_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_WHITE);
-  lcd.drawRoundRect(doneX, specialRowY, DONE_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
+  lcd.fillRoundRect(doneX, specialRowY, DONE_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, UI_WHITE);
+  lcd.drawRoundRect(doneX, specialRowY, DONE_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, UI_BLACK);
   lcd.drawRoundRect(doneX + 1, specialRowY + 1, DONE_KEY_WIDTH - 2, SPECIAL_ROW_HEIGHT - 2,
-                    radius - 1, MAC_BLACK);
-  lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+                    radius - 1, UI_BLACK);
+  lcd.setTextColor(UI_BLACK, UI_WHITE);
   lcd.setTextSize(1);
 
   // Center-align "Done" text
@@ -343,10 +341,10 @@ void drawKeyboard(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, MacKeyboar
   lcd.print("Done");
 }
 
-MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int targetInputId) {
-  MacComponent* component = createComponent(COMPONENT_KEYBOARD, x, y, w, h, id);
+UIComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int targetInputId) {
+  UIComponent* component = createComponent(COMPONENT_KEYBOARD, x, y, w, h, id);
 
-  MacKeyboard* keyboard = new MacKeyboard();
+  UIKeyboard* keyboard = new UIKeyboard();
   keyboard->visible = false;
   keyboard->x = x;
   keyboard->y = y;
@@ -372,15 +370,15 @@ MacComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int ta
 }
 
 // Helper function to handle keyboard touch and update input field
-bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent,
-                         MacComponent* inputComponent, int touchX, int touchY, MacWindow* window) {
+bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, UIComponent* keyboardComponent,
+                         UIComponent* inputComponent, int touchX, int touchY, UIWindow* window) {
   if (!keyboardComponent || keyboardComponent->type != COMPONENT_KEYBOARD)
     return false;
   if (!inputComponent || inputComponent->type != COMPONENT_INPUT_FIELD)
     return false;
 
-  MacKeyboard* keyboard = (MacKeyboard*)keyboardComponent->customData;
-  MacInputField* inputField = (MacInputField*)inputComponent->customData;
+  UIKeyboard* keyboard = (UIKeyboard*)keyboardComponent->customData;
+  UIInputField* inputField = (UIInputField*)inputComponent->customData;
 
   if (!keyboard->visible)
     return false;
@@ -436,9 +434,9 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
         int spaceX = x + spaceStartX;
         int btnY = y + h - KEYBOARD_MARGIN - SPECIAL_ROW_HEIGHT;
         lcd.startWrite();
-        lcd.fillRoundRect(spaceX, btnY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
-        lcd.drawRoundRect(spaceX, btnY, spaceW, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
-        lcd.setTextColor(MAC_WHITE, MAC_BLACK);
+        lcd.fillRoundRect(spaceX, btnY, spaceW, SPECIAL_ROW_HEIGHT, radius, UI_BLACK);
+        lcd.drawRoundRect(spaceX, btnY, spaceW, SPECIAL_ROW_HEIGHT, radius, UI_BLACK);
+        lcd.setTextColor(UI_WHITE, UI_BLACK);
         lcd.setTextSize(1);
         lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
         int spaceTextW = lcd.textWidth("Space");
@@ -471,9 +469,9 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
       int doneX = x + doneStartX;
       int btnY = y + h - KEYBOARD_MARGIN - SPECIAL_ROW_HEIGHT;
       lcd.startWrite();
-      lcd.fillRoundRect(doneX, btnY, DONE_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
-      lcd.drawRoundRect(doneX, btnY, DONE_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, MAC_BLACK);
-      lcd.setTextColor(MAC_WHITE, MAC_BLACK);
+      lcd.fillRoundRect(doneX, btnY, DONE_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, UI_BLACK);
+      lcd.drawRoundRect(doneX, btnY, DONE_KEY_WIDTH, SPECIAL_ROW_HEIGHT, radius, UI_BLACK);
+      lcd.setTextColor(UI_WHITE, UI_BLACK);
       lcd.setTextSize(1);
       lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
       int doneTextW = lcd.textWidth("Done");
@@ -585,7 +583,7 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
 
               // Show pressed state
               lcd.startWrite();
-              drawMacKey(lcd, keyX, row3Y, row3KeyWidth, rowHeight - KEY_SPACING, keyChar, true);
+              drawKey(lcd, keyX, row3Y, row3KeyWidth, rowHeight - KEY_SPACING, keyChar, true);
               lcd.endWrite();
 
               // Track key press for repeat
@@ -621,10 +619,10 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
           int backspaceX = x + backspaceRelX;
           lcd.startWrite();
           lcd.fillRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius,
-                            MAC_BLACK);
+                            UI_BLACK);
           lcd.drawRoundRect(backspaceX, row3Y, BACKSPACE_WIDTH, rowHeight - KEY_SPACING, radius,
-                            MAC_BLACK);
-          lcd.setTextColor(MAC_WHITE, MAC_BLACK);
+                            UI_BLACK);
+          lcd.setTextColor(UI_WHITE, UI_BLACK);
           lcd.setTextSize(1);
           lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
           int deleteTextW = lcd.textWidth("Del");
@@ -687,7 +685,7 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
 
         // Show pressed state
         lcd.startWrite();
-        drawMacKey(lcd, keyX, rowY, keyWidth, rowHeight - KEY_SPACING, keyChar, true);
+        drawKey(lcd, keyX, rowY, keyWidth, rowHeight - KEY_SPACING, keyChar, true);
         lcd.endWrite();
 
         // Track key press for repeat
@@ -716,15 +714,15 @@ bool handleKeyboardTouch(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent
 }
 
 // Helper function to handle key repeat when keys are held down
-void handleKeyboardRepeat(lgfx::LGFX_Device& lcd, MacComponent* keyboardComponent,
-                          MacComponent* inputComponent, MacWindow* window) {
+void handleKeyboardRepeat(lgfx::LGFX_Device& lcd, UIComponent* keyboardComponent,
+                          UIComponent* inputComponent, UIWindow* window) {
   if (!keyboardComponent || keyboardComponent->type != COMPONENT_KEYBOARD)
     return;
   if (!inputComponent || inputComponent->type != COMPONENT_INPUT_FIELD)
     return;
 
-  MacKeyboard* keyboard = (MacKeyboard*)keyboardComponent->customData;
-  MacInputField* inputField = (MacInputField*)inputComponent->customData;
+  UIKeyboard* keyboard = (UIKeyboard*)keyboardComponent->customData;
+  UIInputField* inputField = (UIInputField*)inputComponent->customData;
 
   if (!keyboard->visible || !keyboard->isKeyPressed)
     return;

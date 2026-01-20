@@ -5,6 +5,6 @@
  *
  */
 
-#include "MacUI.h"
+#include "UI.h"
 
 void initializeRadioWindow();

@@ -1,12 +1,12 @@
 /*
- * MacLabel.cpp - Label Component Implementation
+ * Label.cpp - Label Component Implementation
  *
  * Copyright (c) 2025 felangga
  */
 
-#include "MacUI.h"
+#include "UI.h"
 
-void drawLabel(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacLabel& label) {
+void drawLabel(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const UILabel& label) {
   lcd.fillRect(x, y, w, h, label.backgroundColor);
 
   lcd.setTextColor(label.textColor, label.backgroundColor);
@@ -29,14 +29,14 @@ void drawLabel(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, const MacLabe
   lcd.setFont(nullptr);
 }
 
-MacComponent* createLabelComponent(int x, int y, int w, int h, int id, const String& text,
+UIComponent* createLabelComponent(int x, int y, int w, int h, int id, const String& text,
                                    uint16_t textColor) {
-  MacComponent* component = createComponent(COMPONENT_LABEL, x, y, w, h, id);
+  UIComponent* component = createComponent(COMPONENT_LABEL, x, y, w, h, id);
 
-  MacLabel* labelData = new MacLabel();
+  UILabel* labelData = new UILabel();
   labelData->text = text;
   labelData->textColor = textColor;
-  labelData->backgroundColor = MAC_WHITE;
+  labelData->backgroundColor = UI_WHITE;
   labelData->textSize = 1;
   labelData->centerAlign = false;
   labelData->font = FONT_DEFAULT;  

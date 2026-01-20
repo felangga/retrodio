@@ -3,7 +3,6 @@
  *
  * Copyright (c) 2025 felangga
  *
- * This header file contains declarations for audio system functions
  */
 
 #ifndef AUDIO_HANDLERS_H

@@ -25,7 +25,7 @@
 #endif
 
 // WiFi network list items
-static MacListViewItem* wifiItems = nullptr;
+static UIListViewItem* wifiItems = nullptr;
 static int wifiItemCount = 0;
 static String* wifiSSIDs = nullptr;  // Store SSIDs separately for connection
 static int* wifiRSSIs = nullptr;     // Store signal strengths
@@ -66,14 +66,14 @@ static WiFiConnectionState connectionState = {false, "", "", 0};
 
 // WiFi Window component cache
 struct WiFiWindowComponents {
-  MacComponent* listComp;
-  MacComponent* btnRefresh;
-  MacComponent* btnConnect;
-  MacComponent* lblTitle;
-  MacComponent* lblPassword;
-  MacComponent* txtPassword;
-  MacComponent* btnPasswordOk;
-  MacComponent* btnPasswordCancel;
+  UIComponent* listComp;
+  UIComponent* btnRefresh;
+  UIComponent* btnConnect;
+  UIComponent* lblTitle;
+  UIComponent* lblPassword;
+  UIComponent* txtPassword;
+  UIComponent* btnPasswordOk;
+  UIComponent* btnPasswordCancel;
 };
 
 static WiFiWindowComponents* wifiComponent = nullptr;
@@ -109,7 +109,7 @@ void cleanupWifiList() {
 }
 
 void initializeWifiComponentCache() {
-  extern MacWindow wifiWindow;
+  extern UIWindow wifiWindow;
   extern const int WIFI_LIST_COMPONENT;
   extern const int BTN_WIFI_CONNECT;
   extern const int BTN_WIFI_REFRESH;
@@ -140,7 +140,7 @@ String getRSSIDisplay(int rssi) {
 
 void scanWifiNetworks() {
   extern LGFX lcd;
-  extern MacWindow wifiWindow;
+  extern UIWindow wifiWindow;
 
   isScanning = true;
 
@@ -161,7 +161,7 @@ void scanWifiNetworks() {
 
   if (n <= 0) {
     wifiItemCount = 1;
-    wifiItems = new MacListViewItem[1];
+    wifiItems = new UIListViewItem[1];
     wifiItems[0].text = "No networks found";
     wifiItems[0].data = nullptr;
     wifiSSIDs = new String[1];
@@ -228,7 +228,7 @@ void scanWifiNetworks() {
     wifiSSIDs = new String[wifiItemCount];
     wifiRSSIs = new int[wifiItemCount];
     wifiSecure = new bool[wifiItemCount];
-    wifiItems = new MacListViewItem[wifiItemCount];
+    wifiItems = new UIListViewItem[wifiItemCount];
 
     for (int i = 0; i < wifiItemCount; i++) {
       wifiSSIDs[i] = tempSSIDs[i];
@@ -262,13 +262,13 @@ void scanWifiNetworks() {
 }
 
 void updateWifiListDisplay() {
-  extern MacWindow wifiWindow;
+  extern UIWindow wifiWindow;
   extern LGFX lcd;
 
   if (!wifiComponent || !wifiComponent->listComp || !wifiComponent->listComp->customData)
     return;
 
-  MacListView* listViewData = (MacListView*)wifiComponent->listComp->customData;
+  UIListView* listViewData = (UIListView*)wifiComponent->listComp->customData;
   listViewData->items = wifiItems;
   listViewData->itemCount = wifiItemCount;
   listViewData->selectedIndex = -1;
@@ -283,7 +283,7 @@ void updateWifiListDisplay() {
 }
 
 void onWifiItemClick(int index, void* itemData) {
-  extern MacWindow wifiWindow;
+  extern UIWindow wifiWindow;
   extern LGFX lcd;
 
   if (index < 0 || index >= wifiItemCount)
@@ -304,7 +304,7 @@ void onWifiItemClick(int index, void* itemData) {
 }
 
 void initializeWifiWindow() {
-  extern MacWindow wifiWindow;
+  extern UIWindow wifiWindow;
   extern const int WIFI_LIST_COMPONENT;
   extern const int BTN_WIFI_CONNECT;
   extern const int BTN_WIFI_REFRESH;
@@ -317,50 +317,50 @@ void initializeWifiWindow() {
   clearChildComponents(wifiWindow);
 
   // Title label
-  MacComponent* lblTitle =
+  UIComponent* lblTitle =
       createLabelComponent(10, 42, 200, 20, LBL_WIFI_TITLE, "Select a network:");
-  MacLabel* labelData = (MacLabel*)lblTitle->customData;
+  UILabel* labelData = (UILabel*)lblTitle->customData;
   labelData->font = FONT_CHICAGO_9PT;
   addChildComponent(wifiWindow, lblTitle);
 
   // WiFi networks list
-  MacComponent* wifiList =
+  UIComponent* wifiList =
       createListViewComponent(10, 60, 280, 120, WIFI_LIST_COMPONENT, wifiItems, wifiItemCount, 24);
   if (wifiList && wifiList->customData) {
-    MacListView* listViewData = (MacListView*)wifiList->customData;
+    UIListView* listViewData = (UIListView*)wifiList->customData;
     listViewData->onItemClick = onWifiItemClick;
     listViewData->font = FONT_CHICAGO_9PT;
   }
   addChildComponent(wifiWindow, wifiList);
 
-  MacComponent* btnRefresh = createButtonComponent(10, 185, 90, 28, BTN_WIFI_REFRESH, "Refresh");
+  UIComponent* btnRefresh = createButtonComponent(10, 185, 90, 28, BTN_WIFI_REFRESH, "Refresh");
   btnRefresh->onClick = [](int componentId) { onWifiRefreshButtonClick(); };
   addChildComponent(wifiWindow, btnRefresh);
 
-  MacComponent* btnConnect = createButtonComponent(200, 185, 90, 28, BTN_WIFI_CONNECT, "Connect");
+  UIComponent* btnConnect = createButtonComponent(200, 185, 90, 28, BTN_WIFI_CONNECT, "Connect");
   btnConnect->onClick = [](int componentId) { onWifiConnectButtonClick(); };
   btnConnect->enabled = false;
   addChildComponent(wifiWindow, btnConnect);
 
-  MacComponent* lblPassword =
+  UIComponent* lblPassword =
       createLabelComponent(10, 44, 280, 20, LBL_WIFI_PASSWORD, "Enter password for:");
-  labelData = (MacLabel*)lblPassword->customData;
+  labelData = (UILabel*)lblPassword->customData;
   labelData->font = FONT_CHICAGO_9PT;
   lblPassword->visible = false;
   addChildComponent(wifiWindow, lblPassword);
 
-  MacComponent* txtPassword =
+  UIComponent* txtPassword =
       createInputFieldComponent(10, 70, 280, 28, INPUT_WIFI_PASSWORD, "Password", 64);
   txtPassword->visible = false;
   addChildComponent(wifiWindow, txtPassword);
 
-  MacComponent* btnPasswordOk =
+  UIComponent* btnPasswordOk =
       createButtonComponent(110, 110, 90, 28, BTN_WIFI_PASSWORD_OK, "Connect");
   btnPasswordOk->onClick = [](int componentId) { onWifiPasswordSaveClick(); };
   btnPasswordOk->visible = false;
   addChildComponent(wifiWindow, btnPasswordOk);
 
-  MacComponent* btnPasswordCancel =
+  UIComponent* btnPasswordCancel =
       createButtonComponent(210, 110, 80, 28, BTN_WIFI_PASSWORD_CANCEL, "Cancel");
   btnPasswordCancel->onClick = [](int componentId) { onWifiPasswordCancelClick(); };
   btnPasswordCancel->visible = false;
@@ -384,7 +384,7 @@ void triggerPlayAudioOnConnect() {
 }
 
 void showWifiPasswordEntry() {
-  extern MacWindow wifiWindow;
+  extern UIWindow wifiWindow;
   extern LGFX lcd;
 
   if (!wifiComponent)
@@ -403,7 +403,7 @@ void showWifiPasswordEntry() {
     wifiComponent->lblTitle->visible = false;
 
   if (wifiComponent->lblPassword && wifiComponent->lblPassword->customData) {
-    MacLabel* labelData = (MacLabel*)wifiComponent->lblPassword->customData;
+    UILabel* labelData = (UILabel*)wifiComponent->lblPassword->customData;
     labelData->text = "Password for: " + selectedSSID;
     wifiComponent->lblPassword->visible = true;
   }
@@ -411,7 +411,7 @@ void showWifiPasswordEntry() {
   if (wifiComponent->txtPassword) {
     wifiComponent->txtPassword->visible = true;
     if (wifiComponent->txtPassword->customData) {
-      MacInputField* inputData = (MacInputField*)wifiComponent->txtPassword->customData;
+      UIInputField* inputData = (UIInputField*)wifiComponent->txtPassword->customData;
       inputData->text = "";
       inputData->cursorPos = 0;
       inputData->focused = true;
@@ -428,7 +428,7 @@ void showWifiPasswordEntry() {
   drawWindow(lcd, wifiWindow);
   lcd.endWrite();
 
-  extern MacComponent* wifiKeyboard;
+  extern UIComponent* wifiKeyboard;
   extern const int WIFI_KEYBOARD_COMPONENT;
   if (!wifiKeyboard) {
     int keyboardHeight = screenHeight / 2;
@@ -439,12 +439,12 @@ void showWifiPasswordEntry() {
 }
 
 void hideWifiKeyboard() {
-  extern MacComponent* wifiKeyboard;
+  extern UIComponent* wifiKeyboard;
   extern LGFX lcd;
 
   // Hide Keyboard
   if (wifiKeyboard && wifiKeyboard->customData) {
-    MacKeyboard* kb = (MacKeyboard*)wifiKeyboard->customData;
+    UIKeyboard* kb = (UIKeyboard*)wifiKeyboard->customData;
     kb->visible = false;
 
     int keyboardHeight = screenHeight / 2;
@@ -453,13 +453,13 @@ void hideWifiKeyboard() {
   }
 
   // Redraw Window
-  extern MacWindow wifiWindow;
+  extern UIWindow wifiWindow;
   drawWindow(lcd, wifiWindow);
   drawBottomBar(lcd, "", false);
 }
 
 void hideWifiPasswordEntry() {
-  extern MacWindow wifiWindow;
+  extern UIWindow wifiWindow;
   extern LGFX lcd;
 
   if (!wifiComponent)
@@ -471,7 +471,7 @@ void hideWifiPasswordEntry() {
   if (wifiComponent->txtPassword) {
     wifiComponent->txtPassword->visible = false;
     if (wifiComponent->txtPassword->customData) {
-      MacInputField* inputData = (MacInputField*)wifiComponent->txtPassword->customData;
+      UIInputField* inputData = (UIInputField*)wifiComponent->txtPassword->customData;
       inputData->focused = false;
     }
   }
@@ -550,8 +550,8 @@ void reconnectWifi() {
 }
 
 void onWifiCancelButtonClick() {
-  extern MacWindow wifiWindow;
-  extern MacWindow radioWindow;
+  extern UIWindow wifiWindow;
+  extern UIWindow radioWindow;
   extern LGFX lcd;
 
   wifiWindow.visible = false;
@@ -573,7 +573,7 @@ void onWifiPasswordSaveClick() {
   if (!wifiComponent || !wifiComponent->txtPassword || !wifiComponent->txtPassword->customData)
     return;
 
-  MacInputField* inputData = (MacInputField*)wifiComponent->txtPassword->customData;
+  UIInputField* inputData = (UIInputField*)wifiComponent->txtPassword->customData;
   String password = inputData->text;
 
   if (password.length() < 8) {
@@ -629,8 +629,8 @@ void updateWifiConnectionStatus() {
 
   if (status == WL_CONNECTED) {
     extern LGFX lcd;
-    extern MacWindow wifiWindow;
-    extern MacWindow radioWindow;
+    extern UIWindow wifiWindow;
+    extern UIWindow radioWindow;
 
     hideNotification();
     showNotification("WiFi Connected!", 2000);
@@ -677,10 +677,10 @@ void updateWifiConnectionStatus() {
 
 // WiFi Window Callbacks
 void onWifiWindowMinimize() {
-  extern MacComponent* wifiKeyboard;
+  extern UIComponent* wifiKeyboard;
 
   if (wifiKeyboard) {
-    MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+    UIKeyboard* keyboard = (UIKeyboard*)wifiKeyboard->customData;
     keyboard->visible = false;
   }
 
@@ -700,10 +700,10 @@ void onWifiWindowMinimize() {
 }
 
 void onWifiWindowClose() {
-  extern MacComponent* wifiKeyboard;
+  extern UIComponent* wifiKeyboard;
 
   if (wifiKeyboard) {
-    MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+    UIKeyboard* keyboard = (UIKeyboard*)wifiKeyboard->customData;
     keyboard->visible = false;
   }
 
@@ -723,19 +723,19 @@ void onWifiWindowClose() {
 }
 
 void onWifiWindowContentClick(int relativeX, int relativeY) {
-  extern MacComponent* wifiKeyboard;
+  extern UIComponent* wifiKeyboard;
   extern const int INPUT_WIFI_PASSWORD;
 
-  MacComponent* passwordInputComp = findComponentById(wifiWindow, INPUT_WIFI_PASSWORD);
+  UIComponent* passwordInputComp = findComponentById(wifiWindow, INPUT_WIFI_PASSWORD);
 
   if (wifiKeyboard && passwordInputComp && passwordInputComp->visible) {
-    MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+    UIKeyboard* keyboard = (UIKeyboard*)wifiKeyboard->customData;
 
     if (relativeX >= passwordInputComp->x &&
         relativeX <= passwordInputComp->x + passwordInputComp->w &&
         relativeY >= passwordInputComp->y &&
         relativeY <= passwordInputComp->y + passwordInputComp->h) {
-      MacInputField* passwordInput = (MacInputField*)passwordInputComp->customData;
+      UIInputField* passwordInput = (UIInputField*)passwordInputComp->customData;
       passwordInput->focused = true;
       keyboard->targetInputId = INPUT_WIFI_PASSWORD;
       keyboard->visible = true;

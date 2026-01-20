@@ -1,13 +1,13 @@
 /*
- * MacRunningText.cpp - Running Text Component Implementation
+ * RunningText.cpp - Running Text Component Implementation
  *
  * Copyright (c) 2025 felangga
  */
 
-#include "MacUI.h"
+#include "UI.h"
 
 void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
-                     MacRunningText& runningText) {
+                     UIRunningText& runningText) {
   // Use sprite buffer if available for flicker-free updates
   bool useSprite = (componentSprite != nullptr && w <= componentSprite->width() &&
                     h <= componentSprite->height());
@@ -123,15 +123,15 @@ void drawRunningText(lgfx::LGFX_Device& lcd, int x, int y, int w, int h,
   }
 }
 
-MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, const String& text,
-                                         int scrollSpeed, uint16_t textColor, int textSize,
-                                         FontType font) {
-  MacComponent* component = createComponent(COMPONENT_RUNNING_TEXT, x, y, w, h, id);
+UIComponent* createRunningTextComponent(int x, int y, int w, int h, int id, const String& text,
+                                        int scrollSpeed, uint16_t textColor, int textSize,
+                                        FontType font) {
+  UIComponent* component = createComponent(COMPONENT_RUNNING_TEXT, x, y, w, h, id);
 
-  MacRunningText* runningTextData = new MacRunningText();
+  UIRunningText* runningTextData = new UIRunningText();
   runningTextData->text = text;
   runningTextData->textColor = textColor;
-  runningTextData->backgroundColor = MAC_WHITE;
+  runningTextData->backgroundColor = UI_WHITE;
   runningTextData->textSize = textSize;
   runningTextData->scrollOffset = 0;
   runningTextData->scrollSpeed = scrollSpeed;
@@ -147,7 +147,7 @@ MacComponent* createRunningTextComponent(int x, int y, int w, int h, int id, con
   return component;
 }
 
-void updateRunningTextProperties(MacComponent* component, const String* newText, int* newTextSize,
+void updateRunningTextProperties(UIComponent* component, const String* newText, int* newTextSize,
                                  uint16_t* newTextColor, uint16_t* newBgColor, int* newScrollSpeed,
                                  int* newPauseDuration, FontType* newFont) {
   if (component == nullptr || component->type != COMPONENT_RUNNING_TEXT ||
@@ -155,7 +155,7 @@ void updateRunningTextProperties(MacComponent* component, const String* newText,
     return;
   }
 
-  MacRunningText* runningTextData = (MacRunningText*)component->customData;
+  UIRunningText* runningTextData = (UIRunningText*)component->customData;
 
   if (newText != nullptr) {
     runningTextData->text = *newText;
@@ -189,7 +189,7 @@ void updateRunningTextProperties(MacComponent* component, const String* newText,
   }
 }
 
-void updateRunningTextComponents(lgfx::LGFX_Device& lcd, MacWindow& window) {
+void updateRunningTextComponents(lgfx::LGFX_Device& lcd, UIWindow& window) {
   if (!window.visible || window.childComponents == nullptr || window.childComponentCount == 0) {
     return;
   }
@@ -200,10 +200,10 @@ void updateRunningTextComponents(lgfx::LGFX_Device& lcd, MacWindow& window) {
   }
 
   for (int i = 0; i < window.childComponentCount; i++) {
-    MacComponent* component = window.childComponents[i];
+    UIComponent* component = window.childComponents[i];
     if (component != nullptr && component->visible && component->type == COMPONENT_RUNNING_TEXT) {
       if (component->customData != nullptr) {
-        MacRunningText* runningTextData = (MacRunningText*)component->customData;
+        UIRunningText* runningTextData = (UIRunningText*)component->customData;
 
         // Check if it's time to update
         unsigned long currentTime = millis();

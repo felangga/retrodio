@@ -1,10 +1,10 @@
 /*
- * MacButton.cpp - Button Component Implementation
+ * Button.cpp - Button Component Implementation
  *
  * Copyright (c) 2025 felangga
  */
 
-#include "MacUI.h"
+#include "UI.h"
 
 void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbol, uint16_t color) {
   switch (symbol) {
@@ -63,9 +63,9 @@ void drawSymbol(lgfx::LGFX_Device& lcd, int x, int y, int size, SymbolType symbo
 void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, const String& text,
                 bool pressed, FontType font) {
   // Choose colors based on pressed state - inverted when pressed
-  uint16_t bgColor = pressed ? MAC_BLACK : MAC_WHITE;
-  uint16_t textColor = pressed ? MAC_WHITE : MAC_BLACK;
-  uint16_t borderColor = MAC_BLACK;
+  uint16_t bgColor = pressed ? UI_BLACK : UI_WHITE;
+  uint16_t textColor = pressed ? UI_WHITE : UI_BLACK;
+  uint16_t borderColor = UI_BLACK;
 
   lcd.fillRoundRect(x, y, w, h, radius, bgColor);
   lcd.drawRoundRect(x, y, w, h, radius, borderColor);
@@ -96,9 +96,9 @@ void drawButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius, 
 void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int radius,
                       SymbolType symbol, bool pressed) {
   // Inverted colors when pressed
-  uint16_t bgColor = pressed ? MAC_BLACK : MAC_WHITE;
-  uint16_t borderColor = MAC_BLACK;
-  uint16_t symbolColor = pressed ? MAC_WHITE : MAC_BLACK;
+  uint16_t bgColor = pressed ? UI_BLACK : UI_WHITE;
+  uint16_t borderColor = UI_BLACK;
+  uint16_t symbolColor = pressed ? UI_WHITE : UI_BLACK;
 
   lcd.fillRoundRect(x, y, w, h, radius, bgColor);
   lcd.drawRoundRect(x, y, w, h, radius, borderColor);
@@ -111,12 +111,12 @@ void drawSymbolButton(lgfx::LGFX_Device& lcd, int x, int y, int w, int h, int ra
   drawSymbol(lcd, symbolX, symbolY, symbolSize, symbol, symbolColor);
 }
 
-MacComponent* createButtonComponent(int x, int y, int w, int h, int id, const String& text,
+UIComponent* createButtonComponent(int x, int y, int w, int h, int id, const String& text,
                                     SymbolType symbol) {
-  MacComponent* component = createComponent(COMPONENT_BUTTON, x, y, w, h, id);
+  UIComponent* component = createComponent(COMPONENT_BUTTON, x, y, w, h, id);
 
   // Create button-specific data
-  MacButton* buttonData = new MacButton();
+  UIButton* buttonData = new UIButton();
   buttonData->text = text;
   buttonData->symbol = symbol;
   buttonData->pressed = false;

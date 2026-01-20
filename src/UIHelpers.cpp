@@ -19,12 +19,12 @@
 #define ENABLE_DEBUG 0
 
 extern LGFX lcd;
-extern MacWindow radioWindow;
-extern MacWindow stationWindow;
-extern MacWindow addStationWindow;
-extern MacWindow wifiWindow;
+extern UIWindow radioWindow;
+extern UIWindow stationWindow;
+extern UIWindow addStationWindow;
+extern UIWindow wifiWindow;
 extern DesktopIcon radioIcon;
-extern MacComponent* globalKeyboard;
+extern UIComponent* globalKeyboard;
 
 void updateStationMetadata(const String& stationName, const String& trackInfo) {
   extern const int TXT_RADIO_NAME;
@@ -32,9 +32,9 @@ void updateStationMetadata(const String& stationName, const String& trackInfo) {
   extern bool volumeDisplayActive;
   extern String savedStationName;
 
-  MacComponent* txtRadioName = findComponentById(radioWindow, TXT_RADIO_NAME);
+  UIComponent* txtRadioName = findComponentById(radioWindow, TXT_RADIO_NAME);
   if (txtRadioName && txtRadioName->customData) {
-    MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
+    UIRunningText* runningText = (UIRunningText*)txtRadioName->customData;
 
     // If volume is being displayed, save the station name for later
     // but don't update the display yet
@@ -46,9 +46,9 @@ void updateStationMetadata(const String& stationName, const String& trackInfo) {
     }
   }
 
-  MacComponent* txtRadioDetails = findComponentById(radioWindow, TXT_RADIO_DETAILS);
+  UIComponent* txtRadioDetails = findComponentById(radioWindow, TXT_RADIO_DETAILS);
   if (txtRadioDetails && txtRadioDetails->customData) {
-    MacRunningText* runningText = (MacRunningText*)txtRadioDetails->customData;
+    UIRunningText* runningText = (UIRunningText*)txtRadioDetails->customData;
     runningText->text = trackInfo;
     runningText->scrollOffset = 0;
   }
@@ -112,27 +112,30 @@ void updateWifiSignal() {
   }
 }
 
-// Bottom bar notification state
-static bool notificationVisible = false;
-static String notificationMessage = "";
-static unsigned long notificationStartTime = 0;
-static unsigned long notificationDuration = 0;  // 0 = permanent until hidden
+struct NotificationState {
+  bool visible = false;
+  String message = "";
+  unsigned long startTime = 0;
+  unsigned long duration = 0;  // 0 = permanent until hidden
+};
+
+static NotificationState notification;
 
 void showNotification(const String& message, unsigned long duration) {
-  notificationMessage = message;
-  notificationDuration = duration;
-  notificationStartTime = millis();
-  notificationVisible = true;
+  notification.message = message;
+  notification.duration = duration;
+  notification.startTime = millis();
+  notification.visible = true;
 
   drawBottomBar(lcd, message, true);
 }
 
-MacWindow** getVisibleWindows(int& windowCount) {
-  static MacWindow* visibleWindows[10];
+UIWindow** getVisibleWindows(int& windowCount) {
+  static UIWindow* visibleWindows[10];
   windowCount = 0;
 
   int totalWindows = 0;
-  MacWindow** allWindows = getRegisteredWindows(totalWindows);
+  UIWindow** allWindows = getRegisteredWindows(totalWindows);
 
   if (allWindows == nullptr) {
     return visibleWindows;
@@ -148,22 +151,22 @@ MacWindow** getVisibleWindows(int& windowCount) {
 }
 
 void hideNotification() {
-  if (!notificationVisible)
+  if (!notification.visible)
     return;
 
-  notificationVisible = false;
-  notificationMessage = "";
+  notification.visible = false;
+  notification.message = "";
 
   drawBottomBar(lcd, "", false);
 }
 
 void updateNotification() {
-  if (!notificationVisible)
+  if (!notification.visible)
     return;
 
-  if (notificationDuration > 0) {
-    unsigned long elapsed = millis() - notificationStartTime;
-    if (elapsed >= notificationDuration) {
+  if (notification.duration > 0) {
+    unsigned long elapsed = millis() - notification.startTime;
+    if (elapsed >= notification.duration) {
       hideNotification();
       return;
     }
@@ -184,9 +187,9 @@ void updateVolumeDisplay() {
 
   // After 2 seconds (2000ms), restore the radio name
   if (elapsed >= 2000) {
-    MacComponent* txtRadioName = findComponentById(radioWindow, TXT_RADIO_NAME);
+    UIComponent* txtRadioName = findComponentById(radioWindow, TXT_RADIO_NAME);
     if (txtRadioName && txtRadioName->customData) {
-      MacRunningText* runningText = (MacRunningText*)txtRadioName->customData;
+      UIRunningText* runningText = (UIRunningText*)txtRadioName->customData;
       runningText->text = savedStationName;
       runningText->scrollOffset = 0;
       currentStationName = savedStationName;
@@ -195,56 +198,8 @@ void updateVolumeDisplay() {
   }
 }
 
-void updateCPUUsage() {
-  extern unsigned long lastCPUUpdate;
-  extern float cpuUsage0;
-  extern float cpuUsage1;
-  extern TaskHandle_t audioTaskHandle;
-  extern TaskHandle_t uiTaskHandle;
-  extern volatile bool isPlaying;
-
-  unsigned long now = millis();
-  if (now - lastCPUUpdate < 1000)
-    return;
-  lastCPUUpdate = now;
-
-  if (audioTaskHandle != NULL) {
-    UBaseType_t stackHighWaterMark = uxTaskGetStackHighWaterMark(audioTaskHandle);
-    cpuUsage0 = isPlaying ? 25.0 + (random(0, 20)) : 5.0 + random(0, 5);
-  }
-
-  if (uiTaskHandle != NULL) {
-    UBaseType_t stackHighWaterMark = uxTaskGetStackHighWaterMark(uiTaskHandle);
-    cpuUsage1 = 15.0 + random(0, 15);
-  }
-
-  uint32_t freeHeap = ESP.getFreeHeap();
-  uint32_t totalHeap = ESP.getHeapSize();
-  uint32_t usedHeap = totalHeap - freeHeap;
-  float ramUsagePercent = (usedHeap * 100.0) / totalHeap;
-
-  uint32_t freePsram = ESP.getFreePsram();
-  uint32_t totalPsram = ESP.getPsramSize();
-  uint32_t usedPsram = totalPsram - freePsram;
-
-  if (radioWindow.visible && !radioWindow.minimized) {
-    extern const int TXT_CPU_LABEL;
-    MacComponent* cpuLabel = findComponentById(radioWindow, TXT_CPU_LABEL);
-    if (cpuLabel && cpuLabel->customData) {
-      MacLabel* label = (MacLabel*)cpuLabel->customData;
-      char cpuText[128];
-      snprintf(cpuText, sizeof(cpuText),
-               "CPU0: %.0f%% CPU1: %.0f%% | RAM: %dKB/%dKB (%.0f%%) | PSRAM: %dKB/%dKB", cpuUsage0,
-               cpuUsage1, usedHeap / 1024, totalHeap / 1024, ramUsagePercent, usedPsram / 1024,
-               totalPsram / 1024);
-      label->text = String(cpuText);
-      drawComponent(lcd, *cpuLabel, radioWindow.x, radioWindow.y);
-    }
-  }
-}
-
 void drawInterface(lgfx::LGFX_Device& lcd) {
-  lcd.fillScreen(MAC_WHITE);
+  lcd.fillScreen(UI_WHITE);
   drawCheckeredPattern(lcd);
   drawMenuBar(lcd, "Retrodio");
   drawBottomBar(lcd, "", false);
@@ -260,7 +215,7 @@ void drawInterface(lgfx::LGFX_Device& lcd) {
     int keyboardY = screenHeight - keyboardHeight;
     globalKeyboard = createKeyboardComponent(0, keyboardY, screenWidth, keyboardHeight,
                                              KEYBOARD_COMPONENT, INPUT_STATION_NAME);
-    MacKeyboard* kb = (MacKeyboard*)globalKeyboard->customData;
+    UIKeyboard* kb = (UIKeyboard*)globalKeyboard->customData;
     kb->visible = false;
   }
 
@@ -271,12 +226,12 @@ void drawInterface(lgfx::LGFX_Device& lcd) {
   }
 }
 
-void redrawWindowContent(lgfx::LGFX_Device& lcd, const MacWindow& window) {
+void redrawWindowContent(lgfx::LGFX_Device& lcd, const UIWindow& window) {
   if (!window.visible || window.minimized)
     return;
 }
 
-void adjustWindowForKeyboard(MacWindow& window, MacComponent* inputComponent, bool show) {
+void adjustWindowForKeyboard(UIWindow& window, UIComponent* inputComponent, bool show) {
   if (!inputComponent || !globalKeyboard) {
     return;
   }
@@ -327,15 +282,15 @@ void handleKeyboardInteraction() {
     return;
   }
 
-  MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+  UIKeyboard* keyboard = (UIKeyboard*)globalKeyboard->customData;
   if (!keyboard->visible) {
     return;
   }
 
   // Find the target input field component
-  MacComponent* targetInputComp = nullptr;
+  UIComponent* targetInputComp = nullptr;
   for (int i = 0; i < addStationWindow.childComponentCount; i++) {
-    MacComponent* comp = addStationWindow.childComponents[i];
+    UIComponent* comp = addStationWindow.childComponents[i];
     if (comp && comp->id == keyboard->targetInputId && comp->type == COMPONENT_INPUT_FIELD) {
       targetInputComp = comp;
       break;
@@ -363,7 +318,7 @@ void handleKeyboardInteraction() {
       }
 
       // Restore just the pressed key to normal state (not the whole keyboard)
-      extern void restorePressedKey(lgfx::LGFX_Device & lcd, MacKeyboard * keyboard, int x, int y,
+      extern void restorePressedKey(lgfx::LGFX_Device & lcd, UIKeyboard * keyboard, int x, int y,
                                     int w, int h);
       restorePressedKey(lcd, keyboard, globalKeyboard->x, globalKeyboard->y, globalKeyboard->w,
                         globalKeyboard->h);
@@ -378,10 +333,10 @@ void handleKeyboardInteraction() {
 
         lcd.startWrite();
         lcd.fillRoundRect(shiftX, row3Y, 45, rowHeight - 2, 4,
-                          MAC_WHITE);  // SHIFT_WIDTH=45, radius=4
-        lcd.drawRoundRect(shiftX, row3Y, 45, rowHeight - 2, 4, MAC_BLACK);
-        lcd.drawRoundRect(shiftX + 1, row3Y + 1, 45 - 2, rowHeight - 2 - 2, 2, MAC_BLACK);
-        lcd.setTextColor(MAC_BLACK, MAC_WHITE);
+                          UI_WHITE);  // SHIFT_WIDTH=45, radius=4
+        lcd.drawRoundRect(shiftX, row3Y, 45, rowHeight - 2, 4, UI_BLACK);
+        lcd.drawRoundRect(shiftX + 1, row3Y + 1, 45 - 2, rowHeight - 2 - 2, 2, UI_BLACK);
+        lcd.setTextColor(UI_BLACK, UI_WHITE);
         lcd.setTextSize(1);
         extern const GFXfont* getFontFromType(FontType fontType);
         lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
@@ -429,11 +384,11 @@ void handleKeyboardInteraction() {
     // Find all input field components
     extern const int INPUT_STATION_NAME;
     extern const int INPUT_STATION_URL;
-    MacComponent* nameInputComp = nullptr;
-    MacComponent* urlInputComp = nullptr;
+    UIComponent* nameInputComp = nullptr;
+    UIComponent* urlInputComp = nullptr;
 
     for (int i = 0; i < addStationWindow.childComponentCount; i++) {
-      MacComponent* comp = addStationWindow.childComponents[i];
+      UIComponent* comp = addStationWindow.childComponents[i];
       if (comp && comp->type == COMPONENT_INPUT_FIELD) {
         if (comp->id == INPUT_STATION_NAME) {
           nameInputComp = comp;
@@ -456,8 +411,8 @@ void handleKeyboardInteraction() {
 
     if (clickedNameInput && keyboard->targetInputId != INPUT_STATION_NAME) {
       // Switch focus to name input
-      MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
-      MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+      UIInputField* nameInput = (UIInputField*)nameInputComp->customData;
+      UIInputField* urlInput = (UIInputField*)urlInputComp->customData;
 
       nameInput->focused = true;
       urlInput->focused = false;
@@ -470,8 +425,8 @@ void handleKeyboardInteraction() {
       drawComponent(lcd, *urlInputComp, addStationWindow.x, addStationWindow.y);
     } else if (clickedUrlInput && keyboard->targetInputId != INPUT_STATION_URL) {
       // Switch focus to URL input
-      MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
-      MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+      UIInputField* nameInput = (UIInputField*)nameInputComp->customData;
+      UIInputField* urlInput = (UIInputField*)urlInputComp->customData;
 
       nameInput->focused = false;
       urlInput->focused = true;
@@ -488,11 +443,11 @@ void handleKeyboardInteraction() {
 
       // Clear focus from all input fields
       if (nameInputComp && nameInputComp->customData) {
-        MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
+        UIInputField* nameInput = (UIInputField*)nameInputComp->customData;
         nameInput->focused = false;
       }
       if (urlInputComp && urlInputComp->customData) {
-        MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+        UIInputField* urlInput = (UIInputField*)urlInputComp->customData;
         urlInput->focused = false;
       }
 
@@ -512,11 +467,11 @@ void handleKeyboardInteraction() {
     // Clear focus from all input fields
     extern const int INPUT_STATION_NAME;
     extern const int INPUT_STATION_URL;
-    MacComponent* nameInputComp = nullptr;
-    MacComponent* urlInputComp = nullptr;
+    UIComponent* nameInputComp = nullptr;
+    UIComponent* urlInputComp = nullptr;
 
     for (int i = 0; i < addStationWindow.childComponentCount; i++) {
-      MacComponent* comp = addStationWindow.childComponents[i];
+      UIComponent* comp = addStationWindow.childComponents[i];
       if (comp && comp->type == COMPONENT_INPUT_FIELD) {
         if (comp->id == INPUT_STATION_NAME) {
           nameInputComp = comp;
@@ -527,11 +482,11 @@ void handleKeyboardInteraction() {
     }
 
     if (nameInputComp && nameInputComp->customData) {
-      MacInputField* nameInput = (MacInputField*)nameInputComp->customData;
+      UIInputField* nameInput = (UIInputField*)nameInputComp->customData;
       nameInput->focused = false;
     }
     if (urlInputComp && urlInputComp->customData) {
-      MacInputField* urlInput = (MacInputField*)urlInputComp->customData;
+      UIInputField* urlInput = (UIInputField*)urlInputComp->customData;
       urlInput->focused = false;
     }
 
@@ -581,20 +536,20 @@ void checkMenuBarTouch() {
 }
 
 void handleWifiKeyboardInteraction() {
-  extern MacComponent* wifiKeyboard;
-  extern MacWindow wifiWindow;
+  extern UIComponent* wifiKeyboard;
+  extern UIWindow wifiWindow;
 
   if (!wifiKeyboard)
     return;
 
-  MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+  UIKeyboard* keyboard = (UIKeyboard*)wifiKeyboard->customData;
   if (!keyboard->visible)
     return;
 
   // Find the target input field component
-  MacComponent* targetInputComp = nullptr;
+  UIComponent* targetInputComp = nullptr;
   for (int i = 0; i < wifiWindow.childComponentCount; i++) {
-    MacComponent* comp = wifiWindow.childComponents[i];
+    UIComponent* comp = wifiWindow.childComponents[i];
     if (comp && comp->id == keyboard->targetInputId && comp->type == COMPONENT_INPUT_FIELD) {
       targetInputComp = comp;
       break;
@@ -611,7 +566,7 @@ void handleWifiKeyboardInteraction() {
     // No touch detected - reset key press state and restore key appearance
     if (keyboard->isKeyPressed) {
       // Restore just the pressed key to normal state
-      extern void restorePressedKey(lgfx::LGFX_Device & lcd, MacKeyboard * keyboard, int x, int y,
+      extern void restorePressedKey(lgfx::LGFX_Device & lcd, UIKeyboard * keyboard, int x, int y,
                                     int w, int h);
       restorePressedKey(lcd, keyboard, wifiKeyboard->x, wifiKeyboard->y, wifiKeyboard->w,
                         wifiKeyboard->h);
@@ -678,7 +633,7 @@ void uiTask(void* parameter) {
     if (needsVolumeSliderRedraw) {
       needsVolumeSliderRedraw = false;
       if (radioWindow.visible && !radioWindow.minimized) {
-        MacComponent* volumeSlider = findComponentById(radioWindow, CMP_VOLUME_SLIDER);
+        UIComponent* volumeSlider = findComponentById(radioWindow, CMP_VOLUME_SLIDER);
         if (volumeSlider) {
           lcd.startWrite();
           drawComponent(lcd, *volumeSlider, radioWindow.x, radioWindow.y);
@@ -690,9 +645,8 @@ void uiTask(void* parameter) {
     if (needsStationListReload) {
       needsStationListReload = false;
       reloadStationList();
-      // Always reinitialize the station window to update the list view with the new stationItems pointer
       initializeStationWindow();
-      // Only redraw if the window is visible
+
       if (stationWindow.visible && !stationWindow.minimized) {
         lcd.startWrite();
         drawWindow(lcd, stationWindow);
@@ -710,13 +664,13 @@ void uiTask(void* parameter) {
     bool wifiKeyboardActive = false;
 
     if (globalKeyboard) {
-      MacKeyboard* keyboard = (MacKeyboard*)globalKeyboard->customData;
+      UIKeyboard* keyboard = (UIKeyboard*)globalKeyboard->customData;
       keyboardActive = keyboard->visible;
     }
 
-    extern MacComponent* wifiKeyboard;
+    extern UIComponent* wifiKeyboard;
     if (wifiKeyboard) {
-      MacKeyboard* keyboard = (MacKeyboard*)wifiKeyboard->customData;
+      UIKeyboard* keyboard = (UIKeyboard*)wifiKeyboard->customData;
       wifiKeyboardActive = keyboard->visible;
     }
 
@@ -826,9 +780,9 @@ void uiTask(void* parameter) {
           }
 
           if (bitRate != lastDisplayedBitRate) {
-            MacComponent* txtBitRate = findComponentById(radioWindow, TXT_BITRATE);
+            UIComponent* txtBitRate = findComponentById(radioWindow, TXT_BITRATE);
             if (txtBitRate && txtBitRate->customData) {
-              MacRunningText* runningText = (MacRunningText*)txtBitRate->customData;
+              UIRunningText* runningText = (UIRunningText*)txtBitRate->customData;
               runningText->text = bitRate.length() > 0 ? "Bitrate: " + bitRate : "";
               runningText->scrollOffset = 0;
               lastDisplayedBitRate = bitRate;
@@ -836,9 +790,9 @@ void uiTask(void* parameter) {
           }
 
           if (id3Data != lastDisplayedID3) {
-            MacComponent* txtID3 = findComponentById(radioWindow, TXT_ID3);
+            UIComponent* txtID3 = findComponentById(radioWindow, TXT_ID3);
             if (txtID3 && txtID3->customData) {
-              MacRunningText* runningText = (MacRunningText*)txtID3->customData;
+              UIRunningText* runningText = (UIRunningText*)txtID3->customData;
               runningText->text = id3Data.length() > 0 ? "ID3: " + id3Data : "";
               runningText->scrollOffset = 0;
               lastDisplayedID3 = id3Data;
@@ -846,9 +800,9 @@ void uiTask(void* parameter) {
           }
 
           if (info != lastDisplayedInfo) {
-            MacComponent* txtInfo = findComponentById(radioWindow, TXT_INFO);
+            UIComponent* txtInfo = findComponentById(radioWindow, TXT_INFO);
             if (txtInfo && txtInfo->customData) {
-              MacRunningText* runningText = (MacRunningText*)txtInfo->customData;
+              UIRunningText* runningText = (UIRunningText*)txtInfo->customData;
               runningText->text = info;
               runningText->scrollOffset = 0;
               lastDisplayedInfo = info;
@@ -856,9 +810,9 @@ void uiTask(void* parameter) {
           }
 
           if (description != lastDisplayedDescription) {
-            MacComponent* txtDescription = findComponentById(radioWindow, TXT_DESCRIPTION);
+            UIComponent* txtDescription = findComponentById(radioWindow, TXT_DESCRIPTION);
             if (txtDescription && txtDescription->customData) {
-              MacRunningText* runningText = (MacRunningText*)txtDescription->customData;
+              UIRunningText* runningText = (UIRunningText*)txtDescription->customData;
               runningText->text = description;
               runningText->scrollOffset = 0;
               lastDisplayedDescription = description;
@@ -866,9 +820,9 @@ void uiTask(void* parameter) {
           }
 
           if (lyrics != lastDisplayedLyrics) {
-            MacComponent* txtLyrics = findComponentById(radioWindow, TXT_LYRICS);
+            UIComponent* txtLyrics = findComponentById(radioWindow, TXT_LYRICS);
             if (txtLyrics && txtLyrics->customData) {
-              MacRunningText* runningText = (MacRunningText*)txtLyrics->customData;
+              UIRunningText* runningText = (UIRunningText*)txtLyrics->customData;
               runningText->text = lyrics.length() > 0 ? "Lyrics: " + lyrics : "";
               runningText->scrollOffset = 0;
               lastDisplayedLyrics = lyrics;
@@ -876,9 +830,9 @@ void uiTask(void* parameter) {
           }
 
           if (log != lastDisplayedLog) {
-            MacComponent* txtLog = findComponentById(radioWindow, TXT_LOG);
+            UIComponent* txtLog = findComponentById(radioWindow, TXT_LOG);
             if (txtLog && txtLog->customData) {
-              MacRunningText* runningText = (MacRunningText*)txtLog->customData;
+              UIRunningText* runningText = (UIRunningText*)txtLog->customData;
               runningText->text = log.length() > 0 ? "Log: " + log : "";
               runningText->scrollOffset = 0;
               lastDisplayedLog = log;

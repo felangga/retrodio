@@ -3,7 +3,6 @@
  *
  * Copyright (c) 2025 felangga
  *
- * This header file contains declarations for global state variables
  */
 
 #ifndef GLOBAL_STATE_H
@@ -11,7 +10,7 @@
 
 #include <Arduino.h>
 #include "Audio.h"
-#include "MacUI.h"
+#include "UI.h"
 #include "wt32_sc01_plus.h"
 
 // Component ID Constants
@@ -77,12 +76,7 @@ extern SemaphoreHandle_t metadataMutex;
 extern QueueHandle_t audioCommandQueue;
 
 // Audio Command Types
-enum AudioCommand {
-  CMD_NONE = 0,
-  CMD_PLAY,
-  CMD_STOP,
-  CMD_CONNECT
-};
+enum AudioCommand { CMD_NONE = 0, CMD_PLAY, CMD_STOP, CMD_CONNECT };
 
 struct AudioCommandMsg {
   AudioCommand cmd;
@@ -136,20 +130,20 @@ extern String lastDisplayedLyrics;
 extern String lastDisplayedLog;
 
 // Windows and Icons
-extern MacWindow radioWindow;
-extern MacWindow stationWindow;
-extern MacWindow addStationWindow;
-extern MacWindow confirmDeleteWindow;
-extern MacWindow wifiWindow;
+extern UIWindow radioWindow;
+extern UIWindow stationWindow;
+extern UIWindow addStationWindow;
+extern UIWindow confirmDeleteWindow;
+extern UIWindow wifiWindow;
 extern DesktopIcon radioIcon;
-extern MacComponent* globalKeyboard;
-extern MacComponent* wifiKeyboard;
+extern UIComponent* globalKeyboard;
+extern UIComponent* wifiKeyboard;
 extern int stationToDeleteIndex;
 extern bool isEditMode;
 extern int stationToEditIndex;
 
 // Helper Functions
-MacComponent* findComponentById(const MacWindow& window, int id);
-void updateComponentSymbol(const MacWindow& window, int componentId, SymbolType newSymbol);
+UIComponent* findComponentById(const UIWindow& window, int id);
+void updateComponentSymbol(const UIWindow& window, int componentId, SymbolType newSymbol);
 
 #endif
