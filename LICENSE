@@ -1,0 +1,56 @@
+Retrodio - Internet Radio for ESP32
+Copyright (c) 2025 felangga
+
+This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+
+==============================================================================
+SUMMARY
+==============================================================================
+
+You are free to:
+  - Share: copy and redistribute the material in any medium or format
+  - Adapt: remix, transform, and build upon the material
+
+Under the following terms:
+  - Attribution: You must give appropriate credit, provide a link to the license,
+    and indicate if changes were made.
+  - NonCommercial: You may not use the material for commercial purposes.
+  - ShareAlike: If you remix, transform, or build upon the material, you must
+    distribute your contributions under the same license as the original.
+  - No additional restrictions: You may not apply legal terms or technological
+    measures that legally restrict others from doing anything the license permits.
+
+Commercial Use by Original Author:
+  The original copyright holder (felangga) retains all rights and may use this
+  work for commercial purposes, including selling hardware, software, or services
+  based on this project.
+
+==============================================================================
+FULL LICENSE
+==============================================================================
+
+To view the full license text, visit:
+https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+
+Or see the LICENSE_FULL.txt file in this repository.
+
+==============================================================================
+COMMERCIAL LICENSING
+==============================================================================
+
+If you wish to use this project for commercial purposes, please contact
+the copyright holder to discuss commercial licensing options.
+
+GitHub: https://github.com/felangga/retrodio
+
+==============================================================================
+THIRD-PARTY COMPONENTS
+==============================================================================
+
+This project uses the following third-party libraries, each with their own licenses:
+
+- LovyanGFX (https://github.com/lovyan03/LovyanGFX)
+- ESP32-audioI2S (https://github.com/schreibfaul1/ESP32-audioI2S)
+- ArduinoJson (https://arduinojson.org/)
+
+Please refer to each library's license for their respective terms.
