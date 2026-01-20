@@ -1,0 +1,99 @@
+# Retrodio
+
+A retro-style internet radio for ESP32 with touchscreen interface.
+
+## Overview
+
+Retrodio is an ESP32-based internet radio player featuring a graphical user interface for browsing and playing streaming radio stations. Built for the WT32-SC01 Plus development board with integrated touchscreen display.
+
+## Features
+
+- Stream internet radio stations over WiFi
+- Touchscreen GUI for easy station selection
+- Add, edit, and delete radio stations
+- Volume control with visual feedback
+- OTA (Over-The-Air) firmware updates
+- Web server for remote management
+- Persistent station storage
+
+## Hardware Requirements
+
+- **Board**: WT32-SC01 Plus (ESP32-S3, 16MB Flash, 2MB PSRAM)
+- **Display**: 480x320 touchscreen (integrated on WT32-SC01 Plus)
+- **Audio**: I2S DAC (connected via I2S interface)
+
+## Software Dependencies
+
+- [PlatformIO](https://platformio.org/)
+- [LovyanGFX](https://github.com/lovyan03/LovyanGFX) - Graphics library
+- [ESP32-audioI2S](https://github.com/schreibfaul1/ESP32-audioI2S) - Audio streaming
+- [ArduinoJson](https://arduinojson.org/) - JSON parsing
+
+## Building and Flashing
+
+### Prerequisites
+
+1. Install [PlatformIO](https://platformio.org/install)
+2. Clone this repository
+
+### Build
+
+```bash
+# Build for USB upload
+pio run -e usb
+
+# Build for OTA update
+pio run -e ota
+```
+
+### Upload
+
+```bash
+# Upload via USB
+pio run -e usb -t upload
+
+# Upload via OTA (requires device on network)
+pio run -e ota -t upload
+```
+
+### Monitor Serial Output
+
+```bash
+pio device monitor -b 115200
+```
+
+## Configuration
+
+WiFi credentials and radio stations are configured through the touchscreen interface on first boot.
+
+## Project Structure
+
+```
+src/
+├── main.cpp              - Main application entry
+├── RadioWindow.*         - Main radio interface
+├── WifiWindow.*          - WiFi configuration
+├── AddStationWindow.*    - Add/edit stations
+├── StationManager.*      - Station list management
+├── AudioHandlers.*       - Audio streaming handlers
+├── NetworkHandlers.*     - WiFi/network management
+├── WebServer.*           - Web interface
+├── OTAHandler.*          - OTA update handling
+└── GlobalState.h         - Shared application state
+```
+
+## License
+
+This project is licensed under CC BY-NC-SA 4.0 (Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International).
+
+**For personal/educational use only.** Commercial use requires permission. See [LICENSE](LICENSE) for details.
+
+## Author
+
+felangga - [GitHub](https://github.com/felangga/retrodio)
+
+## Acknowledgments
+
+- ESP32 community
+- LovyanGFX graphics library
+- ESP32-audioI2S audio library
