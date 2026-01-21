@@ -2,6 +2,9 @@
 
 A retro-style internet radio for ESP32 with touchscreen interface.
 
+![IMG_1735_VSCO](https://github.com/user-attachments/assets/26884c5d-ff6f-4797-ba58-dd58b5bbd2b2)
+
+
 ## Overview
 
 Retrodio is an ESP32-based internet radio player featuring a graphical user interface for browsing and playing streaming radio stations. Built for the WT32-SC01 Plus development board with integrated touchscreen display.
