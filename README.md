@@ -25,6 +25,15 @@ Retrodio is an ESP32-based internet radio player featuring a graphical user inte
 - **Display**: 480x320 touchscreen (integrated on WT32-SC01 Plus)
 - **Audio**: I2S DAC (connected via I2S interface)
 
+## Schematic
+
+Basically, you only need the WT32-SC01 and a speaker, since all the requirements are already built into the LCD itself, including the ESP32 and the amplifier. 
+Just connect the LCD to the speaker, and powering it up! 
+
+<img width="573" height="385" alt="image" src="https://github.com/user-attachments/assets/601328d5-5570-4e1f-a792-b899ae194c55" />
+
+The speaker connector is beside the MicroSD Card slot.
+
 ## Software Dependencies
 
 - [PlatformIO](https://platformio.org/)
