@@ -24,6 +24,7 @@
 #include "NetworkHandlers.h"
 #include "OTAHandler.h"
 #include "RadioWindow.h"
+#include "SettingsWindow.h"
 #include "StationManager.h"
 #include "UIHelpers.h"
 #include "WebServer.h"
@@ -85,6 +86,18 @@ const int BTN_DELETE_STATION = 12;
 const int BTN_CONFIRM_YES = 13;
 const int BTN_CONFIRM_NO = 14;
 
+// Settings Window Components
+const int BTN_SETTINGS_SAVE = 600;
+const int BTN_SETTINGS_CANCEL = 601;
+const int CMP_POWER_SAVE_CHECKBOX = 602;
+const int LBL_POWER_SAVE = 603;
+const int LBL_IDLE_TIMEOUT = 604;
+const int CMP_IDLE_TIMEOUT_SLIDER = 605;
+const int LBL_TIMEOUT_VALUE = 606;
+const int LBL_ABOUT_TITLE = 607;
+const int LBL_ABOUT_AUTHOR = 608;
+const int LBL_ABOUT_GITHUB = 609;
+
 // WiFi Window Components
 const int WIFI_LIST_COMPONENT = 500;
 const int BTN_WIFI_CONNECT = 501;
@@ -117,6 +130,10 @@ float cpuUsage1 = 0.0;
 unsigned long volumeChangeTime = 0;
 bool volumeDisplayActive = false;
 String savedStationName = "";
+
+unsigned long lastActivityTime = 0;
+bool lcdSleeping = false;
+uint8_t savedBrightness = 255;
 
 volatile bool needsVolumeSliderRedraw = false;
 volatile bool needsStationListReload = false;
@@ -207,6 +224,24 @@ UIWindow confirmDeleteWindow{100,
                              0,
                              0};
 
+UIWindow settingsWindow{60,
+                        60,
+                        360,
+                        180,
+                        "Settings",
+                        false,
+                        false,
+                        false,
+                        onSettingsWindowMinimize,
+                        onSettingsWindowClose,
+                        onSettingsWindowContentClick,
+                        onSettingsWindowMoved,
+                        nullptr,
+                        0,
+                        false,
+                        0,
+                        0};
+
 UIWindow wifiWindow{80,
                     40,
                     300,
@@ -226,6 +261,8 @@ UIWindow wifiWindow{80,
                     0};
 
 DesktopIcon radioIcon{50, 60, "Radio", "window", false, false, &radioWindow, onRadioIconClick};
+DesktopIcon settingsIcon{140,   60,    "Settings",      "settings",
+                         false, false, &settingsWindow, onSettingsIconClick};
 
 UIComponent* globalKeyboard = nullptr;
 UIComponent* wifiKeyboard = nullptr;

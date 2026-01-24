@@ -350,6 +350,8 @@ UIComponent* createInputFieldComponent(int x, int y, int w, int h, int id,
 UIComponent* createKeyboardComponent(int x, int y, int w, int h, int id, int targetInputId);
 UIComponent* createSliderComponent(int x, int y, int w, int h, int id, int minVal, int maxVal,
                                     int currentVal, bool vertical = false);
+UIComponent* createCheckBoxComponent(int x, int y, int w, int h, int id, const String& label,
+                                      bool checked);
 
 // Helper to update running text properties
 void updateRunningTextProperties(UIComponent* component, const String* newText = nullptr,

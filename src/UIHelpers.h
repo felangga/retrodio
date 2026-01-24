@@ -23,6 +23,12 @@ void showNotification(const String& message, unsigned long duration = 0);
 void hideNotification();
 void updateNotification();
 
+// Power save functions
+void checkPowerSave();
+void sleepLCD();
+void wakeLCD();
+void resetActivityTimer();
+
 // Interface drawing
 void drawInterface(lgfx::LGFX_Device& lcd);
 void redrawWindowContent(lgfx::LGFX_Device& lcd, const UIWindow& window);

@@ -57,6 +57,12 @@ class ConfigManager {
   static String getWifiPassword();
   static void setWifiCredentials(const String& ssid, const String& password);
 
+  // Power save management
+  static unsigned long getLcdIdleTimeout();
+  static void setLcdIdleTimeout(unsigned long timeout);
+  static bool getPowerSaveEnabled();
+  static void setPowerSaveEnabled(bool enabled);
+
   // Utility functions
   static void factoryReset();
   static void printDebugInfo();
@@ -67,6 +73,8 @@ class ConfigManager {
   static LastStation lastStation;
   static String wifiSSID;
   static String wifiPassword;
+  static unsigned long lcdIdleTimeout;
+  static bool powerSaveEnabled;
 
   // Station list
   static Station stations[MAX_STATIONS];

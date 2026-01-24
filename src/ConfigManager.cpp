@@ -5,11 +5,14 @@
  */
 
 #include "ConfigManager.h"
+#include "config.h"
 
 int ConfigManager::volume = 5;
 LastStation ConfigManager::lastStation = {"", ""};
 String ConfigManager::wifiSSID = "";
 String ConfigManager::wifiPassword = "";
+unsigned long ConfigManager::lcdIdleTimeout = DEFAULT_LCD_IDLE_TIMEOUT;
+bool ConfigManager::powerSaveEnabled = true;
 Station ConfigManager::stations[MAX_STATIONS];
 int ConfigManager::stationCount = 0;
 
@@ -48,6 +51,8 @@ bool ConfigManager::loadSettings() {
   lastStation.url = doc["lastStationURL"] | "";
   wifiSSID = doc["wifiSSID"] | "";
   wifiPassword = doc["wifiPassword"] | "";
+  lcdIdleTimeout = doc["lcdIdleTimeout"] | DEFAULT_LCD_IDLE_TIMEOUT;
+  powerSaveEnabled = doc["powerSaveEnabled"] | true;
 
   return true;
 }
@@ -59,6 +64,8 @@ bool ConfigManager::saveSettings() {
   doc["lastStationURL"] = lastStation.url;
   doc["wifiSSID"] = wifiSSID;
   doc["wifiPassword"] = wifiPassword;
+  doc["lcdIdleTimeout"] = lcdIdleTimeout;
+  doc["powerSaveEnabled"] = powerSaveEnabled;
 
   File file = LittleFS.open(SETTINGS_FILE, "w");
   if (!file) {
@@ -202,6 +209,24 @@ String ConfigManager::getWifiPassword() {
 void ConfigManager::setWifiCredentials(const String& ssid, const String& password) {
   wifiSSID = ssid;
   wifiPassword = password;
+  saveSettings();
+}
+
+unsigned long ConfigManager::getLcdIdleTimeout() {
+  return lcdIdleTimeout;
+}
+
+void ConfigManager::setLcdIdleTimeout(unsigned long timeout) {
+  lcdIdleTimeout = constrain(timeout, MIN_LCD_IDLE_TIMEOUT, MAX_LCD_IDLE_TIMEOUT);
+  saveSettings();
+}
+
+bool ConfigManager::getPowerSaveEnabled() {
+  return powerSaveEnabled;
+}
+
+void ConfigManager::setPowerSaveEnabled(bool enabled) {
+  powerSaveEnabled = enabled;
   saveSettings();
 }
 

@@ -10,10 +10,13 @@
 #include <WiFi.h>
 #include <time.h>
 #include "AddStationWindow.h"
+#include "ConfigManager.h"
 #include "GlobalState.h"
 #include "RadioWindow.h"
+#include "SettingsWindow.h"
 #include "StationManager.h"
 #include "WifiWindow.h"
+#include "config.h"
 #include "wt32_sc01_plus.h"
 
 #define ENABLE_DEBUG 0
@@ -207,6 +210,7 @@ void drawInterface(lgfx::LGFX_Device& lcd) {
   initializeRadioWindow();
   initializeStationWindow();
   initializeAddStationWindow();
+  initializeSettingsWindow();
 
   if (globalKeyboard == nullptr) {
     extern const int KEYBOARD_COMPONENT;
@@ -517,8 +521,20 @@ void checkMenuBarTouch() {
   if (touching && !menuBarTouchActive) {
     // Check if in menu bar area (top 20 pixels)
     if (ty <= 20) {
+      // Check if clicking on "Retrodio" text (approximately x: 30-110, y: 0-20)
+      if (tx >= 30 && tx <= 110) {
+        menuBarTouchActive = true;
+        lastMenuBarTouch = millis();
+
+        // Debounce
+        delay(100);
+
+        // Open settings window
+        extern void onSettingsIconClick();
+        onSettingsIconClick();
+      }
       // Check if on WiFi signal
-      if (isInsideWifiSignal(tx, ty)) {
+      else if (isInsideWifiSignal(tx, ty)) {
         menuBarTouchActive = true;
         lastMenuBarTouch = millis();
 
@@ -607,6 +623,65 @@ void handleWifiKeyboardInteraction() {
   }
 }
 
+// ===== Power Save Functions =====
+
+void sleepLCD() {
+  if (lcdSleeping) return;
+
+  // Save current brightness
+  savedBrightness = lcd.getBrightness();
+
+  // Turn off backlight
+  lcd.setBrightness(0);
+  lcd.sleep();
+
+  lcdSleeping = true;
+}
+
+void wakeLCD() {
+  if (!lcdSleeping) return;
+
+  // Wake up display
+  lcd.wakeup();
+  lcd.setBrightness(savedBrightness);
+
+  lcdSleeping = false;
+
+  // Reset activity timer
+  lastActivityTime = millis();
+}
+
+void resetActivityTimer() {
+  lastActivityTime = millis();
+
+  // Wake LCD if it's sleeping
+  if (lcdSleeping) {
+    wakeLCD();
+  }
+}
+
+void checkPowerSave() {
+  // Skip if power save is disabled
+  if (!ConfigManager::getPowerSaveEnabled()) {
+    return;
+  }
+
+  // Don't sleep if already sleeping
+  if (lcdSleeping) {
+    return;
+  }
+
+  // Check if idle timeout has elapsed
+  unsigned long idleTime = millis() - lastActivityTime;
+  unsigned long timeout = ConfigManager::getLcdIdleTimeout();
+
+  if (idleTime >= timeout) {
+    sleepLCD();
+  }
+}
+
+// ===== UI Task =====
+
 void uiTask(void* parameter) {
   extern SemaphoreHandle_t metadataMutex;
   extern StreamMetadata streamMetadata;
@@ -619,7 +694,25 @@ void uiTask(void* parameter) {
   extern String lastDisplayedLog;
   extern String currentStationName;
 
+  // Initialize activity timer
+  lastActivityTime = millis();
+
   while (true) {
+    // Check for touch to wake LCD and reset activity timer
+    int16_t tx, ty;
+    if (lcd.getTouch(&tx, &ty)) {
+      resetActivityTimer();
+    }
+
+    // Check if LCD should sleep due to inactivity
+    checkPowerSave();
+
+    // Skip UI updates if LCD is sleeping
+    if (lcdSleeping) {
+      vTaskDelay(100 / portTICK_PERIOD_MS);
+      continue;
+    }
+
     updateClock();
     updateWifiSignal();
     updateNotification();
@@ -698,13 +791,23 @@ void uiTask(void* parameter) {
       // Set active flag based on window priority (top window is active)
       if (wifiWindow.visible) {
         wifiWindow.active = true;
+        settingsWindow.active = false;
         confirmDeleteWindow.active = false;
         addStationWindow.active = false;
         stationWindow.active = false;
         radioWindow.active = false;
         interactiveWindow(lcd, wifiWindow);
+      } else if (settingsWindow.visible) {
+        wifiWindow.active = false;
+        settingsWindow.active = true;
+        confirmDeleteWindow.active = false;
+        addStationWindow.active = false;
+        stationWindow.active = false;
+        radioWindow.active = false;
+        interactiveWindow(lcd, settingsWindow);
       } else if (confirmDeleteWindow.visible) {
         wifiWindow.active = false;
+        settingsWindow.active = false;
         confirmDeleteWindow.active = true;
         addStationWindow.active = false;
         stationWindow.active = false;
@@ -712,6 +815,7 @@ void uiTask(void* parameter) {
         interactiveWindow(lcd, confirmDeleteWindow);
       } else if (addStationWindow.visible) {
         wifiWindow.active = false;
+        settingsWindow.active = false;
         confirmDeleteWindow.active = false;
         addStationWindow.active = true;
         stationWindow.active = false;
@@ -719,6 +823,7 @@ void uiTask(void* parameter) {
         interactiveWindow(lcd, addStationWindow);
       } else if (stationWindow.visible) {
         wifiWindow.active = false;
+        settingsWindow.active = false;
         confirmDeleteWindow.active = false;
         addStationWindow.active = false;
         stationWindow.active = true;
@@ -726,6 +831,7 @@ void uiTask(void* parameter) {
         interactiveWindow(lcd, stationWindow);
       } else if (radioWindow.visible) {
         wifiWindow.active = false;
+        settingsWindow.active = false;
         confirmDeleteWindow.active = false;
         addStationWindow.active = false;
         stationWindow.active = false;
