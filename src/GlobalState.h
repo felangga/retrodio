@@ -53,6 +53,18 @@ extern const int BTN_DELETE_STATION;
 extern const int BTN_CONFIRM_YES;
 extern const int BTN_CONFIRM_NO;
 
+// Settings Window Components
+extern const int BTN_SETTINGS_SAVE;
+extern const int BTN_SETTINGS_CANCEL;
+extern const int CMP_POWER_SAVE_CHECKBOX;
+extern const int LBL_POWER_SAVE;
+extern const int LBL_IDLE_TIMEOUT;
+extern const int CMP_IDLE_TIMEOUT_SLIDER;
+extern const int LBL_TIMEOUT_VALUE;
+extern const int LBL_ABOUT_TITLE;
+extern const int LBL_ABOUT_AUTHOR;
+extern const int LBL_ABOUT_GITHUB;
+
 // WiFi Window Components
 extern const int WIFI_LIST_COMPONENT;
 extern const int BTN_WIFI_CONNECT;
@@ -95,6 +107,11 @@ extern unsigned long volumeChangeTime;
 extern bool volumeDisplayActive;
 extern String savedStationName;
 
+// Power Save State
+extern unsigned long lastActivityTime;
+extern bool lcdSleeping;
+extern uint8_t savedBrightness;
+
 // UI Redraw Flags
 extern volatile bool needsVolumeSliderRedraw;
 extern volatile bool needsStationListReload;
@@ -134,8 +151,10 @@ extern UIWindow radioWindow;
 extern UIWindow stationWindow;
 extern UIWindow addStationWindow;
 extern UIWindow confirmDeleteWindow;
+extern UIWindow settingsWindow;
 extern UIWindow wifiWindow;
 extern DesktopIcon radioIcon;
+extern DesktopIcon settingsIcon;
 extern UIComponent* globalKeyboard;
 extern UIComponent* wifiKeyboard;
 extern int stationToDeleteIndex;

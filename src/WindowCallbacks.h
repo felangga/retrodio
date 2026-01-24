@@ -35,6 +35,15 @@ void onConfirmDeleteWindowClose();
 void onConfirmDeleteWindowContentClick(int relativeX, int relativeY);
 void onConfirmDeleteWindowMoved();
 
+// Settings window callbacks
+void onSettingsWindowMinimize();
+void onSettingsWindowClose();
+void onSettingsWindowContentClick(int relativeX, int relativeY);
+void onSettingsWindowMoved();
+void onSettingsIconClick();
+void onSettingsSaveButtonClick();
+void onSettingsCancelButtonClick();
+
 // WiFi window callbacks
 void onWifiWindowMinimize();
 void onWifiWindowClose();
