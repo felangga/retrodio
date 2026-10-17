@@ -228,9 +228,9 @@ UIWindow confirmDeleteWindow{100,
                              0};
 
 UIWindow settingsWindow{60,
-                        60,
+                        40,
                         360,
-                        180,
+                        230,
                         "Settings",
                         false,
                         false,

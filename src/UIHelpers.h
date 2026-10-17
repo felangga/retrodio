@@ -27,6 +27,12 @@ void updateNotification();
 void checkPowerSave();
 void sleepLCD();
 void wakeLCD();
+
+// Full-screen firmware update progress. While this is up the UI task must not
+// repaint over it, so isOtaScreenActive() is checked in the uiTask loop.
+void showOtaProgress(int pct);
+void hideOtaProgress();
+bool isOtaScreenActive();
 void resetActivityTimer();
 
 // Screensaver (clock mode)

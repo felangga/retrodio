@@ -70,9 +70,10 @@ void setupOTA() {
     }
     isPlaying = false;
 
-    // Wake the panel if it was asleep so the progress is actually visible.
+    // Wake the panel if it was asleep so the progress is actually visible, then
+    // hand the whole screen to the progress display.
     wakeLCD();
-    showNotification("Updating via OTA...", 0);
+    showOtaProgress(0);
   });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
@@ -87,18 +88,24 @@ void setupOTA() {
     otaLastBarUpdate = now;
 
     int pct = total ? (int)((uint64_t)progress * 100 / total) : 0;
-    showNotification("OTA " + String(pct) + "%", 0);
+    showOtaProgress(pct);
   });
 
   ArduinoOTA.onEnd([]() {
     OTA_DEBUG_PRINTLN("\nOTA Update Complete!");
     otaUpdating = false;
-    showNotification("OTA done, rebooting...", 0);
+    // Leave the progress screen up: the device reboots from here, and a "done"
+    // toast would only be visible for a fraction of a second.
+    showOtaProgress(100);
   });
 
   ArduinoOTA.onError([](ota_error_t error) {
     OTA_DEBUG_PRINTF("Error[%u]: ", error);
     otaUpdating = false;
+    // Drop the full-screen progress first: leaving it up would hide the error
+    // and make the radio look hung after a failed upload.
+    hideOtaProgress();
+    drawInterface(lcd);
     if (error == OTA_AUTH_ERROR) {
       OTA_DEBUG_PRINTLN("Auth Failed");
       showNotification("OTA failed: auth", 4000);

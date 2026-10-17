@@ -647,11 +647,13 @@ void sleepLCD() {
 // Clock screensaver: panel stays lit, content is replaced by a large clock.
 static void drawScreensaverClock() {
   struct tm timeinfo;
-  char buf[9];
+  // Minutes only: a seconds field would repaint the whole panel once a second,
+  // and the flicker is visible on this panel.
+  char buf[6];
   if (!getLocalTime(&timeinfo)) {
-    strcpy(buf, "--:--:--");
+    strcpy(buf, "--:--");
   } else {
-    strftime(buf, sizeof(buf), "%H:%M:%S", &timeinfo);
+    strftime(buf, sizeof(buf), "%H:%M", &timeinfo);
   }
 
   lcd.startWrite();
@@ -683,9 +685,9 @@ void enterClockScreensaver() {
 
   drawScreensaverClock();
   struct tm timeinfo;
-  char buf[9];
+  char buf[6];
   if (getLocalTime(&timeinfo)) {
-    strftime(buf, sizeof(buf), "%H:%M:%S", &timeinfo);
+    strftime(buf, sizeof(buf), "%H:%M", &timeinfo);
     screensaverClockDrawn = String(buf);
   }
 }
@@ -701,26 +703,12 @@ void wakeLCD() {
     lcd.setBrightness(savedBrightness);
     lcdSleeping = false;
   } else {
-    // Clock screensaver painted over the whole panel, so the UI has to come
-    // back. Repaint only what the screensaver covered: the desktop background,
-    // the menu/bottom bars and the visible windows. Never re-run the window
-    // initialisers here -- they rebuild and reallocate every component.
+    // Clock screensaver painted over the whole panel, so the entire UI has to be
+    // repainted. drawInterface() is safe to re-run: every initializeXWindow()
+    // starts with clearChildComponents(), which deletes the old components
+    // before allocating new ones, so nothing leaks.
     lcd.setBrightness(savedBrightness);  // undo the screensaver dim
-
-    lcd.startWrite();
-    drawCheckeredPattern(lcd);
-    drawMenuBar(lcd, "Retrodio");
-    drawBottomBar(lcd, "", false);
-
-    int windowCount = 0;
-    UIWindow** windows = getVisibleWindows(windowCount);
-    for (int i = 0; i < windowCount; i++) {
-      drawWindow(lcd, *windows[i]);
-      if (!windows[i]->minimized) {
-        redrawWindowContent(lcd, *windows[i]);
-      }
-    }
-    lcd.endWrite();
+    drawInterface(lcd);
     screensaverActive = false;
   }
 
@@ -772,16 +760,74 @@ void updateScreensaver() {
   if (!screensaverActive) return;
 
   struct tm timeinfo;
-  char buf[9];
+  char buf[6];
   if (!getLocalTime(&timeinfo)) {
     return;  // NTP not ready; keep showing the previous time
   }
-  strftime(buf, sizeof(buf), "%H:%M:%S", &timeinfo);
+  strftime(buf, sizeof(buf), "%H:%M", &timeinfo);
 
   if (String(buf) == screensaverClockDrawn) return;
   screensaverClockDrawn = String(buf);
   drawScreensaverClock();
 }
+
+// ===== OTA progress screen =====
+//
+// A firmware update is the one moment the radio is useless anyway, so it takes
+// the whole panel: a bottom-bar percentage is easy to miss and the device looks
+// hung while it reboots.
+
+static bool otaScreenActive = false;
+static int otaScreenPct = -1;
+static int otaRenderedPct = -1;
+
+void showOtaProgress(int pct) {
+  // Record only. This is called from the ArduinoOTA task; drawing here would put
+  // two tasks inside lcd.startWrite()/endWrite() and hang the SPI bus. uiTask
+  // renders the screen from this state.
+  otaScreenActive = true;
+  otaScreenPct = pct;
+}
+
+static void renderOtaScreen() {
+  int pct = otaScreenPct;
+
+  const int barW = screenWidth - 80;
+  const int barH = 24;
+  const int barX = 40;
+  const int barY = screenHeight / 2 + 20;
+
+  lcd.startWrite();
+  lcd.fillScreen(UI_BLACK);
+  lcd.setTextColor(UI_WHITE, UI_BLACK);
+  lcd.setTextDatum(textdatum_t::middle_center);
+  lcd.setFont(&fonts::Font4);
+  lcd.drawString("Updating firmware", screenWidth / 2, screenHeight / 2 - 60);
+
+  lcd.setFont(&fonts::Font2);
+  lcd.setTextColor(UI_LIGHT_GRAY, UI_BLACK);
+  lcd.drawString("Radio paused - do not power off", screenWidth / 2, screenHeight / 2 - 24);
+
+  // Track, then fill, then percentage.
+  lcd.drawRect(barX, barY, barW, barH, UI_LIGHT_GRAY);
+  if (pct > 0) {
+    lcd.fillRect(barX + 2, barY + 2, (barW - 4) * pct / 100, barH - 4, UI_WHITE);
+  }
+
+  lcd.setTextColor(UI_WHITE, UI_BLACK);
+  lcd.setFont(&fonts::Font4);
+  lcd.drawString(String(pct) + "%", screenWidth / 2, barY + barH + 34);
+  lcd.setFont(nullptr);
+  lcd.endWrite();
+}
+
+void hideOtaProgress() {
+  otaScreenActive = false;
+  otaScreenPct = -1;
+  otaRenderedPct = -1;
+}
+
+bool isOtaScreenActive() { return otaScreenActive; }
 
 // ===== UI Task =====
 
@@ -813,6 +859,18 @@ void uiTask(void* parameter) {
     // Skip UI updates if LCD is sleeping
     if (lcdSleeping) {
       vTaskDelay(100 / portTICK_PERIOD_MS);
+      continue;
+    }
+
+    // A firmware update owns the panel; the progress screen must not be
+    // repainted over by the clock or the station metadata.
+    if (otaScreenActive) {
+      // Render here, on the UI task, which owns the panel.
+      if (otaScreenPct != otaRenderedPct) {
+        otaRenderedPct = otaScreenPct;
+        renderOtaScreen();
+      }
+      vTaskDelay(50 / portTICK_PERIOD_MS);
       continue;
     }
 
