@@ -97,6 +97,9 @@ const int LBL_TIMEOUT_VALUE = 606;
 const int LBL_ABOUT_TITLE = 607;
 const int LBL_ABOUT_AUTHOR = 608;
 const int LBL_ABOUT_GITHUB = 609;
+const int LBL_SCREENSAVER = 610;
+const int CMP_SS_BLANK = 611;
+const int CMP_SS_CLOCK = 612;
 
 // WiFi Window Components
 const int WIFI_LIST_COMPONENT = 500;
@@ -353,7 +356,10 @@ void setup() {
     }
   }
 
-  setupOTA();
+  // OTA is NOT armed here. begin() before the interface has an IP publishes
+  // nothing to mDNS and is never retried, so a slow DHCP lease would kill OTA
+  // for the whole session. ensureOTA() in loop() arms it once WiFi is really up.
+  ensureOTA();
 
   initializeAudio();
 
@@ -401,6 +407,8 @@ void setup() {
 }
 
 void loop() {
+  handleWiFiReconnect();
+  ensureOTA();
   handleOTA();
   handleWebServer();
   vTaskDelay(10);

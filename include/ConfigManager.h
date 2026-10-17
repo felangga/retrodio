@@ -20,6 +20,13 @@
 #define SETTINGS_FILE "/settings.json"
 #define STATIONS_FILE "/stations.json"
 
+// What the screen shows while the power-save timer has it dimmed. BLANK turns
+// the panel off entirely; CLOCK keeps it on and draws a large digital clock.
+enum ScreensaverMode {
+  SCREENSAVER_BLANK = 0,
+  SCREENSAVER_CLOCK = 1
+};
+
 // Station data structure
 struct Station {
   String name;
@@ -63,6 +70,10 @@ class ConfigManager {
   static bool getPowerSaveEnabled();
   static void setPowerSaveEnabled(bool enabled);
 
+  // Screensaver management
+  static ScreensaverMode getScreensaverMode();
+  static void setScreensaverMode(ScreensaverMode mode);
+
   // Utility functions
   static void factoryReset();
   static void printDebugInfo();
@@ -75,6 +86,7 @@ class ConfigManager {
   static String wifiPassword;
   static unsigned long lcdIdleTimeout;
   static bool powerSaveEnabled;
+  static ScreensaverMode screensaverMode;
 
   // Station list
   static Station stations[MAX_STATIONS];

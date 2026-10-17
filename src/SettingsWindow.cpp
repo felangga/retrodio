@@ -18,6 +18,9 @@ void initializeSettingsWindow() {
   extern const int BTN_SETTINGS_CANCEL;
   extern const int LBL_IDLE_TIMEOUT;
   extern const int CMP_IDLE_TIMEOUT_SLIDER;
+  extern const int LBL_SCREENSAVER;
+  extern const int CMP_SS_BLANK;
+  extern const int CMP_SS_CLOCK;
 
   clearChildComponents(settingsWindow);
 
@@ -79,13 +82,48 @@ void initializeSettingsWindow() {
   };
   addChildComponent(settingsWindow, sliderTimeout);
 
+  // Screensaver selector. Two checkboxes act as a radio pair: tapping one
+  // selects it and clears the other, since the mode is a single choice.
+  UIComponent* lblScreensaver =
+      createLabelComponent(33, 112, 200, 20, LBL_SCREENSAVER, "Screensaver:");
+  UILabel* ssLabelData = (UILabel*)lblScreensaver->customData;
+  ssLabelData->font = FONT_CHICAGO_9PT;
+  addChildComponent(settingsWindow, lblScreensaver);
+
+  bool clockMode = (ConfigManager::getScreensaverMode() == SCREENSAVER_CLOCK);
+
+  UIComponent* cbBlank = createCheckBoxComponent(33, 132, 90, 20, CMP_SS_BLANK,
+                                                 "Blank", !clockMode);
+  UIComponent* cbClock = createCheckBoxComponent(150, 132, 90, 20, CMP_SS_CLOCK,
+                                                 "Clock", clockMode);
+
+  auto setScreensaver = [](int componentId) {
+    bool clock = (componentId == CMP_SS_CLOCK);
+    ConfigManager::setScreensaverMode(clock ? SCREENSAVER_CLOCK
+                                            : SCREENSAVER_BLANK);
+    // Keep both boxes in sync with the chosen mode.
+    UIComponent* b = findComponentById(settingsWindow, CMP_SS_BLANK);
+    UIComponent* c = findComponentById(settingsWindow, CMP_SS_CLOCK);
+    if (b && b->customData) ((UICheckBox*)b->customData)->checked = !clock;
+    if (c && c->customData) ((UICheckBox*)c->customData)->checked = clock;
+
+    lcd.startWrite();
+    if (b) drawComponent(lcd, *b, settingsWindow.x, settingsWindow.y);
+    if (c) drawComponent(lcd, *c, settingsWindow.x, settingsWindow.y);
+    lcd.endWrite();
+  };
+  cbBlank->onClick = setScreensaver;
+  cbClock->onClick = setScreensaver;
+  addChildComponent(settingsWindow, cbBlank);
+  addChildComponent(settingsWindow, cbClock);
+
   // Save Button
-  UIComponent* btnSave = createButtonComponent(160, 130, 80, 30, BTN_SETTINGS_SAVE, "Save");
+  UIComponent* btnSave = createButtonComponent(160, 155, 80, 25, BTN_SETTINGS_SAVE, "Save");
   btnSave->onClick = [](int componentId) { onSettingsSaveButtonClick(); };
   addChildComponent(settingsWindow, btnSave);
 
   // Cancel Button
-  UIComponent* btnCancel = createButtonComponent(250, 130, 80, 30, BTN_SETTINGS_CANCEL, "Cancel");
+  UIComponent* btnCancel = createButtonComponent(250, 155, 80, 25, BTN_SETTINGS_CANCEL, "Cancel");
   btnCancel->onClick = [](int componentId) { onSettingsCancelButtonClick(); };
   addChildComponent(settingsWindow, btnCancel);
 }

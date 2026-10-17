@@ -13,6 +13,7 @@ String ConfigManager::wifiSSID = "";
 String ConfigManager::wifiPassword = "";
 unsigned long ConfigManager::lcdIdleTimeout = DEFAULT_LCD_IDLE_TIMEOUT;
 bool ConfigManager::powerSaveEnabled = true;
+ScreensaverMode ConfigManager::screensaverMode = SCREENSAVER_BLANK;
 Station ConfigManager::stations[MAX_STATIONS];
 int ConfigManager::stationCount = 0;
 
@@ -53,6 +54,12 @@ bool ConfigManager::loadSettings() {
   wifiPassword = doc["wifiPassword"] | "";
   lcdIdleTimeout = doc["lcdIdleTimeout"] | DEFAULT_LCD_IDLE_TIMEOUT;
   powerSaveEnabled = doc["powerSaveEnabled"] | true;
+  // "blank" | "clock"; an unknown or missing value falls back to blank so a
+  // settings file from an older firmware still loads.
+  {
+    String mode = doc["screensaverMode"] | "blank";
+    screensaverMode = (mode == "clock") ? SCREENSAVER_CLOCK : SCREENSAVER_BLANK;
+  }
 
   return true;
 }
@@ -66,6 +73,8 @@ bool ConfigManager::saveSettings() {
   doc["wifiPassword"] = wifiPassword;
   doc["lcdIdleTimeout"] = lcdIdleTimeout;
   doc["powerSaveEnabled"] = powerSaveEnabled;
+  doc["screensaverMode"] =
+      (screensaverMode == SCREENSAVER_CLOCK) ? "clock" : "blank";
 
   File file = LittleFS.open(SETTINGS_FILE, "w");
   if (!file) {
@@ -217,7 +226,8 @@ unsigned long ConfigManager::getLcdIdleTimeout() {
 }
 
 void ConfigManager::setLcdIdleTimeout(unsigned long timeout) {
-  lcdIdleTimeout = constrain(timeout, MIN_LCD_IDLE_TIMEOUT, MAX_LCD_IDLE_TIMEOUT);
+  lcdIdleTimeout = constrain(timeout, (unsigned long)MIN_LCD_IDLE_TIMEOUT,
+                             (unsigned long)MAX_LCD_IDLE_TIMEOUT);
   saveSettings();
 }
 
@@ -230,14 +240,21 @@ void ConfigManager::setPowerSaveEnabled(bool enabled) {
   saveSettings();
 }
 
-void ConfigManager::factoryReset() {
-  createDefaultSettings();
-  createDefaultStations();
+ScreensaverMode ConfigManager::getScreensaverMode() {
+  return screensaverMode;
+}
+
+void ConfigManager::setScreensaverMode(ScreensaverMode mode) {
+  screensaverMode = mode;
+  saveSettings();
 }
 
 bool ConfigManager::createDefaultSettings() {
   volume = 5;
   lastStation = {"", ""};
+  lcdIdleTimeout = DEFAULT_LCD_IDLE_TIMEOUT;
+  powerSaveEnabled = true;
+  screensaverMode = SCREENSAVER_BLANK;
   return saveSettings();
 }
 
@@ -258,4 +275,9 @@ bool ConfigManager::createDefaultStations() {
   addStation("BBC World Service",
              "https://radio.garden/api/ara/content/listen/FXyhz9Xk/channel.mp3?1766930004566");
   return true;
+}
+
+void ConfigManager::factoryReset() {
+  createDefaultSettings();
+  createDefaultStations();
 }

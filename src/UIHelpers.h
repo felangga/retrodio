@@ -29,6 +29,10 @@ void sleepLCD();
 void wakeLCD();
 void resetActivityTimer();
 
+// Screensaver (clock mode)
+void enterClockScreensaver();
+void updateScreensaver();
+
 // Interface drawing
 void drawInterface(lgfx::LGFX_Device& lcd);
 void redrawWindowContent(lgfx::LGFX_Device& lcd, const UIWindow& window);

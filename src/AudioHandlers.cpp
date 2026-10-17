@@ -196,6 +196,18 @@ void audioTask(void* parameter) {
   vTaskDelay(pdMS_TO_TICKS(500));
 
   while (true) {
+    // An OTA update owns the flash and the SPI bus. Keep the decoder idle so it
+    // cannot starve the network receive loop or corrupt the write.
+    extern bool isOtaUpdating();
+    if (isOtaUpdating()) {
+      if (isPlaying) {
+        audio.stopSong();
+        isPlaying = false;
+      }
+      vTaskDelay(pdMS_TO_TICKS(100));
+      continue;
+    }
+
     AudioCommandMsg msg;
     if (xQueueReceive(audioCommandQueue, &msg, 0) == pdTRUE) {
       switch (msg.cmd) {

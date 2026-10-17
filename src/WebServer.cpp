@@ -49,7 +49,11 @@ void initWebServer() {
 }
 
 void handleWebServer() {
-  server.handleClient();
+  // Guarded: if WiFi was not up at boot the server was never begun, and calling
+  // handleClient() on an unstarted server is at best wasted work every loop.
+  if (webServerInitialized) {
+    server.handleClient();
+  }
 }
 
 void handleRoot() {

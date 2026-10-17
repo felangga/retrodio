@@ -8,6 +8,7 @@
  */
 
 #include "UI.h"
+#include <WiFi.h>
 
 // Slider constants (must match UISlider.cpp)
 #define SLIDER_THUMB_SIZE 30
@@ -97,6 +98,19 @@ void drawBottomBar(lgfx::LGFX_Device& lcd, const String& message, bool highlight
     lcd.drawString(message, screenWidth / 2, barY + barHeight / 2);
     lcd.setFont(nullptr);
   }
+
+  // IP address, right-aligned, always shown so the device is reachable without
+  // having to read the serial console. Drawn from WiFi.localIP() so it is
+  // correct even after a DHCP lease change.
+  lcd.setTextColor(highlight ? UI_WHITE : UI_BLACK, highlight ? UI_BLACK : UI_WHITE);
+  lcd.setFont(getFontFromType(FONT_CHICAGO_9PT));
+  lcd.setTextDatum(textdatum_t::middle_right);
+  String ip = "no wifi";
+  if (WiFi.status() == WL_CONNECTED) {
+    ip = WiFi.localIP().toString();
+  }
+  lcd.drawString(ip, screenWidth - 4, barY + barHeight / 2);
+  lcd.setFont(nullptr);
 }
 
 void drawClock(lgfx::LGFX_Device& lcd, const String& time) {

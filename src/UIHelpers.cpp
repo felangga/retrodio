@@ -86,6 +86,11 @@ void updateClock() {
   drawClock(lcd, current);
 }
 
+// Screensaver state.  means the clock is on screen; the
+// panel is still lit and the UI is repainted on wake.
+static bool screensaverActive = false;
+static String screensaverClockDrawn;
+
 static unsigned long lastWifiUpdate = 0;
 static int lastRssi = 1;  // Use 1 as "not yet initialized" (valid RSSI is always negative)
 
@@ -636,16 +641,88 @@ void sleepLCD() {
   lcd.sleep();
 
   lcdSleeping = true;
+  screensaverActive = false;
+}
+
+// Clock screensaver: panel stays lit, content is replaced by a large clock.
+static void drawScreensaverClock() {
+  struct tm timeinfo;
+  char buf[9];
+  if (!getLocalTime(&timeinfo)) {
+    strcpy(buf, "--:--:--");
+  } else {
+    strftime(buf, sizeof(buf), "%H:%M:%S", &timeinfo);
+  }
+
+  lcd.startWrite();
+  lcd.fillScreen(UI_BLACK);
+  lcd.setTextColor(UI_WHITE, UI_BLACK);
+  lcd.setTextDatum(textdatum_t::middle_center);
+  // Font7 is the largest built-in face; push it further with a text size so the
+  // clock fills the panel rather than floating in the middle of it.
+  lcd.setFont(&fonts::Font7);
+  lcd.setTextSize(2);
+  lcd.drawString(buf, screenWidth / 2, screenHeight / 2);
+  lcd.setTextSize(1);
+  lcd.setFont(nullptr);
+  lcd.endWrite();
+}
+
+// Screensaver dims the backlight to save power but stays readable.
+static const uint8_t SCREENSAVER_BRIGHTNESS = 60;
+
+void enterClockScreensaver() {
+  screensaverActive = true;
+  screensaverClockDrawn = "";
+  lastActivityTime = millis();  // the clock's own blank-out timer starts here
+
+  // Dim now that the panel is mostly black; full brightness would waste power on
+  // a screen nobody is looking at.
+  savedBrightness = lcd.getBrightness();
+  lcd.setBrightness(SCREENSAVER_BRIGHTNESS);
+
+  drawScreensaverClock();
+  struct tm timeinfo;
+  char buf[9];
+  if (getLocalTime(&timeinfo)) {
+    strftime(buf, sizeof(buf), "%H:%M:%S", &timeinfo);
+    screensaverClockDrawn = String(buf);
+  }
 }
 
 void wakeLCD() {
-  if (!lcdSleeping) return;
+  if (!lcdSleeping && !screensaverActive) return;
 
-  // Wake up display
-  lcd.wakeup();
-  lcd.setBrightness(savedBrightness);
+  if (lcdSleeping) {
+    // Wake up display. The panel keeps its contents through sleep()/wakeup(),
+    // so nothing needs repainting here -- the original code did exactly this
+    // and no more.
+    lcd.wakeup();
+    lcd.setBrightness(savedBrightness);
+    lcdSleeping = false;
+  } else {
+    // Clock screensaver painted over the whole panel, so the UI has to come
+    // back. Repaint only what the screensaver covered: the desktop background,
+    // the menu/bottom bars and the visible windows. Never re-run the window
+    // initialisers here -- they rebuild and reallocate every component.
+    lcd.setBrightness(savedBrightness);  // undo the screensaver dim
 
-  lcdSleeping = false;
+    lcd.startWrite();
+    drawCheckeredPattern(lcd);
+    drawMenuBar(lcd, "Retrodio");
+    drawBottomBar(lcd, "", false);
+
+    int windowCount = 0;
+    UIWindow** windows = getVisibleWindows(windowCount);
+    for (int i = 0; i < windowCount; i++) {
+      drawWindow(lcd, *windows[i]);
+      if (!windows[i]->minimized) {
+        redrawWindowContent(lcd, *windows[i]);
+      }
+    }
+    lcd.endWrite();
+    screensaverActive = false;
+  }
 
   // Reset activity timer
   lastActivityTime = millis();
@@ -654,8 +731,8 @@ void wakeLCD() {
 void resetActivityTimer() {
   lastActivityTime = millis();
 
-  // Wake LCD if it's sleeping
-  if (lcdSleeping) {
+  // Wake LCD if it's sleeping or showing the screensaver
+  if (lcdSleeping || screensaverActive) {
     wakeLCD();
   }
 }
@@ -671,13 +748,39 @@ void checkPowerSave() {
     return;
   }
 
+  // The clock screensaver stays up until touched. It deliberately does NOT fall
+  // through to sleepLCD() after another timeout: a clock that blanks itself is
+  // useless as a clock.
+  if (screensaverActive) {
+    return;
+  }
+
   // Check if idle timeout has elapsed
   unsigned long idleTime = millis() - lastActivityTime;
   unsigned long timeout = ConfigManager::getLcdIdleTimeout();
 
   if (idleTime >= timeout) {
-    sleepLCD();
+    if (ConfigManager::getScreensaverMode() == SCREENSAVER_CLOCK) {
+      enterClockScreensaver();
+    } else {
+      sleepLCD();
+    }
   }
+}
+
+void updateScreensaver() {
+  if (!screensaverActive) return;
+
+  struct tm timeinfo;
+  char buf[9];
+  if (!getLocalTime(&timeinfo)) {
+    return;  // NTP not ready; keep showing the previous time
+  }
+  strftime(buf, sizeof(buf), "%H:%M:%S", &timeinfo);
+
+  if (String(buf) == screensaverClockDrawn) return;
+  screensaverClockDrawn = String(buf);
+  drawScreensaverClock();
 }
 
 // ===== UI Task =====
@@ -710,6 +813,15 @@ void uiTask(void* parameter) {
     // Skip UI updates if LCD is sleeping
     if (lcdSleeping) {
       vTaskDelay(100 / portTICK_PERIOD_MS);
+      continue;
+    }
+
+    // Clock screensaver owns the whole panel: nothing else may draw over it.
+    // updateClock() writes the corner clock and the metadata updaters repaint
+    // the station name, which is what corrupted the screensaver display.
+    if (screensaverActive) {
+      updateScreensaver();
+      vTaskDelay(50 / portTICK_PERIOD_MS);
       continue;
     }
 
