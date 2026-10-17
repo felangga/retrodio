@@ -89,6 +89,7 @@ void updateClock() {
 // Screensaver state.  means the clock is on screen; the
 // panel is still lit and the UI is repainted on wake.
 static bool screensaverActive = false;
+static volatile bool uiWakeRequested = false;
 static String screensaverClockDrawn;
 
 static unsigned long lastWifiUpdate = 0;
@@ -725,6 +726,14 @@ void resetActivityTimer() {
   }
 }
 
+// Called from the web remote, which runs on loopTask while uiTask owns the
+// panel. Drawing here would put two tasks inside startWrite()/endWrite(), so the
+// wake is deferred to uiTask instead.
+void requestUiWake() {
+  lastActivityTime = millis();
+  uiWakeRequested = true;
+}
+
 void checkPowerSave() {
   // Skip if power save is disabled
   if (!ConfigManager::getPowerSaveEnabled()) {
@@ -847,6 +856,13 @@ void uiTask(void* parameter) {
   lastActivityTime = millis();
 
   while (true) {
+    // A command from the web remote wakes the panel: leaving a clock screensaver
+    // up while the user is actively driving the radio looks broken.
+    if (uiWakeRequested) {
+      uiWakeRequested = false;
+      resetActivityTimer();
+    }
+
     // Check for touch to wake LCD and reset activity timer
     int16_t tx, ty;
     if (lcd.getTouch(&tx, &ty)) {

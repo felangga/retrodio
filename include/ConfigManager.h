@@ -64,6 +64,12 @@ class ConfigManager {
   static String getWifiPassword();
   static void setWifiCredentials(const String& ssid, const String& password);
 
+  // BSSID pinning. Two APs can broadcast the same SSID on different subnets; the
+  // ESP32 then roams between them and changes IP, which silently breaks OTA. The
+  // MAC of the AP we actually want is persisted so the radio stops roaming.
+  static String getWifiBSSID();          // "" = not pinned
+  static void setWifiBSSID(const String& bssid);
+
   // Power save management
   static unsigned long getLcdIdleTimeout();
   static void setLcdIdleTimeout(unsigned long timeout);
@@ -83,6 +89,7 @@ class ConfigManager {
   static int volume;
   static LastStation lastStation;
   static String wifiSSID;
+  static String wifiBSSID;
   static String wifiPassword;
   static unsigned long lcdIdleTimeout;
   static bool powerSaveEnabled;

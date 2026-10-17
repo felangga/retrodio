@@ -10,6 +10,7 @@
 #include "ConfigManager.h"
 #include "GlobalState.h"
 #include "StationManager.h"
+#include "UIHelpers.h"
 
 #if ENABLE_SERIAL_DEBUG
 #define DEBUG_PRINT(x) Serial.print(x)
@@ -743,6 +744,8 @@ void handleGetStatus() {
 }
 
 void handleSetVolume() {
+  requestUiWake();  // a remote command exits the screensaver
+
   if (server.hasArg("plain")) {
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, server.arg("plain"));
@@ -780,6 +783,8 @@ void handleSetVolume() {
 }
 
 void handleSelectStation() {
+  requestUiWake();  // a remote command exits the screensaver
+
   if (server.hasArg("plain")) {
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, server.arg("plain"));
@@ -800,6 +805,8 @@ void handleSelectStation() {
 }
 
 void handlePlayPause() {
+  requestUiWake();  // a remote command exits the screensaver
+
   extern Audio audio;
   extern QueueHandle_t audioCommandQueue;
   extern volatile bool isPlaying;
@@ -829,6 +836,8 @@ void handlePlayPause() {
 }
 
 void handleNext() {
+  requestUiWake();  // a remote command exits the screensaver
+
   int stationCount = ConfigManager::getStationCount();
 
   if (stationCount == 0) {
@@ -850,6 +859,8 @@ void handleNext() {
 }
 
 void handlePrevious() {
+  requestUiWake();  // a remote command exits the screensaver
+
   int stationCount = ConfigManager::getStationCount();
 
   if (stationCount == 0) {
@@ -888,6 +899,8 @@ void handleGetStations() {
 }
 
 void handleAddStation() {
+  requestUiWake();  // a remote command exits the screensaver
+
   if (server.hasArg("plain")) {
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, server.arg("plain"));
@@ -918,6 +931,8 @@ void handleAddStation() {
 }
 
 void handleEditStation() {
+  requestUiWake();  // a remote command exits the screensaver
+
   if (server.hasArg("plain")) {
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, server.arg("plain"));
@@ -960,6 +975,8 @@ void handleEditStation() {
 }
 
 void handleDeleteStation() {
+  requestUiWake();  // a remote command exits the screensaver
+
   if (server.hasArg("plain")) {
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, server.arg("plain"));

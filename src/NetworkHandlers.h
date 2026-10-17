@@ -15,4 +15,7 @@ bool isWiFiConnected();
 // Call from loop(): performs the scheduled reconnect after a dropout.
 void handleWiFiReconnect();
 
+// Join the saved SSID/password, honouring the pinned BSSID if one is stored.
+void beginSavedWiFi();
+
 #endif

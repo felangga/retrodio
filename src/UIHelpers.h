@@ -35,6 +35,10 @@ void hideOtaProgress();
 bool isOtaScreenActive();
 void resetActivityTimer();
 
+// Wake the panel from a non-UI task (the web remote runs on loopTask). Sets a
+// flag; uiTask performs the repaint so only one task ever writes the panel.
+void requestUiWake();
+
 // Screensaver (clock mode)
 void enterClockScreensaver();
 void updateScreensaver();

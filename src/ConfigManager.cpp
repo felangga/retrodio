@@ -10,6 +10,7 @@
 int ConfigManager::volume = 5;
 LastStation ConfigManager::lastStation = {"", ""};
 String ConfigManager::wifiSSID = "";
+String ConfigManager::wifiBSSID = "";
 String ConfigManager::wifiPassword = "";
 unsigned long ConfigManager::lcdIdleTimeout = DEFAULT_LCD_IDLE_TIMEOUT;
 bool ConfigManager::powerSaveEnabled = true;
@@ -52,6 +53,7 @@ bool ConfigManager::loadSettings() {
   lastStation.url = doc["lastStationURL"] | "";
   wifiSSID = doc["wifiSSID"] | "";
   wifiPassword = doc["wifiPassword"] | "";
+  wifiBSSID = doc["wifiBSSID"] | "";
   lcdIdleTimeout = doc["lcdIdleTimeout"] | DEFAULT_LCD_IDLE_TIMEOUT;
   powerSaveEnabled = doc["powerSaveEnabled"] | true;
   // "blank" | "clock"; an unknown or missing value falls back to blank so a
@@ -71,6 +73,7 @@ bool ConfigManager::saveSettings() {
   doc["lastStationURL"] = lastStation.url;
   doc["wifiSSID"] = wifiSSID;
   doc["wifiPassword"] = wifiPassword;
+  doc["wifiBSSID"] = wifiBSSID;
   doc["lcdIdleTimeout"] = lcdIdleTimeout;
   doc["powerSaveEnabled"] = powerSaveEnabled;
   doc["screensaverMode"] =
@@ -205,6 +208,15 @@ bool ConfigManager::updateStation(int index, const String& name, const String& u
 void ConfigManager::clearStations() {
   stationCount = 0;
   saveStations();
+}
+
+String ConfigManager::getWifiBSSID() {
+  return wifiBSSID;
+}
+
+void ConfigManager::setWifiBSSID(const String& bssid) {
+  wifiBSSID = bssid;
+  saveSettings();
 }
 
 String ConfigManager::getWifiSSID() {

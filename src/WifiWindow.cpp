@@ -8,6 +8,7 @@
 #include "WifiWindow.h"
 #include <WiFi.h>
 #include "ConfigManager.h"
+#include "NetworkHandlers.h"
 #include "GlobalState.h"
 #include "RadioWindow.h"
 #include "UIHelpers.h"
@@ -516,19 +517,13 @@ void onWifiConnectButtonClick() {
 
 void reconnectWifi() {
   String savedSSID = ConfigManager::getWifiSSID();
-  String savedPassword = ConfigManager::getWifiPassword();
-
   if (savedSSID.length() > 0) {
     showNotification("Connecting to " + savedSSID + "...");
     WiFi.disconnect();
     WiFi.mode(WIFI_STA);
     delay(100);
 
-    if (savedPassword.length() > 0) {
-      WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
-    } else {
-      WiFi.begin(savedSSID.c_str());
-    }
+    beginSavedWiFi();
 
     unsigned long startTime = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - startTime < 5000) {
@@ -597,6 +592,12 @@ void connectToSelectedWifi() {
 void connectToSelectedWifi(const String& password) {
   if (selectedSSID.length() == 0)
     return;
+
+  // A pin belongs to the network it was learned on; picking a different one must
+  // not keep pointing at the old AP.
+  if (ConfigManager::getWifiSSID() != selectedSSID) {
+    ConfigManager::setWifiBSSID("");
+  }
 
   connectionState.start(selectedSSID, password);
   WiFi.disconnect();
