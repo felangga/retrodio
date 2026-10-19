@@ -8,6 +8,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <time.h>
+#include <esp_wifi.h>
 #include "Audio.h"
 #include "ConfigManager.h"
 #include "UI.h"
@@ -413,3 +414,52 @@ void loop() {
   handleWebServer();
   vTaskDelay(10);
 }
+
+// ===== Idle power management =====
+//
+// Streaming keeps the radio at full speed: the I2S DMA needs servicing and the
+// network receive path is busy, so any downclocking there would cause dropouts.
+// Idle is the opposite case -- no audio, no network traffic beyond OTA and the
+// web server -- and it is where the radio spends most of its life, so the
+// frequency can drop hard without anyone noticing.
+//
+// The AP stays associated and OTA keeps listening: WiFi modem sleep wakes the
+// radio for each DTIM beacon, so a new OTA or web request still arrives, just
+// with a few tens of ms of extra latency. That is the right trade for a device
+// sitting on a shelf showing a clock.
+
+static bool idlePowerSave = false;
+
+static void setIdlePowerSave(bool enable) {
+  if (enable == idlePowerSave) return;
+  idlePowerSave = enable;
+
+  if (enable) {
+    // 80 MHz is the lowest frequency that keeps the I2S peripheral clocking the
+    // audio hardware while no stream is being decoded.
+    setCpuFrequencyMhz(80);
+    // MIN_MODEM: the modem sleeps between DTIM beacons but the station stays
+    // associated, so OTA and the web remote remain reachable.
+    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+    DEBUG_PRINTLN("Power save: idle (80 MHz, modem sleep)");
+  } else {
+    esp_wifi_set_ps(WIFI_PS_NONE);  // full-speed receive, no beacon latency
+    setCpuFrequencyMhz(240);
+    DEBUG_PRINTLN("Power save: streaming (240 MHz, radio awake)");
+  }
+}
+
+// Called from the UI task, which is the only task that knows both whether audio
+// is running and whether the panel is asleep.
+void updateIdlePowerSave() {
+  // Idle means: nothing streaming AND the user is not looking at the panel.
+  // A lit screen with the radio paused is still "in use", and downclocking
+  // there would make the UI visibly sluggish for no real saving.
+  bool shouldSave = !isPlaying && (lcdSleeping || isScreensaverActive());
+  setIdlePowerSave(shouldSave);
+}
+
+// Waking repaints the whole panel. Doing that at 80 MHz makes the wake visibly
+// slow, so the caller drops back to full speed first and lets the next
+// updateIdlePowerSave() decide when it is safe to idle again.
+void exitIdlePowerSave() { setIdlePowerSave(false); }

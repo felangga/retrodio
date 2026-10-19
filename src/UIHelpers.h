@@ -42,6 +42,9 @@ void requestUiWake();
 // Screensaver (clock mode)
 void enterClockScreensaver();
 void updateScreensaver();
+// True while the clock screensaver owns the panel. The UI task uses this to skip
+// the normal redraw path and to decide whether the radio may downclock.
+bool isScreensaverActive();
 
 // Interface drawing
 void drawInterface(lgfx::LGFX_Device& lcd);
